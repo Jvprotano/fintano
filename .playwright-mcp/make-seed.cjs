@@ -1,7 +1,7 @@
 const fs = require('fs')
 const ls = JSON.parse(
   fs.readFileSync(
-    'C:/Users/jvpro/Workspace/ultimate-financas/.playwright-mcp/prod-ls.json',
+    'C:/Users/jvpro/Workspace/fintano/.playwright-mcp/prod-ls.json',
     'utf8',
   ),
 )
@@ -20,7 +20,7 @@ const script = `(() => {
   };
 })()`
 fs.writeFileSync(
-  'C:/Users/jvpro/Workspace/ultimate-financas/.playwright-mcp/seed-prod.js',
+  'C:/Users/jvpro/Workspace/fintano/.playwright-mcp/seed-prod.js',
   script,
 )
 console.log('ok', script.length)
