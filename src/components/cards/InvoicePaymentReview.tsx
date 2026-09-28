@@ -36,6 +36,12 @@ export function InvoicePaymentReview({
         />
         <StatTile label={`Próxima: ${formatMonthLong(nextDueMonth)}`} value={formatCurrency(summary.nextTotal)} />
       </div>
+      {summary.currentCreditTotal > 0 && (
+        <p className="mt-3 text-xs leading-relaxed text-dark-text-muted">
+          Abatimentos avulsos registrados: {formatCurrency(summary.currentCreditTotal)} · aplicados nesta fatura: {formatCurrency(summary.currentAppliedCreditTotal)}.
+          {summary.currentUnappliedCreditTotal > 0 && ` ${formatCurrency(summary.currentUnappliedCreditTotal)} excedem a parte pessoal devida no cartão e passarão para a próxima fatura.`}
+        </p>
+      )}
       <div className="mt-4 flex flex-wrap gap-2">
         <PrimaryButton onClick={onConfirm}>
           <CheckCircle2 size={15} />

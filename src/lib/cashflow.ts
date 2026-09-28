@@ -20,6 +20,8 @@ export interface CashFlowInput {
   extraIncome?: number
   /** Saídas avulsas efetivamente pagas no ciclo. */
   extraExpense?: number
+  /** Pagamentos avulsos do cartão que já saíram do caixa neste ciclo. */
+  cardAdvancePaid?: number
   costsOnAccount: number
   costsOnCard: number
   wantsOnAccount: number
@@ -34,6 +36,7 @@ export function calculateCashFlow(input: CashFlowInput): CashFlowSummary {
   // assim uma entrada esperada não libera dinheiro antes de realmente cair.
   const extraIncome = Math.max(0, input.extraIncome ?? 0)
   const extraExpense = Math.max(0, input.extraExpense ?? 0)
+  const cardAdvancePaid = Math.max(0, input.cardAdvancePaid ?? 0)
 
   const plannedOnCard = input.costsOnCard + input.wantsOnCard
   const totalIn = input.paycheck + extraIncome
@@ -42,7 +45,8 @@ export function calculateCashFlow(input: CashFlowInput): CashFlowSummary {
     input.costsOnAccount +
     input.wantsOnAccount +
     input.directInvestment +
-    extraExpense
+    extraExpense +
+    cardAdvancePaid
 
   return {
     paycheck: input.paycheck,
@@ -56,6 +60,7 @@ export function calculateCashFlow(input: CashFlowInput): CashFlowSummary {
     plannedOnCard,
     directInvestment: input.directInvestment,
     extraExpense,
+    cardAdvancePaid,
     totalOut,
     leftover: totalIn - totalOut,
     cardPlanGap: input.invoiceToPay - plannedOnCard,

@@ -11,7 +11,7 @@ import { useActuals } from './useActuals'
 import { calculateScenario } from '../lib/scenario'
 import { buildCurrentCycleFacts } from '../lib/currentCycleFacts'
 import { calculateAllocationPreview, calculateFinancialCycle } from '../lib/financialCycle'
-import { calculateCardCycleAccounting } from '../lib/cardCycleAccounting'
+import { calculateCardCycleAccounting, cardAdvancePaymentsForMonth } from '../lib/cardCycleAccounting'
 import { calculateMonthlyInvestmentActuals } from '../lib/investmentActuals'
 import { calculateAssetsSummary } from '../lib/assets'
 import { occurrencesInMonth, projectNetWorth } from '../lib/forecast'
@@ -170,6 +170,7 @@ export function useFinancas() {
    */
   const currentCycleFacts = useMemo(() => {
     const invoiceToPay = cardCycleAccounting.invoiceThisCycle.personalTotal
+    const cardAdvancePaid = cardAdvancePaymentsForMonth(cards.entries, cards.paidInvoices, activeCycle.month)
     const costsOnAccount = actuals.summary.rows
       .filter((row) => row.cost.paidWith !== 'card')
       .reduce((sum, row) => sum + row.effective, 0)
@@ -182,6 +183,7 @@ export function useFinancas() {
       paycheck: metrics.paycheckInAccount,
       extraIncome: actuals.summary.extraIncomeTotal,
       extraExpense: actuals.summary.extraExpenseTotal,
+      cardAdvancePaid,
       costsOnAccountActual: costsOnAccount,
       costsPlanned: costsOnAccountPlanned,
       wantsOnAccountActual: actuals.summary.effectiveWants,
@@ -200,6 +202,8 @@ export function useFinancas() {
     metrics,
     actuals.summary,
     cardCycleAccounting.invoiceThisCycle.personalTotal,
+    cards.entries,
+    cards.paidInvoices,
     investmentActuals,
   ])
   const cashFlow = currentCycleFacts.cash
@@ -213,7 +217,7 @@ export function useFinancas() {
         costsOnAccount: cashFlow.costsOnAccount,
         wantsOnAccount: cashFlow.wantsOnAccount,
         directInvestment: cashFlow.directInvestment,
-        extraExpense: cashFlow.extraExpense,
+        extraExpense: cashFlow.extraExpense + cashFlow.cardAdvancePaid,
         // A reserva do próximo caixa usa a parte pessoal da fatura que encerra
         // o ciclo ativo.
         nextInvoicePersonal: cardCycleAccounting.invoiceFormedByCycle.personalTotal,

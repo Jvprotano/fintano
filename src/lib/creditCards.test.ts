@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildRemainingInstallmentsAmount,
   calculateCreditCardSummary,
+  carryUnappliedCredits,
   describeCardCycles,
   advanceCreditCardSettingsCycle,
   inferDueMonthFromPaymentDate,
@@ -31,6 +32,47 @@ function entry(overrides: Partial<CreditCardEntry> = {}): CreditCardEntry {
 }
 
 describe('calculateCreditCardSummary', () => {
+  it('transfere só o saldo não aplicado ao pagar a fatura', () => {
+    const purchases = [
+      entry({ id: 'purchase-a', cardName: 'Itaú', amount: 100, personalAmount: 60 }),
+      entry({ id: 'purchase-b', cardName: 'XP', amount: 100, personalAmount: 100 }),
+    ]
+    const credits = [
+      entry({ id: 'credit-a', cardName: 'Itaú', entryType: 'invoiceCredit', creditSource: 'payment', cashCycleMonth: '2026-09', amount: 90, personalAmount: 90 }),
+      entry({ id: 'credit-b', cardName: 'XP', entryType: 'invoiceCredit', creditSource: 'reward', amount: 20, personalAmount: 20 }),
+    ]
+    const carried = carryUnappliedCredits([...purchases, ...credits])
+    expect(carried).toHaveLength(1)
+    expect(carried[0]).toMatchObject({ cardName: 'Itaú', amount: 30, personalAmount: 30, originCreditId: 'credit-a', cashCycleMonth: '2026-09', creditSource: 'payment' })
+    expect(carried[0].id).not.toBe('credit-a')
+  })
+
+  it('abate pagamento ou pontos somente da parte pessoal do cartão escolhido', () => {
+    const summary = calculateCreditCardSummary([
+      entry({ id: 'a', cardName: 'Itaú', amount: 300, personalAmount: 200, budgetArea: 'desejos' }),
+      entry({ id: 'b', cardName: 'XP', amount: 120, personalAmount: 120 }),
+      entry({ id: 'c', cardName: 'Itaú', entryType: 'invoiceCredit', creditSource: 'reward', amount: 80, personalAmount: 80, description: 'Pontos' }),
+    ], settings)
+    expect(summary.currentTotal).toBe(340)
+    expect(summary.currentPersonalTotal).toBe(240)
+    expect(summary.currentThirdPartyTotal).toBe(100)
+    expect(summary.currentCreditTotal).toBe(80)
+    expect(summary.personalByArea.desejos).toBe(200)
+    expect(summary.unclassifiedPersonal).toBe(120)
+    expect(summary.totalsByCard.find((card) => card.cardName === 'Itaú')).toMatchObject({ totalAmount: 220, personalAmount: 120, thirdPartyAmount: 100 })
+  })
+
+  it('não desconta crédito além da parte pessoal do cartão', () => {
+    const summary = calculateCreditCardSummary([
+      entry({ id: 'a', cardName: 'Itaú', amount: 100, personalAmount: 60 }),
+      entry({ id: 'b', cardName: 'XP', amount: 100, personalAmount: 100 }),
+      entry({ id: 'c', cardName: 'Itaú', entryType: 'invoiceCredit', amount: 90, personalAmount: 90 }),
+    ], settings)
+    expect(summary.currentTotal).toBe(140)
+    expect(summary.currentPersonalTotal).toBe(100)
+    expect(summary.currentUnappliedCreditTotal).toBe(30)
+  })
+
   it('separa a sua parte da de terceiros', () => {
     const summary = calculateCreditCardSummary(
       [entry({ amount: 300, personalAmount: 100, ownerName: 'Ana' })],

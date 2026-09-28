@@ -6,6 +6,7 @@ export interface CurrentCycleFactsInput {
   paycheck: number
   extraIncome: number
   extraExpense: number
+  cardAdvancePaid?: number
   invoiceToPay: number
   costsOnAccountActual: number
   costsPlanned: number
@@ -56,6 +57,7 @@ export function buildCurrentCycleFacts(input: CurrentCycleFactsInput): CurrentCy
     paycheck: input.paycheck,
     extraIncome: input.extraIncome,
     extraExpense: input.extraExpense,
+    cardAdvancePaid: input.cardAdvancePaid,
     costsOnAccount: input.costsOnAccountActual,
     costsOnCard: input.costsOnCardPlanned,
     wantsOnAccount: input.wantsOnAccountActual,

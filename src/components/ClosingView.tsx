@@ -211,6 +211,12 @@ export function ClosingView({
               <dt className="text-dark-text-muted">Extraordinários pagos</dt>
               <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.extraExpense)}</dd>
             </div>
+            {cashFlow.cardAdvancePaid > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-dark-text-muted">Cartão pago antecipadamente</dt>
+                <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.cardAdvancePaid)}</dd>
+              </div>
+            )}
           </dl>
         )}
 
@@ -418,6 +424,9 @@ export function ClosingView({
                   )}
                   {actuals.summary.extraExpenseTotal > 0.005 && (
                     <> · extraordinários pagos {formatCurrency(actuals.summary.extraExpenseTotal)}</>
+                  )}
+                  {cashFlow.cardAdvancePaid > 0.005 && (
+                    <> · cartão pago avulso {formatCurrency(cashFlow.cardAdvancePaid)}</>
                   )}
                   .
                 </p>

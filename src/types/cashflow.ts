@@ -10,6 +10,7 @@ export interface CashFlowSummary {
   plannedOnCard: number
   directInvestment: number
   extraExpense: number
+  cardAdvancePaid: number
   totalOut: number
   leftover: number
   cardPlanGap: number

@@ -94,7 +94,6 @@ export function CardEntryForm({
     setAmountInputMode('installment')
     setPersonalAmount(0)
     setRemainingAmount(0)
-    setOwnerNote('')
     setInstallmentCurrent('')
     setInstallmentTotal('')
     setIsRecurring(false)

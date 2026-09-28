@@ -158,6 +158,10 @@ export interface CardChargeV7 {
   recurring?: boolean
   prepaid?: boolean
   generatedFromChargeId?: string
+  entryType?: 'invoiceCredit'
+  creditSource?: 'payment' | 'reward'
+  cashCycleMonth?: MonthKey
+  originCreditId?: string
 }
 
 export interface CardStatementV7 {
@@ -167,6 +171,7 @@ export interface CardStatementV7 {
   totalCents: MoneyCents | null
   personalTotalCents: MoneyCents
   paidAt: string
+  credits?: { id: string; accountId: string; description: string; date: string; amountCents: MoneyCents; source: 'payment' | 'reward'; cashCycleMonth?: MonthKey; originCreditId?: string }[]
   spending: {
     month: MonthKey
     spentPersonalCents: MoneyCents

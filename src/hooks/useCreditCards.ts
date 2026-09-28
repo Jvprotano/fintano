@@ -10,6 +10,7 @@ import {
   advanceCreditCardSettingsCycle,
   buildRemainingInstallmentsAmount,
   calculateCreditCardSummary,
+  carryUnappliedCredits,
   describeCardCycles,
   inferDueMonthFromPaymentDate,
   normalizeCreditCardSettings,
@@ -287,6 +288,9 @@ export function useCreditCards() {
     setEntries((prev) => {
       // Sincroniza antes de virar: assinaturas/parcelas precisam existir na próxima fatura.
       const syncedEntries = syncEntriesForDueMonth(prev, currentDueMonth)
+      const carriedCredits = carryUnappliedCredits(syncedEntries).map((credit) =>
+        normalizeEntryForDueMonth(credit, nextDueMonth),
+      )
       const newCurrentEntries = syncedEntries
         .filter((entry) => entry.cycle === 'next')
         .map((entry) =>
@@ -302,7 +306,7 @@ export function useCreditCards() {
           ),
         )
 
-      return syncEntriesForDueMonth(newCurrentEntries, nextDueMonth)
+      return syncEntriesForDueMonth([...newCurrentEntries, ...carriedCredits], nextDueMonth)
     })
     setSettingsRaw(nextSettings)
   }, [

@@ -24,6 +24,7 @@ export interface PaidInvoiceSnapshot {
   paidAt: string
   /** Composição preservada no instante do pagamento. */
   spending: PaidInvoiceMonthSummary[]
+  credits?: { id: string; cardName: string; description: string; purchaseDate: string; amount: number; source: 'payment' | 'reward'; cashCycleMonth?: string; originCreditId?: string }[]
 }
 
 export interface CardMonthSpending {
@@ -105,6 +106,11 @@ export function normalizePaidInvoiceSnapshot(
     personalTotal: Math.max(0, finiteNumber(raw.personalTotal)),
     paidAt: typeof raw.paidAt === 'string' ? raw.paidAt : '',
     spending,
+    credits: Array.isArray(raw.credits) ? raw.credits.filter((credit) =>
+      credit && typeof credit === 'object' &&
+      typeof credit.id === 'string' && typeof credit.cardName === 'string' &&
+      typeof credit.description === 'string' && Number.isFinite(credit.amount) && credit.amount > 0,
+    ).map((credit) => ({ ...credit, source: credit.source === 'reward' ? 'reward' as const : 'payment' as const })) : [],
   }
 }
 
@@ -153,7 +159,7 @@ function summarizeEntriesForMonth(
 ): CardMonthSpending {
   const matching = entries.filter(
     (entry) =>
-      entry.cycle === sourceCycle && cardEntrySpendingMonth(entry, currentDueMonth) === spendingMonth,
+      entry.cycle === sourceCycle && entry.entryType !== 'invoiceCredit' && cardEntrySpendingMonth(entry, currentDueMonth) === spendingMonth,
   )
   const personalByArea = emptyAreaMap()
   let unclassifiedPersonal = 0
@@ -190,7 +196,7 @@ export function createPaidInvoiceSnapshot(input: {
   personalTotal: number
   paidAt?: string
 }): PaidInvoiceSnapshot {
-  const currentEntries = input.entries.filter((entry) => entry.cycle === 'current')
+  const currentEntries = input.entries.filter((entry) => entry.cycle === 'current' && entry.entryType !== 'invoiceCredit')
   const months = new Map<string, PaidInvoiceMonthSummary>()
 
   for (const entry of currentEntries) {
@@ -218,7 +224,39 @@ export function createPaidInvoiceSnapshot(input: {
     personalTotal: Math.max(0, finiteNumber(input.personalTotal)),
     paidAt: input.paidAt ?? new Date().toISOString(),
     spending: Array.from(months.values()).sort((a, b) => a.spendingMonth.localeCompare(b.spendingMonth)),
+    credits: input.entries.filter((entry) => entry.cycle === 'current' && entry.entryType === 'invoiceCredit').map((entry) => ({
+      id: entry.id,
+      cardName: entry.cardName,
+      description: entry.description,
+      purchaseDate: entry.purchaseDate,
+      amount: entry.amount,
+      source: entry.creditSource === 'reward' ? 'reward' as const : 'payment' as const,
+      cashCycleMonth: entry.cashCycleMonth,
+      originCreditId: entry.originCreditId,
+    })),
   }
+}
+
+/** Pagamentos avulsos já debitados da conta no ciclo, inclusive após girar a fatura. */
+export function cardAdvancePaymentsForMonth(
+  entries: CreditCardEntry[],
+  paidInvoices: PaidInvoiceSnapshot[],
+  month: string,
+): number {
+  const payments = new Map<string, number>()
+  for (const entry of entries) {
+    if (entry.entryType === 'invoiceCredit' && entry.creditSource !== 'reward' && !entry.originCreditId && entry.cashCycleMonth === month) {
+      payments.set(entry.id, Math.max(0, entry.amount))
+    }
+  }
+  for (const invoice of paidInvoices) {
+    for (const credit of invoice.credits ?? []) {
+      if (credit.source === 'payment' && !credit.originCreditId && credit.cashCycleMonth === month && !payments.has(credit.id)) {
+        payments.set(credit.id, Math.max(0, credit.amount))
+      }
+    }
+  }
+  return Array.from(payments.values()).reduce((sum, value) => sum + value, 0)
 }
 
 function latestPaidInvoiceForDueMonth(paidInvoices: PaidInvoiceSnapshot[], dueMonth: string) {

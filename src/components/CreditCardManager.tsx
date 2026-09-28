@@ -19,6 +19,7 @@ import { CardImportPanel } from './cards/CardImportPanel'
 import { CardSummaryPanels } from './cards/CardSummaryPanels'
 import { CardAreaCell } from './cards/CardAreaCell'
 import { CardEntryForm } from './cards/CardEntryForm'
+import { InvoiceCreditForm } from './cards/InvoiceCreditForm'
 import { InvoicePaymentReview } from './cards/InvoicePaymentReview'
 import {
   Meter,
@@ -100,6 +101,7 @@ export function CreditCardManager() {
   const [anticipateId, setAnticipateId] = useState<string | null>(null)
   const [anticipateCount, setAnticipateCount] = useState(1)
   const [showPaySummary, setShowPaySummary] = useState(false)
+  const [showCreditForm, setShowCreditForm] = useState(false)
 
   // Exclusão com desfazer: guarda o último lançamento removido por alguns segundos.
   const [pendingUndo, setPendingUndo] = useState<CreditCardEntry | null>(null)
@@ -120,9 +122,9 @@ export function CreditCardManager() {
     }
     if (ownerFilter === 'all') return true
     if (ownerFilter === 'mine') return entry.personalAmount > 0
-    if (ownerFilter === 'third-party') return entry.amount - entry.personalAmount > 0
+    if (ownerFilter === 'third-party') return entry.entryType !== 'invoiceCredit' && entry.amount - entry.personalAmount > 0
     if (ownerFilter === 'prepaid') return entry.isPrepaid === true
-    if (ownerFilter === 'unclassified') return !entry.budgetArea
+    if (ownerFilter === 'unclassified') return entry.entryType !== 'invoiceCredit' && !entry.budgetArea
     return (entry.ownerName || entry.ownerNote || 'Outro') === ownerFilter
   })
 
@@ -137,6 +139,7 @@ export function CreditCardManager() {
     : filteredEntries
   const filteredTotals = filteredEntries.reduce(
     (totals, entry) => {
+      if (entry.entryType === 'invoiceCredit') return totals
       totals.amount += entry.amount
       totals.personal += entry.personalAmount
       totals.thirdParty += Math.max(0, entry.amount - entry.personalAmount)
@@ -279,9 +282,7 @@ export function CreditCardManager() {
           label={`Fatura a pagar em ${formatMonthLong(currentDueMonth)}`}
           value={formatCurrency(summary.currentTotal)}
           detail={
-            summary.currentPrepaidTotal > 0
-              ? `+ ${formatCurrency(summary.currentPrepaidTotal)} já pagos antecipado`
-              : `${summary.currentEntriesCount} lançamentos`
+            `${summary.currentEntriesCount} lançamentos${summary.currentAppliedCreditTotal > 0 ? ` · ${formatCurrency(summary.currentAppliedCreditTotal)} abatidos` : ''}${summary.currentPrepaidTotal > 0 ? ` · ${formatCurrency(summary.currentPrepaidTotal)} pagos por compra` : ''}`
           }
         />
         <StatTile
@@ -306,6 +307,11 @@ export function CreditCardManager() {
           tone={summary.availablePersonalLimit >= 0 ? 'neutral' : 'negative'}
         />
       </div>
+      {summary.currentUnappliedCreditTotal > 0 && (
+        <p className="rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-200">
+          {formatCurrency(summary.currentUnappliedCreditTotal)} em abatimentos excedem a sua parte devida no cartão correspondente. Ao pagar a fatura, esse saldo passará para a próxima.
+        </p>
+      )}
 
       <Panel>
         <PanelHeader
@@ -358,11 +364,18 @@ export function CreditCardManager() {
           ]}
         />
 
-        {view === 'current' && (
-          <PrimaryButton onClick={() => setShowPaySummary(true)}>
-            <CheckCircle2 size={15} />
-            Pagar fatura de {formatMonthLong(currentDueMonth)}
-          </PrimaryButton>
+        {view !== 'import' && (
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <button type="button" onClick={() => setShowCreditForm((value) => !value)} aria-expanded={showCreditForm} className="inline-flex items-center gap-1.5 rounded-lg border border-dark-border px-3 py-2 text-xs font-medium text-dark-text-secondary transition-colors hover:border-primary-500/40 hover:text-dark-text">
+              <HandCoins size={14} /> Abatimento avulso
+            </button>
+            {view === 'current' && (
+              <PrimaryButton onClick={() => setShowPaySummary(true)}>
+                <CheckCircle2 size={15} />
+                Pagar fatura de {formatMonthLong(currentDueMonth)}
+              </PrimaryButton>
+            )}
+          </div>
         )}
         {view === 'next' && (
           <span className="flex items-center gap-1.5 text-xs text-dark-text-muted">
@@ -385,6 +398,9 @@ export function CreditCardManager() {
 
       {view !== 'import' ? (
         <Panel padded={false} className="overflow-hidden">
+          {showCreditForm && (
+            <InvoiceCreditForm cycle={visibleCycle} cashCycleMonth={activeCycle.month} knownCards={knownCards} onAdd={addEntry} onCancel={() => setShowCreditForm(false)} />
+          )}
           <div className="flex flex-wrap items-center gap-2 border-b border-dark-border-subtle p-3">
             <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-dark-text-muted">
               <Filter size={13} />
@@ -531,7 +547,19 @@ export function CreditCardManager() {
                       : 'Nenhum lançamento nesta fatura.'}
                   </div>
                 ) : (
-                  visibleEntries.map((entry) => (
+                  visibleEntries.map((entry) => entry.entryType === 'invoiceCredit' ? (
+                    <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 bg-primary-500/[0.04] px-4 py-3 text-sm">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="rounded bg-primary-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-300">{entry.originCreditId ? 'Saldo transferido' : entry.creditSource === 'reward' ? 'Pontos / crédito' : 'Pago avulso'}</span>
+                        <strong className="font-medium text-dark-text">{entry.description}</strong>
+                        <span className="text-xs text-dark-text-muted">{entry.cardName} · {entry.purchaseDate}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <strong className="tabular-nums text-primary-300">− {formatCurrency(entry.amount)}</strong>
+                        <button type="button" onClick={() => handleDelete(entry)} aria-label={`Remover abatimento ${entry.description}`} className="rounded-md p-1.5 text-dark-text-muted hover:bg-rose-500/15 hover:text-rose-400"><Trash2 size={15} /></button>
+                      </div>
+                    </div>
+                  ) : (
                     <div
                       key={entry.id}
                       className={`group grid ${TABLE_COLS} items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.03] ${
@@ -701,6 +729,7 @@ export function CreditCardManager() {
               </strong>{' '}
               · meu: {formatCurrency(filteredTotals.personal)} · não meu:{' '}
               {formatCurrency(filteredTotals.thirdParty)}
+              {filteredEntries.some((entry) => entry.entryType === 'invoiceCredit') && ` · abatimentos: ${formatCurrency(filteredEntries.filter((entry) => entry.entryType === 'invoiceCredit').reduce((sum, entry) => sum + entry.amount, 0))}`}
             </span>
             {visibleCycle === 'current' && summary.currentPrepaidTotal > 0 && (
               <span className="flex items-center gap-1.5 text-primary-400">
