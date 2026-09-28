@@ -24,7 +24,7 @@ export function CycleSwitcher() {
         <ChevronLeft size={14} />
       </button>
       <span className="min-w-[4.5rem] px-0.5 text-center tabular-nums">
-        <span className="text-[11px] text-dark-text-muted/70">Ciclo </span>
+        <span className="text-xs text-dark-text-muted/70">Ciclo </span>
         <strong className="font-medium text-dark-text-secondary">{formatMonthKey(cycle.month)}</strong>
       </span>
       <button

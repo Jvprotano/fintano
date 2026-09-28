@@ -120,7 +120,7 @@ export function ScenarioSwitcher() {
                       {scenario.name}
                     </span>
                     {summary && (
-                      <span className="block text-[11px] tabular-nums text-dark-text-muted">
+                      <span className="block text-xs tabular-nums text-dark-text-muted">
                         base {formatCurrency(summary.availableForBudget)} · livre{' '}
                         <span
                           className={

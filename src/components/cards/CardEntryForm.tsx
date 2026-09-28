@@ -103,12 +103,13 @@ export function CardEntryForm({
   return (
     <form
       onSubmit={(event) => { event.preventDefault(); submit() }}
-      className="grid grid-cols-[minmax(140px,1.4fr)_84px_64px_92px_128px_104px_104px_104px_minmax(72px,0.8fr)_56px] items-center gap-2 border-b border-dark-border-subtle bg-dark-surface/30 px-3 py-2"
+      className="grid grid-cols-2 gap-3 border-b border-dark-border-subtle bg-dark-surface/30 p-4 md:grid-cols-[minmax(140px,1.4fr)_84px_64px_92px_128px_104px_104px_104px_minmax(72px,0.8fr)_56px] md:items-center md:gap-2 md:px-3 md:py-2"
     >
-      <input ref={descriptionRef} placeholder="Nova compra..." value={description} onChange={(event) => setDescription(event.target.value)} aria-label="Descrição da nova compra" className="w-full rounded-md border border-dark-border/60 bg-dark-input px-2.5 py-1.5 text-sm font-medium text-dark-text outline-none placeholder:text-dark-text-muted focus:border-primary-500/60" />
-      <div className="flex items-center justify-center gap-1">
+      <h3 className="col-span-full text-sm font-semibold text-dark-text md:hidden">Nova compra</h3>
+      <label className="col-span-full min-w-0 md:col-span-1"><span className="app-form-label mb-1 block md:sr-only">Descrição</span><input ref={descriptionRef} placeholder="Ex.: mercado" value={description} onChange={(event) => setDescription(event.target.value)} aria-label="Descrição da nova compra" className="app-field w-full px-2.5 py-2 text-sm font-medium md:py-1.5" /></label>
+      <div className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Parcelas</span><div className="flex min-h-10 items-center justify-center gap-1 md:min-h-0">
         {isRecurring ? (
-          <button type="button" onClick={() => setIsRecurring(false)} className="inline-flex items-center gap-1 rounded bg-dark-input px-1.5 py-1 text-[11px] font-semibold text-dark-text-secondary"><Repeat size={11} />Assin.</button>
+          <button type="button" onClick={() => setIsRecurring(false)} className="inline-flex items-center gap-1 rounded bg-dark-input px-1.5 py-1 text-xs font-semibold text-dark-text-secondary"><Repeat size={11} />Assin.</button>
         ) : (
           <>
             <input value={installmentCurrent} onChange={(event) => setInstallmentCurrent(event.target.value.replace(/\D/g, ''))} placeholder="1" inputMode="numeric" aria-label="Parcela atual" className="w-8 rounded-md border border-dark-border/60 bg-dark-input px-1 py-1.5 text-center text-sm tabular-nums outline-none" />
@@ -117,19 +118,19 @@ export function CardEntryForm({
             <button type="button" onClick={() => setIsRecurring(true)} title="Marcar como assinatura recorrente" className="text-dark-text-muted/50 hover:text-dark-text"><Repeat size={12} /></button>
           </>
         )}
-      </div>
-      <input placeholder="Data" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} aria-label="Data da compra" className="w-full rounded-md border border-dark-border/60 bg-dark-input px-2 py-1.5 text-center text-sm outline-none" />
-      <input placeholder="Cartão" list="credit-card-names" value={cardName} onChange={(event) => setCardName(event.target.value)} aria-label="Cartão" className="w-full rounded-md border border-dark-border/60 bg-dark-input px-2 py-1.5 text-center text-sm outline-none" />
+      </div></div>
+      <label className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Data real</span><input placeholder="Ex.: 28/09" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} aria-label="Data da compra" className="app-field w-full px-2 py-2 text-center text-sm md:py-1.5" /></label>
+      <label className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Cartão</span><input placeholder="Ex.: Itaú" list="credit-card-names" value={cardName} onChange={(event) => setCardName(event.target.value)} aria-label="Cartão" className="app-field w-full px-2 py-2 text-center text-sm md:py-1.5" /></label>
       <datalist id="credit-card-names">{knownCards.map((card) => <option key={card} value={card} />)}</datalist>
-      <CardAreaCell value={area} onChange={setArea} />
-      <div>
+      <div className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Área do orçamento</span><CardAreaCell value={area} onChange={setArea} /></div>
+      <div className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Valor da fatura</span>
         <CurrencyInput value={amountInputValue} onChange={changeAmountInput} className="!border-dark-border/60 !bg-dark-input !py-1.5 !pl-7 !pr-2.5 text-sm" />
-        <div className="-mt-0.5 px-1 text-[10px] text-dark-text-muted">{isInstallment ? effectiveMode === 'total' ? `parcela: ${formatCurrency(amount)}` : installmentTotalValue > 1 ? `total: ${formatCurrency(purchaseTotal)}` : 'valor da parcela' : 'valor desta fatura'}</div>
+        <div className="-mt-0.5 px-1 text-xs text-dark-text-muted">{isInstallment ? effectiveMode === 'total' ? `parcela: ${formatCurrency(amount)}` : installmentTotalValue > 1 ? `total: ${formatCurrency(purchaseTotal)}` : 'valor da parcela' : 'valor desta fatura'}</div>
       </div>
-      <CurrencyInput value={personalAmount} onChange={setPersonalAmount} className="!border-dark-border/60 !bg-dark-input !py-1.5 !pl-7 !pr-2.5 text-sm" />
-      <CurrencyInput value={remainingAmount} onChange={setRemainingAmount} className="!border-dark-border/60 !bg-dark-input !py-1.5 !pl-7 !pr-2.5 text-sm" />
-      <input placeholder="Pessoa/Obs" value={ownerNote} onChange={(event) => setOwnerNote(event.target.value)} aria-label="Pessoa ou observação" className="w-full rounded-md border border-dark-border/60 bg-dark-input px-2 py-1.5 text-sm outline-none" />
-      <button type="submit" disabled={!description.trim() || amount === 0} className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-600 text-white hover:bg-primary-500 disabled:opacity-40" title="Adicionar lançamento (Enter)"><Plus size={18} /></button>
+      <label className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Minha parte</span><CurrencyInput value={personalAmount} onChange={setPersonalAmount} className="!border-dark-border/60 !bg-dark-input !py-1.5 !pl-7 !pr-2.5 text-sm" /></label>
+      <label className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Restante</span><CurrencyInput value={remainingAmount} onChange={setRemainingAmount} className="!border-dark-border/60 !bg-dark-input !py-1.5 !pl-7 !pr-2.5 text-sm" /></label>
+      <label className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Pessoa ou observação</span><input placeholder="Ex.: Ana" value={ownerNote} onChange={(event) => setOwnerNote(event.target.value)} aria-label="Pessoa ou observação" className="app-field w-full px-2 py-2 text-sm md:py-1.5" /></label>
+      <button type="submit" disabled={!description.trim() || amount === 0} className="col-span-full flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 text-sm font-semibold text-white hover:bg-primary-500 disabled:opacity-40 md:col-span-1 md:h-9 md:w-9 md:px-0" title="Adicionar lançamento (Enter)"><Plus size={18} /><span className="md:sr-only">Adicionar compra</span></button>
       {isInstallment && (
         <div className="col-span-full flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-500/20 bg-primary-500/[0.06] p-3 text-xs text-dark-text-muted">
           <span>Compra parcelada: informe a parcela ou o valor total.</span>

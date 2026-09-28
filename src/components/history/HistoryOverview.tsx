@@ -31,7 +31,7 @@ function ContributionRow({
         latest ? 'bg-primary-500/[0.045]' : 'bg-dark-input/20'
       }`}
     >
-      <span className="pt-0.5 text-[11px] font-medium text-dark-text-muted">
+      <span className="pt-0.5 text-xs font-medium text-dark-text-muted">
         {formatMonthKey(point.month)}
       </span>
       <div className="min-w-0">
@@ -43,7 +43,7 @@ function ContributionRow({
           >
             {formatCurrency(credited)}
           </strong>
-          <span className="text-[10px] tabular-nums text-dark-text-muted">
+          <span className="text-xs tabular-nums text-dark-text-muted">
             pessoal {formatCurrency(point.invested)} · empresa{' '}
             {employer === null ? 'não informada' : formatCurrency(employer)}
           </span>
@@ -60,7 +60,7 @@ function ContributionRow({
             style={{ width: `${Math.max(credited === 0 ? 0 : 3, width)}%` }}
           />
         </div>
-        <span className="mt-1 block text-[10px] text-dark-text-muted">
+        <span className="mt-1 block text-xs text-dark-text-muted">
           folha {formatCurrency(point.payrollInvested)} · conta{' '}
           {formatCurrency(point.directInvestedAtClose)} · {point.savingsRate.toFixed(1)}% da renda
           {point.openingBalance > 0.005 && (
@@ -86,8 +86,8 @@ function WealthRow({
   return (
     <div className="flex items-start justify-between gap-4 py-2.5">
       <div className="min-w-0">
-        <span className="block text-[11px] font-medium text-dark-text-secondary">{label}</span>
-        <span className="mt-0.5 block text-[10px] leading-relaxed text-dark-text-muted">
+        <span className="block text-xs font-medium text-dark-text-secondary">{label}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-dark-text-muted">
           {detail}
         </span>
       </div>
@@ -140,7 +140,7 @@ export function HistoryOverview({
             />
           ))}
         </div>
-        <p className="mt-2.5 text-[10px] leading-relaxed text-dark-text-muted">
+        <p className="mt-2.5 text-xs leading-relaxed text-dark-text-muted">
           Alterar a competência de uma movimentação atualiza estes ciclos imediatamente. Saldos
           iniciais aparecem como posição de abertura, mas não contam como aporte. Meses antigos sem
           contrapartida registrada aparecem como “não informada”, sem fingir que o valor foi zero.
@@ -175,7 +175,7 @@ export function HistoryOverview({
             detail="financeiro líquido + parte já sua nos bens"
           />
         </div>
-        <p className="mt-2 rounded-lg border border-dark-border-subtle bg-dark-input/20 px-2.5 py-2 text-[10px] leading-relaxed text-dark-text-muted">
+        <p className="mt-2 rounded-lg border border-dark-border-subtle bg-dark-input/20 px-2.5 py-2 text-xs leading-relaxed text-dark-text-muted">
           Este bloco usa os valores atuais de Patrimônio. Mudar apenas o ciclo de um aporte não
           altera quanto você possui hoje.
         </p>

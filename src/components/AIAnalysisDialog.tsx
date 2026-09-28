@@ -178,7 +178,7 @@ export function AIAnalysisDialog({ open, onClose }: { open: boolean; onClose: ()
           </div>
 
           <label className="mt-4 block">
-            <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
               Mensagem que será compartilhada
             </span>
             <textarea

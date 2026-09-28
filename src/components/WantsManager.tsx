@@ -114,7 +114,7 @@ export function WantsManager() {
               markerLabel={`Já gasto no cartão: ${formatCurrency(realized)}`}
             />
             {realized > 0 ? (
-              <p className="mt-1.5 text-[11px] leading-relaxed text-dark-text-muted">
+              <p className="mt-1.5 text-xs leading-relaxed text-dark-text-muted">
                 <span className="mr-1 inline-block h-2 w-[2px] translate-y-[1px] bg-dark-text/70" />
                 {formatCurrency(realized)} já gastos no cartão neste ciclo
                 {totalWantsAmount > 0 &&
@@ -123,14 +123,14 @@ export function WantsManager() {
               </p>
             ) : (
               wantsOnCard > 0 && (
-                <p className="mt-1.5 text-[11px] leading-relaxed text-dark-text-muted">
+                <p className="mt-1.5 text-xs leading-relaxed text-dark-text-muted">
                   {formatCurrency(wantsOnCard)} deste plano é para gastar no cartão. Marque a área
                   “Desejo” nos lançamentos da fatura para acompanhar o realizado aqui.
                 </p>
               )
             )}
             {cardEnvelopeAmount > 0 && (
-              <div className="mt-3 grid gap-1.5 rounded-lg border border-dark-border-subtle bg-dark-surface/50 p-3 text-[11px] text-dark-text-muted sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-3 grid gap-1.5 rounded-lg border border-dark-border-subtle bg-dark-surface/50 p-3 text-xs text-dark-text-muted sm:grid-cols-2 xl:grid-cols-4">
                 <span>
                   Fatura planejada:{' '}
                   <strong className="text-dark-text">{formatCurrency(cardEnvelopeAmount)}</strong>
@@ -163,18 +163,17 @@ export function WantsManager() {
         </div>
 
         <div className="rounded-lg border border-dark-border bg-dark-surface/60 p-3">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
+          <p className="mb-3 text-sm font-semibold text-dark-text">Novo Desejo</p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="app-form-label min-w-0 flex-1">Nome<input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              placeholder="Novo desejo (ex: Netflix, viagem...)"
-              className={`${inputClass} flex-1`}
-            />
-            <div className="w-full sm:w-40">
-              <CurrencyInput value={newAmount} onChange={setNewAmount} />
-            </div>
+              placeholder="Ex.: viagem"
+              className={`${inputClass} mt-1.5`}
+            /></label>
+            <label className="app-form-label w-full sm:w-40">Valor planejado<span className="mt-1.5 block"><CurrencyInput value={newAmount} onChange={setNewAmount} /></span></label>
             <PrimaryButton onClick={handleAdd} disabled={!newName.trim()}>
               <Plus size={15} />
               Adicionar
@@ -202,12 +201,12 @@ export function WantsManager() {
                   <span className="w-full text-sm font-medium text-dark-text sm:min-w-0 sm:flex-1">
                     <span className="block truncate">{want.name}</span>
                     {isIncluded && (
-                      <span className="mt-0.5 block text-[11px] font-normal text-primary-300/80">
+                      <span className="mt-0.5 block text-xs font-normal text-primary-300/80">
                         incluído no Cartão — não soma de novo
                       </span>
                     )}
                     {isEnvelope && cardIncludedWantsAmount > 0 && (
-                      <span className="mt-0.5 block text-[11px] font-normal text-dark-text-muted">
+                      <span className="mt-0.5 block text-xs font-normal text-dark-text-muted">
                         inclui {includedWantIds.length}{' '}
                         {includedWantIds.length === 1 ? 'detalhe' : 'detalhes'} somando{' '}
                         {formatCurrency(cardIncludedWantsAmount)}
@@ -238,7 +237,7 @@ export function WantsManager() {
                       <button
                         type="button"
                         onClick={() => setWantIncludedInCardPlan(want.id, !isIncluded)}
-                        className={`rounded-md px-2 py-1 text-[11px] transition-colors ${
+                        className={`rounded-md px-2 py-1 text-xs transition-colors ${
                           isIncluded
                             ? 'bg-primary-500/10 text-primary-300 hover:bg-primary-500/15'
                             : 'bg-dark-card text-dark-text-muted hover:text-dark-text'

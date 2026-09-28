@@ -7,6 +7,7 @@ import {
   FastForward,
   Filter,
   HandCoins,
+  Pencil,
   Repeat,
   Search,
   Trash2,
@@ -23,6 +24,7 @@ import { InvoiceCreditForm } from './cards/InvoiceCreditForm'
 import { InvoicePaymentReview } from './cards/InvoicePaymentReview'
 import {
   Meter,
+  FormField,
   Panel,
   PanelHeader,
   PrimaryButton,
@@ -74,7 +76,6 @@ export function CreditCardManager() {
   const currentDueMonth = settings.currentDueMonth ?? activeCycle.month
   const nextDueMonth = addMonths(currentDueMonth, 1)
   const currentSpendingMonth = addMonths(currentDueMonth, -1)
-  const nextSpendingMonth = addMonths(nextDueMonth, -1)
   const closingDueMonth = addMonths(activeCycle.month, 1)
   const afterClosingPaymentDueMonth = addMonths(activeCycle.month, 2)
   // Agosto + fatura de Setembro é o estado normal. Se a fatura de Setembro já
@@ -279,13 +280,6 @@ export function CreditCardManager() {
 
       <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
-          label={`Fatura a pagar em ${formatMonthLong(currentDueMonth)}`}
-          value={formatCurrency(summary.currentTotal)}
-          detail={
-            `${summary.currentEntriesCount} lançamentos${summary.currentAppliedCreditTotal > 0 ? ` · ${formatCurrency(summary.currentAppliedCreditTotal)} abatidos` : ''}${summary.currentPrepaidTotal > 0 ? ` · ${formatCurrency(summary.currentPrepaidTotal)} pagos por compra` : ''}`
-          }
-        />
-        <StatTile
           label="Minha parte"
           value={formatCurrency(summary.currentPersonalTotal)}
           detail={
@@ -293,7 +287,14 @@ export function CreditCardManager() {
               ? `${((summary.currentPersonalTotal / availableForBudget) * 100).toFixed(0)}% da base do orçamento`
               : undefined
           }
-          tone="accent"
+          tone={summary.currentPersonalTotal > 0 ? 'accent' : 'neutral'}
+        />
+        <StatTile
+          label={`Fatura a pagar em ${formatMonthLong(currentDueMonth)}`}
+          value={formatCurrency(summary.currentTotal)}
+          detail={
+            `${summary.currentEntriesCount} lançamentos${summary.currentAppliedCreditTotal > 0 ? ` · ${formatCurrency(summary.currentAppliedCreditTotal)} abatidos` : ''}${summary.currentPrepaidTotal > 0 ? ` · ${formatCurrency(summary.currentPrepaidTotal)} pagos por compra` : ''}`
+          }
         />
         <StatTile
           label="Não é meu"
@@ -316,7 +317,7 @@ export function CreditCardManager() {
       <Panel>
         <PanelHeader
           title="Seu teto de gasto"
-          description={`Fatura atual: bucket que encerra ${formatMonthLong(currentSpendingMonth)}, com vencimento em ${formatMonthLong(currentDueMonth)}. O ciclo ativo é ${formatMonthLong(activeCycle.month)} e não precisa ser alinhado ao vencimento. A data original de uma compra não redistribui este bucket. A aba seguinte prepara o fechamento de ${formatMonthLong(nextSpendingMonth)}, com vencimento em ${formatMonthLong(nextDueMonth)}.`}
+          description={`Defina seu limite pessoal para todos os cartões. A fatura atual vence em ${formatMonthLong(currentDueMonth)}; a próxima, em ${formatMonthLong(nextDueMonth)}. Compras são atribuídas à fatura escolhida, independentemente da data real.`}
           className="mb-4"
         />
         <div className="grid gap-4 lg:grid-cols-2">
@@ -516,10 +517,84 @@ export function CreditCardManager() {
             </div>
           )}
 
-          <div className="overflow-x-auto">
+          <div className="md:hidden">
+            <CardEntryForm cycle={visibleCycle} knownCards={knownCards} onAdd={addEntry} />
+            <div className="space-y-2 p-3">
+              {visibleEntries.length === 0 && (
+                <p className="app-inset px-4 py-6 text-center text-sm text-dark-text-secondary">
+                  {search || ownerFilter !== 'all' ? 'Nenhum lançamento corresponde ao filtro.' : 'Nenhum lançamento nesta fatura. Adicione uma compra acima.'}
+                </p>
+              )}
+              {visibleEntries.map((entry) => entry.entryType === 'invoiceCredit' ? (
+                <div key={entry.id} className="app-inset flex items-start justify-between gap-3 p-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-primary-300">Abatimento</span>
+                    <strong className="mt-1 block text-sm text-dark-text">{entry.description}</strong>
+                    <span className="text-xs text-dark-text-secondary">{entry.cardName} · {entry.purchaseDate}</span>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <strong className="block text-sm tabular-nums text-primary-300">− {formatCurrency(entry.amount)}</strong>
+                    <button type="button" onClick={() => handleDelete(entry)} aria-label={`Remover abatimento ${entry.description}`} className="app-icon-button ml-auto text-dark-text-muted hover:text-rose-300"><Trash2 size={16} /></button>
+                  </div>
+                </div>
+              ) : (
+                <details key={entry.id} className="app-inset group overflow-hidden open:border-dark-text-muted/40">
+                  <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 p-3 marker:hidden">
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <strong className="truncate text-sm font-semibold text-dark-text">{entry.description || 'Compra sem descrição'}</strong>
+                      <span className="text-xs text-dark-text-secondary">
+                        {entry.cardName} · {entry.purchaseDate}
+                        {entry.installmentTotal ? ` · ${entry.installmentCurrent ?? 1}/${entry.installmentTotal}` : entry.isRecurring ? ' · assinatura' : ''}
+                        {entry.isPrepaid ? ' · pago' : ''}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <strong className={`block text-sm tabular-nums ${entry.isPrepaid ? 'text-primary-300 line-through' : 'text-dark-text'}`}>{formatCurrency(entry.personalAmount)}</strong>
+                      {entry.amount !== entry.personalAmount && <span className="text-xs tabular-nums text-dark-text-muted">fatura {formatCurrency(entry.amount)}</span>}
+                    </span>
+                    <Pencil size={14} className="shrink-0 text-dark-text-muted" />
+                  </summary>
+                  <div className="grid grid-cols-2 gap-3 border-t border-dark-border-subtle p-3">
+                    <FormField label="Descrição" className="col-span-2">
+                      <input value={entry.description} onChange={(event) => updateEntry(entry.id, { description: event.target.value })} className="app-field w-full px-3 py-2 text-sm" />
+                    </FormField>
+                    <FormField label="Data real">
+                      <input value={entry.purchaseDate} onChange={(event) => updateEntry(entry.id, { purchaseDate: event.target.value })} className="app-field w-full px-3 py-2 text-sm" />
+                    </FormField>
+                    <FormField label="Cartão">
+                      <input value={entry.cardName} onChange={(event) => updateEntry(entry.id, { cardName: event.target.value })} className="app-field w-full px-3 py-2 text-sm" />
+                    </FormField>
+                    <div className="col-span-2">
+                      <span className="app-form-label mb-1.5 block">Área do orçamento</span>
+                      <div className="app-field px-2 py-1.5"><CardAreaCell value={entry.budgetArea} onChange={(area) => updateEntry(entry.id, { budgetArea: area })} /></div>
+                    </div>
+                    <FormField label="Valor da fatura"><CurrencyInput value={entry.amount} onChange={(amount) => updateEntry(entry.id, { amount })} /></FormField>
+                    <FormField label="Minha parte"><CurrencyInput value={entry.personalAmount} onChange={(personalAmount) => updateEntry(entry.id, { personalAmount })} /></FormField>
+                    <FormField label="Restante"><CurrencyInput value={entry.remainingAmount} onChange={(remainingAmount) => updateEntry(entry.id, { remainingAmount })} /></FormField>
+                    <FormField label="Pessoa ou observação"><input value={entry.ownerName || entry.ownerNote || ''} onChange={(event) => updateEntry(entry.id, { ownerNote: event.target.value, ownerName: '' })} className="app-field w-full px-3 py-2 text-sm" /></FormField>
+                    <div className="col-span-2 flex flex-wrap items-end gap-2 border-t border-dark-border-subtle pt-3">
+                      <button type="button" onClick={() => updateEntry(entry.id, { isRecurring: !entry.isRecurring })} aria-pressed={Boolean(entry.isRecurring)} className="min-h-10 rounded-lg border border-dark-border px-3 text-xs text-dark-text-secondary">{entry.isRecurring ? 'Assinatura ativa' : 'Marcar assinatura'}</button>
+                      {!entry.isRecurring && <span className="flex items-end gap-1">
+                        <FormField label="Parcela"><input value={entry.installmentCurrent ?? ''} onChange={(event) => handleInstallmentChange(entry, 'current', event.target.value)} inputMode="numeric" className="app-field w-14 px-2 py-2 text-center text-sm" /></FormField>
+                        <span className="pb-2 text-dark-text-muted">/</span>
+                        <FormField label="Total"><input value={entry.installmentTotal ?? ''} onChange={(event) => handleInstallmentChange(entry, 'total', event.target.value)} inputMode="numeric" className="app-field w-14 px-2 py-2 text-center text-sm" /></FormField>
+                      </span>}
+                    </div>
+                    <div className="col-span-2 flex flex-wrap gap-2 border-t border-dark-border-subtle pt-3">
+                      <button type="button" onClick={() => updateEntry(entry.id, { isPrepaid: !entry.isPrepaid })} className="min-h-10 rounded-lg border border-dark-border px-3 text-xs font-medium text-dark-text-secondary"><HandCoins size={14} className="mr-1 inline" />{entry.isPrepaid ? 'Desfazer antecipação' : 'Marcar como pago'}</button>
+                      {visibleCycle === 'current' && !entry.isRecurring && (entry.installmentCurrent ?? 0) > 0 && (entry.installmentCurrent ?? 0) < (entry.installmentTotal ?? 0) && <button type="button" onClick={() => { setAnticipateId(entry.id); setAnticipateCount(1) }} className="min-h-10 rounded-lg border border-dark-border px-3 text-xs text-dark-text-secondary"><FastForward size={14} className="mr-1 inline" />Antecipar parcelas</button>}
+                      <button type="button" onClick={() => handleDelete(entry)} className="min-h-10 rounded-lg border border-rose-500/25 px-3 text-xs text-rose-300"><Trash2 size={14} className="mr-1 inline" />Remover</button>
+                    </div>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <div className="min-w-[960px]">
               <div
-                className={`grid ${TABLE_COLS} gap-2 border-b border-dark-border bg-dark-surface/60 px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-dark-text-muted`}
+                className={`grid ${TABLE_COLS} gap-2 border-b border-dark-border bg-dark-surface/60 px-3 py-2 text-xs font-medium uppercase tracking-wider text-dark-text-muted`}
               >
                 {renderSortHeader('description', 'Descrição')}
                 <div className="text-center">Parc.</div>
@@ -550,7 +625,7 @@ export function CreditCardManager() {
                   visibleEntries.map((entry) => entry.entryType === 'invoiceCredit' ? (
                     <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 bg-primary-500/[0.04] px-4 py-3 text-sm">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="rounded bg-primary-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-300">{entry.originCreditId ? 'Saldo transferido' : entry.creditSource === 'reward' ? 'Pontos / crédito' : 'Pago avulso'}</span>
+                        <span className="rounded bg-primary-500/15 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-300">{entry.originCreditId ? 'Saldo transferido' : entry.creditSource === 'reward' ? 'Pontos / crédito' : 'Pago avulso'}</span>
                         <strong className="font-medium text-dark-text">{entry.description}</strong>
                         <span className="text-xs text-dark-text-muted">{entry.cardName} · {entry.purchaseDate}</span>
                       </div>
@@ -578,7 +653,7 @@ export function CreditCardManager() {
                         {entry.isPrepaid && (
                           <span
                             title="Pago antecipadamente — fora do total da fatura"
-                            className="shrink-0 rounded bg-primary-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-300"
+                            className="shrink-0 rounded bg-primary-500/15 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-300"
                           >
                             Pago
                           </span>
@@ -596,7 +671,7 @@ export function CreditCardManager() {
                             type="button"
                             onClick={() => updateEntry(entry.id, { isRecurring: false })}
                             title="Assinatura recorrente — repete todo mês. Clique para desmarcar."
-                            className="inline-flex items-center gap-1 rounded bg-dark-input px-1.5 py-0.5 text-[11px] font-semibold text-dark-text-secondary transition-colors hover:text-dark-text"
+                            className="inline-flex items-center gap-1 rounded bg-dark-input px-1.5 py-0.5 text-xs font-semibold text-dark-text-secondary transition-colors hover:text-dark-text"
                           >
                             <Repeat size={11} />
                             Assin.

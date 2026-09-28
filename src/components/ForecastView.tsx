@@ -107,7 +107,7 @@ function EventForm({ onClose }: { onClose: () => void }) {
 
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Nome</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Nome</span>
           <input
             autoFocus
             value={name}
@@ -118,11 +118,11 @@ function EventForm({ onClose }: { onClose: () => void }) {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Valor</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Valor</span>
           <CurrencyInput value={amount} onChange={setAmount} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Mês</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Mês</span>
           <input
             type="month"
             value={month}
@@ -131,7 +131,7 @@ function EventForm({ onClose }: { onClose: () => void }) {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Repete</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Repete</span>
           <SegmentedControl
             options={(Object.keys(RECURRENCE_LABELS) as ExpectedEventRecurrence[]).map((value) => ({
               value,
@@ -146,7 +146,7 @@ function EventForm({ onClose }: { onClose: () => void }) {
 
       {kind === 'income' && (
         <label className="block">
-          <span className="mb-1 flex items-baseline justify-between text-[11px] text-dark-text-muted">
+          <span className="mb-1 flex items-baseline justify-between text-xs text-dark-text-muted">
             <span>Quanto disso você guarda</span>
             <strong className="tabular-nums text-dark-text">{savedPct}%</strong>
           </span>
@@ -159,7 +159,7 @@ function EventForm({ onClose }: { onClose: () => void }) {
             onChange={(event) => setSavedPct(Number(event.target.value))}
             className="w-full accent-primary-500"
           />
-          <span className="mt-1 block text-[11px] text-dark-text-muted">
+          <span className="mt-1 block text-xs text-dark-text-muted">
             {amount > 0
               ? `${formatCurrency((amount * savedPct) / 100)} viram patrimônio; o resto é consumo.`
               : 'O resto é consumo e não entra na projeção de patrimônio.'}
@@ -195,7 +195,7 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-dark-text">{event.name}</p>
-        <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-dark-text-muted">
+        <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
           {next ? (
             <>
               {formatMonthKey(next)}
@@ -353,16 +353,26 @@ export function ForecastView() {
     <div className="space-y-4">
       <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
+          label={`Saldo projetado em ${formatMonthKey(last?.month ?? currentMonth)}`}
+          value={formatCurrency(financialLast)}
+          detail={
+            real
+              ? `${formatCurrency(financialLast - financialNow)} a mais, em reais de hoje`
+              : `${formatCurrency(financialLast - financialNow)} a mais que hoje`
+          }
+          tone="neutral"
+        />
+        <StatTile
           label="Entradas em 12 meses"
           value={formatCurrency(upcomingYear.income)}
           detail={upcomingYear.income > 0 ? '13º, bônus, férias…' : 'nada cadastrado ainda'}
-          tone={upcomingYear.income > 0 ? 'positive' : 'neutral'}
+          tone="neutral"
         />
         <StatTile
           label="Saídas em 12 meses"
           value={formatCurrency(upcomingYear.expense)}
           detail={upcomingYear.expense > 0 ? 'IPTU, IPVA, seguro…' : 'nada cadastrado ainda'}
-          tone={upcomingYear.expense > 0 ? 'negative' : 'neutral'}
+          tone="neutral"
         />
         <StatTile
           label="Aporte mensal considerado"
@@ -374,16 +384,6 @@ export function ForecastView() {
                 ? 'plano + sobra do mês'
                 : 'o aporte do seu plano'
           }
-        />
-        <StatTile
-          label={`Dinheiro em ${formatMonthKey(last?.month ?? currentMonth)}`}
-          value={formatCurrency(financialLast)}
-          detail={
-            real
-              ? `${formatCurrency(financialLast - financialNow)} a mais, em reais de hoje`
-              : `${formatCurrency(financialLast - financialNow)} a mais que hoje`
-          }
-          tone="accent"
         />
       </div>
 
@@ -426,7 +426,7 @@ export function ForecastView() {
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <label className="block">
-            <span className="mb-1.5 block text-[11px] text-dark-text-muted">
+            <span className="mb-1.5 block text-xs text-dark-text-muted">
               Aporte mensal (vazio = usar o plano)
             </span>
             <CurrencyInput
@@ -438,14 +438,14 @@ export function ForecastView() {
               <button
                 type="button"
                 onClick={() => forecast.updateAssumptions({ monthlyContribution: null })}
-                className="mt-1 text-[11px] text-primary-400 transition-colors hover:text-primary-300"
+                className="mt-1 text-xs text-primary-400 transition-colors hover:text-primary-300"
               >
                 Voltar a usar o aporte do plano
               </button>
             )}
           </label>
           <label className="block">
-            <span className="mb-1.5 flex items-baseline justify-between text-[11px] text-dark-text-muted">
+            <span className="mb-1.5 flex items-baseline justify-between text-xs text-dark-text-muted">
               <span>Rendimento esperado</span>
               <strong className="tabular-nums text-dark-text">
                 {assumptions.annualReturnPct.toFixed(1)}% a.a.
@@ -464,7 +464,7 @@ export function ForecastView() {
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 flex items-baseline justify-between text-[11px] text-dark-text-muted">
+            <span className="mb-1.5 flex items-baseline justify-between text-xs text-dark-text-muted">
               <span>Inflação esperada</span>
               <strong className="tabular-nums text-dark-text">
                 {assumptions.inflationPct.toFixed(1)}% a.a.
@@ -483,7 +483,7 @@ export function ForecastView() {
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[11px] text-dark-text-muted">Horizonte</span>
+            <span className="mb-1.5 block text-xs text-dark-text-muted">Horizonte</span>
             <SegmentedControl
               options={HORIZONS.map((value) => ({ value, label: `${value}m` }))}
               value={assumptions.horizonMonths}
@@ -526,7 +526,7 @@ export function ForecastView() {
         </div>
 
         {real && (
-          <p className="mt-2 text-[11px] leading-relaxed text-dark-text-muted">
+          <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">
             Os valores estão descontados de {assumptions.inflationPct.toFixed(1)}% ao ano — é o que o
             dinheiro vai <em>comprar</em>, não o número que vai aparecer no extrato. A dívida aparece
             sempre em valor nominal, porque é assim que ela é cobrada.
@@ -534,7 +534,7 @@ export function ForecastView() {
         )}
 
         {payoffMonth && (
-          <p className="mt-2 text-[11px] leading-relaxed text-primary-300">
+          <p className="mt-2 text-xs leading-relaxed text-primary-300">
             No ritmo das parcelas atuais, suas dívidas sem contrapartida zeram em{' '}
             <strong>{formatMonthLong(payoffMonth.month)}</strong>
             {!assumptions.reinvestFreedInstallments &&
@@ -545,7 +545,7 @@ export function ForecastView() {
 
         {/* O ponto que faltava: a amortização não some, vira patrimônio. */}
         {equityBuiltInHorizon > 0 && last && (
-          <p className="mt-2 border-t border-dark-border-subtle pt-2 text-[11px] leading-relaxed text-dark-text-muted">
+          <p className="mt-2 border-t border-dark-border-subtle pt-2 text-xs leading-relaxed text-dark-text-muted">
             Até {formatMonthLong(last.month)} você terá{' '}
             <strong className="text-dark-text">{formatCurrency(financialLast)}</strong> em dinheiro e{' '}
             <strong className="text-dark-text">{formatCurrency(netWorthLast)}</strong> de patrimônio
@@ -573,7 +573,7 @@ export function ForecastView() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-dark-text-muted">
+                <tr className="text-left text-xs uppercase tracking-wider text-dark-text-muted">
                   <th className="px-5 py-2.5 font-medium">Meta</th>
                   <th className="px-4 py-2.5 text-right font-medium">Hoje</th>
                   <th className="px-4 py-2.5 text-right font-medium">Alvo</th>
@@ -598,7 +598,7 @@ export function ForecastView() {
                           {goal.name}
                         </span>
                         {goal.includedLabels.length > 0 && (
-                          <span className="ml-4 text-[11px] text-dark-text-muted">
+                          <span className="ml-4 text-xs text-dark-text-muted">
                             engloba {goal.includedLabels.join(' + ')}
                           </span>
                         )}
@@ -624,7 +624,7 @@ export function ForecastView() {
                             }`}
                           >
                             {formatCurrency(outlook.value)}
-                            <span className="ml-1.5 text-[11px] text-dark-text-muted">
+                            <span className="ml-1.5 text-xs text-dark-text-muted">
                               {outlook.gap >= 0
                                 ? `+ ${formatCurrency(outlook.gap)}`
                                 : `faltam ${formatCurrency(-outlook.gap)}`}
@@ -633,7 +633,7 @@ export function ForecastView() {
                         ) : (
                           <span className="tabular-nums text-dark-text-secondary">
                             {formatCurrency(goal.suggestedMonthly)}
-                            <span className="ml-1 text-[11px] text-dark-text-muted">/mês</span>
+                            <span className="ml-1 text-xs text-dark-text-muted">/mês</span>
                           </span>
                         )}
                       </td>

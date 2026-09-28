@@ -52,8 +52,8 @@ describe('ActualCashEntries', () => {
     const user = userEvent.setup()
     render(<Harness />)
 
-    await user.type(screen.getByPlaceholderText('Descrição (ex.: banco de horas)'), 'Freela')
-    await user.type(screen.getByPlaceholderText('Valor'), '125050')
+    await user.type(screen.getByRole('textbox', { name: 'Descrição' }), 'Freela')
+    await user.type(screen.getByRole('textbox', { name: /Valor recebido/ }), '125050')
     await user.click(screen.getByRole('button', { name: 'Adicionar' }))
 
     expect(screen.getByText('Freela')).toBeTruthy()

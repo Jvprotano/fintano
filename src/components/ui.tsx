@@ -35,7 +35,7 @@ export function Panel({
 }) {
   return (
     <section
-      className={`app-panel-shadow rounded-2xl border border-dark-border/90 bg-dark-card/95 ${padded ? 'p-4 sm:p-5' : ''} ${className}`}
+      className={`app-panel-shadow min-w-0 rounded-2xl border border-dark-border/90 bg-dark-card/95 ${padded ? 'p-4 sm:p-6' : ''} ${className}`}
     >
       {children}
     </section>
@@ -64,13 +64,13 @@ export function PanelHeader({
         </span>
       )}
       <div className="min-w-0 flex-1 basis-56">
-        <h3 className="text-[15px] font-semibold tracking-tight text-dark-text">{title}</h3>
+        <h3 className="text-base font-semibold tracking-tight text-dark-text">{title}</h3>
         {description && (
-          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-dark-text-muted">{description}</p>
+          <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-dark-text-secondary">{description}</p>
         )}
       </div>
       {actions && (
-        <div className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-11 max-sm:-mt-1 max-sm:w-[calc(100%-2.75rem)]">
+        <div className="ml-auto flex min-w-0 items-center gap-2 max-sm:ml-0 max-sm:w-full max-sm:pl-11">
           {actions}
         </div>
       )}
@@ -90,7 +90,7 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-dashed border-dark-border bg-dark-input/25 px-6 py-12 text-center shadow-inner shadow-black/10">
+    <div className="flex flex-col items-center rounded-2xl border border-dashed border-dark-border bg-dark-input/25 px-5 py-8 text-center shadow-inner shadow-black/10 sm:py-10">
       {icon && (
         <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-dark-border-subtle bg-dark-surface text-dark-text-muted/70">
           {icon}
@@ -98,7 +98,7 @@ export function EmptyState({
       )}
       <strong className="text-sm font-semibold text-dark-text">{title}</strong>
       {children && (
-        <p className="mt-1.5 max-w-md text-sm leading-relaxed text-dark-text-muted">{children}</p>
+        <p className="mt-1.5 max-w-md text-sm leading-relaxed text-dark-text-secondary">{children}</p>
       )}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -119,9 +119,9 @@ export function FormField({
 }) {
   return (
     <label className={`block min-w-0 ${className}`}>
-      <span className="mb-1.5 flex items-baseline justify-between gap-2 text-[11px] font-medium text-dark-text-secondary">
+      <span className="app-form-label mb-1.5 flex items-baseline justify-between gap-2">
         <span>{label}</span>
-        {hint && <span className="text-[10px] font-normal text-dark-text-muted">{hint}</span>}
+        {hint && <span className="text-xs font-normal text-dark-text-muted">{hint}</span>}
       </span>
       {children}
     </label>
@@ -234,7 +234,7 @@ export function DonutChart({
           .join(', ')}
       >
         <div className="absolute inset-[18px] flex flex-col items-center justify-center rounded-full border border-dark-border-subtle bg-dark-card px-3 text-center shadow-inner shadow-black/25">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">
+          <span className="text-xs font-medium uppercase tracking-wide text-dark-text-muted">
             {centerLabel}
           </span>
           <strong className="mt-1 text-base font-semibold tabular-nums text-dark-text">
@@ -567,7 +567,7 @@ export function TrendChart({
               left: Math.min(Math.max(xAt(hoverIndex) - 70, 0), Math.max(0, width - 150)),
             }}
           >
-            <span className="block text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">
+            <span className="block text-xs font-medium uppercase tracking-wide text-dark-text-muted">
               {labels[hoverIndex]}
             </span>
             {series.map((s) => (
@@ -641,15 +641,15 @@ export function StatTile({
   return (
     <div className={`app-panel-shadow relative overflow-hidden rounded-2xl border px-4 py-3.5 ${surfaceClass} ${className}`}>
       <span className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-      <span className="block text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
+      <span className="block text-xs font-medium uppercase tracking-wide text-dark-text-secondary">
         {label}
       </span>
       <strong
-        className={`mt-1.5 block text-xl font-semibold leading-tight tracking-[-0.025em] tabular-nums ${valueClass}`}
+        className={`mt-2 block break-words text-[clamp(1.3rem,4.6vw,1.65rem)] font-semibold leading-tight tracking-[-0.03em] tabular-nums ${valueClass}`}
       >
         {value}
       </strong>
-      {detail && <span className="mt-0.5 block text-xs text-dark-text-muted">{detail}</span>}
+      {detail && <span className="mt-1 block text-xs leading-relaxed text-dark-text-secondary">{detail}</span>}
     </div>
   )
 }
@@ -695,7 +695,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary-400/20 bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(5,150,105,0.18)] transition-[background-color,transform,box-shadow] hover:-translate-y-px hover:bg-primary-500 hover:shadow-[0_10px_28px_rgba(5,150,105,0.24)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-primary-400/20 bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(5,150,105,0.18)] transition-[background-color,transform,box-shadow] hover:-translate-y-px hover:bg-primary-500 hover:shadow-[0_10px_28px_rgba(5,150,105,0.24)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${className}`}
     >
       {children}
     </button>
@@ -725,7 +725,7 @@ export function SecondaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl border bg-dark-surface/80 px-3.5 py-2 text-sm font-medium shadow-sm shadow-black/10 transition-[background-color,border-color,color,transform] hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${toneClass} ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border bg-dark-surface/80 px-3.5 py-2 text-sm font-medium shadow-sm shadow-black/10 transition-[background-color,border-color,color,transform] hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${toneClass} ${className}`}
     >
       {children}
     </button>
@@ -738,7 +738,7 @@ export function SuggestionChip({ label, onClick }: { label: string; onClick: () 
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full border border-dark-border bg-dark-surface/80 px-3 py-1 text-xs text-dark-text-secondary shadow-sm shadow-black/10 transition-colors hover:border-primary-500/50 hover:bg-primary-500/[0.05] hover:text-primary-300"
+      className="min-h-9 rounded-full border border-dark-border bg-dark-surface/80 px-3 py-1.5 text-xs text-dark-text-secondary shadow-sm shadow-black/10 transition-colors hover:border-primary-500/50 hover:bg-primary-500/[0.05] hover:text-primary-300"
     >
       + {label}
     </button>
@@ -757,7 +757,7 @@ export function Tag({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border border-white/[0.045] bg-dark-input/85 px-2 py-0.5 text-[11px] font-medium text-dark-text-secondary shadow-sm shadow-black/10 ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border border-white/[0.045] bg-dark-input/85 px-2 py-0.5 text-xs font-medium text-dark-text-secondary shadow-sm shadow-black/10 ${className}`}
     >
       {color && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />}
       {children}
@@ -790,7 +790,8 @@ export function SegmentedControl<T extends string | number | boolean>({
           key={String(option.value)}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-[background-color,border-color,color,box-shadow] ${
+          aria-pressed={value === option.value}
+          className={`min-h-9 rounded-lg border px-2 py-1.5 text-xs font-medium transition-[background-color,border-color,color,box-shadow] ${
             value === option.value
               ? 'border-white/[0.055] bg-dark-surface text-dark-text shadow-sm shadow-black/25'
               : 'border-transparent text-dark-text-muted hover:bg-white/[0.025] hover:text-dark-text'

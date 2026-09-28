@@ -1,6 +1,6 @@
 ---
 name: frontend-design
-description: Design or refine FinTano screens and shared UI components with the app's existing dark palette, financial hierarchy, and mobile behavior. Use for frontend visual or interaction work; skip backend-only tasks.
+description: Design or refine FinTano screens and shared UI components with the app's dark palette, financial hierarchy, and responsive behavior. Use for frontend visual or interaction work; skip backend-only tasks.
 ---
 
 # Frontend design do FinTano
@@ -31,9 +31,11 @@ Use a fonte sem serifa definida por `--font-sans` (`Inter` com fallback). Alinhe
 ## Construção da interface
 
 - Comece pela decisão financeira que a tela precisa esclarecer. Dê destaque ao número e ao estado que orientam essa decisão; deixe detalhes e configuração em segundo plano.
+- Nas telas amplas, organize grupos na ordem de decisão. Evite colunas automáticas que mudem a sequência de leitura entre módulos relacionados.
 - Evolua os tokens de `src/index.css` e os componentes compartilhados de `src/components/ui.tsx` quando o padrão servir a mais de uma tela. Mantenha profundidade sutil, bordas discretas e contraste legível.
-- Em formulários, mantenha rótulos persistentes e use placeholders somente para exemplos. A competência do ciclo pertence à movimentação. Diferencie visualmente plano, realizado e valores já pagos.
+- Em formulários, mantenha rótulos persistentes e use placeholders somente para exemplos. Use pelo menos 12 px para informação operacional fora de eixos de gráfico. A competência do ciclo pertence à movimentação. Diferencie visualmente plano, realizado e valores já pagos.
 - Escreva ações e estados em português claro, com o mesmo nome ao longo do fluxo. Erros e estados vazios devem indicar o próximo passo.
-- Revise em 390 px: sem rolagem horizontal da página, sem depender de hover e com ações utilizáveis por toque. Preserve foco visível por teclado e preferência por movimento reduzido.
+- Dê cor de alerta apenas a riscos ou estados que exigem atenção; uma saída comum não é alerta por si só. Projeções devem ter rótulo explícito e não parecer saldo disponível.
+- Preserve foco visível por teclado e preferência por movimento reduzido. Quando o trabalho incluir uso móvel, revise em 390 px: sem rolagem horizontal da página, sem depender de hover e com ações utilizáveis por toque. Se o usuário limitar a revisão ao desktop, priorize larguras amplas e preserve a estrutura responsiva existente sem gastar tempo em auditoria móvel.
 
-Antes de finalizar uma mudança visual, compare-a com as telas vizinhas e com `AGENTS.md`. Se houver navegador disponível, confira a tela renderizada em 390 px e em largura maior; relate quando essa checagem não puder ser feita.
+Antes de finalizar uma mudança visual, compare-a com as telas vizinhas e com `AGENTS.md`. Se houver navegador disponível, confira a tela renderizada nas larguras em escopo; relate quando essa checagem não puder ser feita.

@@ -54,7 +54,7 @@ function PlanComparisonDetail({
         {suffix}
       </span>
       <span
-        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${statusClasses[status.tone]}`}
+        className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${statusClasses[status.tone]}`}
       >
         {status.label}
       </span>
@@ -161,6 +161,16 @@ export function ClosingView({
         />
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile
+            label="Disponível para Desejos"
+            value={
+              currentInvoiceKnown
+                ? formatCurrency(financialCycle.discretionaryAvailable)
+                : '—'
+            }
+            detail="após fatura anterior, contas, aporte e extraordinários"
+            tone={!currentInvoiceKnown ? 'neutral' : financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
+          />
+          <StatTile
             label="Entrou no ciclo"
             value={formatCurrency(cashFlow.totalIn)}
             detail={
@@ -168,7 +178,7 @@ export function ClosingView({
                 ? `${formatCurrency(cashFlow.paycheck)} de salário + ${formatCurrency(cashFlow.extraIncome)} extras`
                 : 'salário líquido na conta'
             }
-            tone="positive"
+            tone={cashFlow.totalIn > 0 ? 'positive' : 'neutral'}
           />
           <StatTile
             label="Compromissos antes de Desejos"
@@ -176,20 +186,10 @@ export function ClosingView({
             detail="fatura anterior, contas atuais, aporte e extraordinários"
           />
           <StatTile
-            label="Disponível para Desejos"
-            value={
-              currentInvoiceKnown
-                ? formatCurrency(financialCycle.discretionaryAvailable)
-                : '—'
-            }
-            detail="para dividir entre qualidade de vida, viagens ou outra prioridade"
-            tone={financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
-          />
-          <StatTile
             label="Depois dos Desejos realizados"
             value={currentInvoiceKnown ? formatCurrency(financialCycle.cashAfterDue) : '—'}
             detail={`${formatCurrency(cashFlow.wantsOnAccount)} efetivamente destinados fora do cartão`}
-            tone={financialCycle.cashAfterDue < -0.005 ? 'negative' : 'positive'}
+            tone={!currentInvoiceKnown ? 'neutral' : financialCycle.cashAfterDue < -0.005 ? 'negative' : financialCycle.cashAfterDue > 0.005 ? 'positive' : 'neutral'}
           />
         </div>
 
@@ -283,7 +283,7 @@ export function ClosingView({
           </div>
 
           {nextCycleAllocation.extraExpense > 0.005 && (
-            <p className="mt-3 text-[11px] leading-relaxed text-dark-text-muted">
+            <p className="mt-3 text-xs leading-relaxed text-dark-text-muted">
               A prévia reserva {formatCurrency(nextCycleAllocation.extraExpense)} de saídas
               extraordinárias previstas.
             </p>
@@ -446,7 +446,7 @@ export function ClosingView({
                     {closingInvoiceTotal !== null ? formatCurrency(closingInvoiceTotal) : '—'}
                   </strong>
                   {closingInvoiceTotal !== null && (
-                    <span className="mt-0.5 block text-[11px] text-dark-text-muted">
+                    <span className="mt-0.5 block text-xs text-dark-text-muted">
                       terceiros {formatCurrency(Math.max(0, closingInvoiceTotal - closingInvoiceDue))}
                     </span>
                   )}
@@ -456,7 +456,7 @@ export function ClosingView({
                   <strong className="mt-0.5 block text-sm tabular-nums text-dark-text">
                     {formatCurrency(prepaidPersonal)}
                   </strong>
-                  <span className="mt-0.5 block text-[11px] text-dark-text-muted">
+                  <span className="mt-0.5 block text-xs text-dark-text-muted">
                     não será somado novamente
                   </span>
                 </div>
@@ -487,7 +487,7 @@ export function ClosingView({
             )}
 
             <label className="mt-3 block">
-              <span className="mb-1 block text-[11px] uppercase tracking-wider text-dark-text-muted">
+              <span className="mb-1 block text-xs uppercase tracking-wider text-dark-text-muted">
                 Nota do ciclo (opcional)
               </span>
               <input
@@ -525,7 +525,7 @@ export function ClosingView({
           </div>
         )}
 
-        <p className="mt-4 border-t border-dark-border-subtle pt-3 text-[11px] leading-relaxed text-dark-text-muted">
+        <p className="mt-4 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed text-dark-text-muted">
           Salário recebido no fim de {formatMonthLong(salaryMonth)} financia{' '}
           {formatMonthLong(activeCycle.month)}. A fatura que encerra este ciclo vence em{' '}
           {formatMonthLong(cardCycleAccounting.invoiceFormedByCycle.dueMonth)}; pagar a fatura não

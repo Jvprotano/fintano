@@ -44,7 +44,7 @@ function TrackingSourcePicker({ selected, onToggle, classes, hasAssets, hasDebts
         type="button"
         disabled={muted}
         onClick={() => onToggle(inclusion)}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${on ? 'border-primary-500/60 bg-primary-500/10 text-primary-200' : 'border-dark-border bg-dark-input text-dark-text-muted hover:text-dark-text'}`}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${on ? 'border-primary-500/60 bg-primary-500/10 text-primary-200' : 'border-dark-border bg-dark-input text-dark-text-muted hover:text-dark-text'}`}
       >
         {color && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />}
         {label}
@@ -79,13 +79,13 @@ function FundingSources({ goal }: { goal: GoalSummary }) {
       return <div key={holding.id} className="grid gap-2 rounded-lg border border-dark-border/70 bg-dark-input/35 p-3 sm:grid-cols-[1fr_170px] sm:items-center">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-dark-text">{holding.name}</p>
-          <p className="mt-0.5 text-[11px] text-dark-text-muted">
+          <p className="mt-0.5 text-xs text-dark-text-muted">
             {holding.institution || 'Instituição não informada'} · {formatCurrency(holding.marketValue)} na posição
           </p>
-          <p className="mt-1 text-[10px] text-dark-text-muted">Disponível para esta meta: {formatCurrency(available)}</p>
+          <p className="mt-1 text-xs text-dark-text-muted">Disponível para esta meta: {formatCurrency(available)}</p>
         </div>
         <label className="block">
-          <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-dark-text-muted">Destinar à meta</span>
+          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-dark-text-muted">Destinar à meta</span>
           <CurrencyInput value={current} onChange={(value) => setGoalHoldingAllocation(goal.id, holding.id, value)} className="!py-1.5" />
         </label>
       </div>
@@ -109,7 +109,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
           {goal.name}
           {goal.isComplete && <CheckCircle2 size={13} className="shrink-0 text-primary-400" aria-label="Concluída" />}
         </p>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-dark-text-muted">
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
           <Tag>{kind === 'funding' ? <><Link2 size={10} /> Dinheiro destinado</> : <><Layers size={10} /> Indicador</>}</Tag>
           {goal.targetMonth && <Tag>{formatMonthKey(goal.targetMonth)}</Tag>}
           {goal.includedLabels.length > 0 && <span className="truncate">{goal.includedLabels.join(' + ')}</span>}
@@ -118,7 +118,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
       </div>
       <div className="shrink-0 text-right">
         <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(goal.current)}</p>
-        <p className="text-[11px] tabular-nums text-dark-text-muted">
+        <p className="text-xs tabular-nums text-dark-text-muted">
           {goal.targetAmount > 0 ? `${goal.progress.toFixed(0)}% de ${formatCurrency(goal.targetAmount)}` : 'sem valor-alvo'}
         </p>
       </div>
@@ -129,15 +129,15 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
 
     {expanded && <div className="space-y-4 border-t border-dark-border/60 px-4 py-4">
       <div className="grid gap-2 sm:grid-cols-3">
-        <label className="block"><span className="mb-1 block text-[11px] text-dark-text-muted">Nome</span><input value={goal.name} onChange={(event) => updateGoal(goal.id, { name: event.target.value })} className={`${inputClass} !py-1.5`} /></label>
-        <label className="block"><span className="mb-1 block text-[11px] text-dark-text-muted">Valor-alvo</span><CurrencyInput value={goal.targetAmount} onChange={(value) => updateGoal(goal.id, { targetAmount: value })} className="!py-1.5" /></label>
-        <label className="block"><span className="mb-1 block text-[11px] text-dark-text-muted">Mês-alvo</span><input type="month" value={goal.targetMonth ?? ''} onChange={(event) => updateGoal(goal.id, { targetMonth: event.target.value || undefined })} className={`${inputClass} !py-1.5`} /></label>
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Nome</span><input value={goal.name} onChange={(event) => updateGoal(goal.id, { name: event.target.value })} className={`${inputClass} !py-1.5`} /></label>
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Valor-alvo</span><CurrencyInput value={goal.targetAmount} onChange={(value) => updateGoal(goal.id, { targetAmount: value })} className="!py-1.5" /></label>
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Mês-alvo</span><input type="month" value={goal.targetMonth ?? ''} onChange={(event) => updateGoal(goal.id, { targetMonth: event.target.value || undefined })} className={`${inputClass} !py-1.5`} /></label>
       </div>
 
       {kind === 'funding' ? <div>
         <div className="mb-2">
           <p className="text-xs font-semibold text-dark-text">Onde está o dinheiro desta meta</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-dark-text-muted">Separe apenas a parte de cada posição que pertence à meta. O valor continua contado uma única vez no patrimônio.</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Separe apenas a parte de cada posição que pertence à meta. O valor continua contado uma única vez no patrimônio.</p>
         </div>
         <FundingSources goal={goal} />
       </div> : <div>
@@ -145,7 +145,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
         <TrackingSourcePicker selected={goal.includes ?? []} onToggle={(inclusion) => toggleGoalInclusion(goal.id, inclusion)} classes={summary.classes} hasAssets={summary.physicalAssets > 0} hasDebts={summary.liabilities > 0} />
       </div>}
 
-      {unavailable > 0 && <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">{formatCurrency(unavailable)} deixou de estar coberto porque o saldo de uma posição caiu. Ajuste a destinação acima.</p>}
+      {unavailable > 0 && <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{formatCurrency(unavailable)} deixou de estar coberto porque o saldo de uma posição caiu. Ajuste a destinação acima.</p>}
 
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
         <div className="rounded-md bg-dark-input/60 px-2.5 py-2"><span className="block text-dark-text-muted">{kind === 'funding' ? 'Em posições' : 'Valor medido'}</span><strong className="tabular-nums text-dark-text">{formatCurrency(kind === 'funding' ? goal.allocatedBalance : goal.trackingBalance)}</strong></div>
@@ -155,7 +155,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
 
       {kind === 'funding' && <details className="rounded-lg border border-dark-border/60 bg-dark-input/25 p-3">
         <summary className="cursor-pointer text-xs font-medium text-dark-text-secondary">Dinheiro sem posição cadastrada</summary>
-        <p className="mt-2 text-[11px] leading-relaxed text-dark-text-muted">Use somente para dinheiro guardado fora das posições acima. Se ele está em CDB, ETF ou caixinha, cadastre a posição e destine o valor para evitar uma origem indefinida.</p>
+        <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">Use somente para dinheiro guardado fora das posições acima. Se ele está em CDB, ETF ou caixinha, cadastre a posição e destine o valor para evitar uma origem indefinida.</p>
         <div className="mt-3 space-y-3">
           <LedgerMoveForm
             onMove={(amount, note, cycleMonth) =>
@@ -217,13 +217,13 @@ export function GoalsSection() {
 
     {open && <div className="mt-4 space-y-3 rounded-xl border border-dark-border bg-dark-surface/60 p-4">
       <SegmentedControl options={[{ value: 'funding' as const, label: 'Objetivo com dinheiro' }, { value: 'tracking' as const, label: 'Indicador patrimonial' }]} value={kind} onChange={selectKind} />
-      <p className="text-[11px] leading-relaxed text-dark-text-muted">{kind === 'funding' ? 'Para viagem, entrada, carro ou outro objetivo: depois de criar, escolha quanto de cada posição pertence a ele.' : 'Para acompanhar um marco amplo, como patrimônio líquido ou total investido, sem reservar dinheiro específico.'}</p>
+      <p className="text-xs leading-relaxed text-dark-text-muted">{kind === 'funding' ? 'Para viagem, entrada, carro ou outro objetivo: depois de criar, escolha quanto de cada posição pertence a ele.' : 'Para acompanhar um marco amplo, como patrimônio líquido ou total investido, sem reservar dinheiro específico.'}</p>
       <div className="grid gap-2 sm:grid-cols-3">
-        <label className="block"><span className="mb-1 block text-[11px] text-dark-text-muted">Nome</span><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === 'funding' ? 'ex.: Gastar Europa' : 'ex.: Patrimônio 2027'} className={inputClass} /></label>
-        <label className="block"><span className="mb-1 block text-[11px] text-dark-text-muted">Valor-alvo</span><CurrencyInput value={targetAmount} onChange={setTargetAmount} /></label>
-        <label className="block"><span className="mb-1 block text-[11px] text-dark-text-muted">Mês-alvo (opcional)</span><input type="month" min={monthKey()} value={targetMonth} onChange={(event) => setTargetMonth(event.target.value)} className={inputClass} /></label>
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Nome</span><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === 'funding' ? 'ex.: Gastar Europa' : 'ex.: Patrimônio 2027'} className={inputClass} /></label>
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Valor-alvo</span><CurrencyInput value={targetAmount} onChange={setTargetAmount} /></label>
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Mês-alvo (opcional)</span><input type="month" min={monthKey()} value={targetMonth} onChange={(event) => setTargetMonth(event.target.value)} className={inputClass} /></label>
       </div>
-      {kind === 'tracking' && <div><span className="mb-1.5 block text-[11px] text-dark-text-muted">Saldos que entram no indicador</span><TrackingSourcePicker selected={includes} onToggle={toggleInclusion} classes={summary.classes} hasAssets={summary.physicalAssets > 0} hasDebts={summary.liabilities > 0} /></div>}
+      {kind === 'tracking' && <div><span className="mb-1.5 block text-xs text-dark-text-muted">Saldos que entram no indicador</span><TrackingSourcePicker selected={includes} onToggle={toggleInclusion} classes={summary.classes} hasAssets={summary.physicalAssets > 0} hasDebts={summary.liabilities > 0} /></div>}
       <div className="flex gap-2"><PrimaryButton onClick={handleAdd} disabled={!name.trim()}><Plus size={15} /> Criar meta</PrimaryButton><SecondaryButton onClick={() => setOpen(false)}>Cancelar</SecondaryButton></div>
     </div>}
 

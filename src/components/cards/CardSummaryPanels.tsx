@@ -36,8 +36,8 @@ export function CardSummaryPanels({
                 <span className="font-medium text-dark-text-secondary">{card.cardName}</span>
                 <span className="text-right">
                   <strong className="block tabular-nums text-dark-text">{formatCurrency(card.totalAmount)}</strong>
-                  <span className="text-[11px] tabular-nums text-dark-text-muted">meu: {formatCurrency(card.personalAmount)}</span>
-                  <span className="block text-[11px] tabular-nums text-dark-text-muted">não meu: {formatCurrency(card.thirdPartyAmount)}</span>
+                  <span className="text-xs tabular-nums text-dark-text-muted">meu: {formatCurrency(card.personalAmount)}</span>
+                  <span className="block text-xs tabular-nums text-dark-text-muted">não meu: {formatCurrency(card.thirdPartyAmount)}</span>
                 </span>
               </div>
             ))}
@@ -65,7 +65,7 @@ export function CardSummaryPanels({
                   </span>
                   <strong className="tabular-nums text-dark-text">{formatCurrency(realized)}</strong>
                 </div>
-                {planned > 0 && <p className="mt-0.5 text-[11px] tabular-nums text-dark-text-muted">{((realized / planned) * 100).toFixed(0)}% do plano de {formatCurrency(planned)}</p>}
+                {planned > 0 && <p className="mt-0.5 text-xs tabular-nums text-dark-text-muted">{((realized / planned) * 100).toFixed(0)}% do plano de {formatCurrency(planned)}</p>}
               </div>
             )
           })}
@@ -77,7 +77,7 @@ export function CardSummaryPanels({
           )}
         </div>
         {plannedOnCard > 0 && (
-          <p className="mt-3 border-t border-dark-border-subtle pt-3 text-[11px] leading-relaxed text-dark-text-muted">
+          <p className="mt-3 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed text-dark-text-muted">
             Plano no cartão: {formatCurrency(plannedOnCard)} · fatura pessoal do ciclo: {formatCurrency(accounting.invoiceFormedByCycle.personalTotal)}
             {prepaid > 0.005 ? ` · antecipado: ${formatCurrency(prepaid)}` : ''}.
           </p>

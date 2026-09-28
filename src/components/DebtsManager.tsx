@@ -47,7 +47,7 @@ function InstallmentSplit({ debt }: { debt: DebtSummary }) {
 
   return (
     <div>
-      <div className="mb-1.5 flex items-baseline justify-between text-[11px]">
+      <div className="mb-1.5 flex items-baseline justify-between text-xs">
         <span className="text-dark-text-muted">
           Da parcela de {formatCurrency(debt.installment)}
         </span>
@@ -73,7 +73,7 @@ function InstallmentSplit({ debt }: { debt: DebtSummary }) {
           title={`Juros: ${formatCurrency(debt.monthlyInterest)}`}
         />
       </div>
-      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span className="text-dark-text-secondary">
           Abate <strong className="tabular-nums text-dark-text">{formatCurrency(amortized)}</strong>
         </span>
@@ -106,7 +106,7 @@ function PayoffComparison({ debt }: { debt: DebtSummary }) {
         <div className="sm:w-40">
           <CurrencyInput value={amount} onChange={setAmount} className="!py-1.5" />
         </div>
-        <p className="text-[11px] leading-relaxed text-dark-text-muted sm:flex-1">
+        <p className="text-xs leading-relaxed text-dark-text-muted sm:flex-1">
           em 12 meses, aqui contra a premissa de {forecast.assumptions.annualReturnPct.toFixed(1)}%
           a.a. da sua projeção
         </p>
@@ -118,7 +118,7 @@ function PayoffComparison({ debt }: { debt: DebtSummary }) {
           <dd className="font-semibold tabular-nums text-dark-text">
             {formatCurrency(comparison.interestSaved)}
           </dd>
-          <dd className="text-[10px] text-dark-text-muted">
+          <dd className="text-xs text-dark-text-muted">
             dívida a {comparison.debtAnnualRatePct.toFixed(1)}% a.a.
           </dd>
         </div>
@@ -127,13 +127,13 @@ function PayoffComparison({ debt }: { debt: DebtSummary }) {
           <dd className="font-semibold tabular-nums text-dark-text">
             {formatCurrency(comparison.investmentReturn)}
           </dd>
-          <dd className="text-[10px] text-dark-text-muted">
+          <dd className="text-xs text-dark-text-muted">
             a {comparison.investmentAnnualRatePct.toFixed(1)}% a.a., antes de imposto
           </dd>
         </div>
       </dl>
 
-      <p className="mt-2 text-[11px] leading-relaxed text-dark-text-secondary">
+      <p className="mt-2 text-xs leading-relaxed text-dark-text-secondary">
         Diferença de{' '}
         <strong className={payoffWins ? 'text-primary-400' : 'text-dark-text'}>
           {formatCurrency(Math.abs(comparison.difference))}
@@ -163,7 +163,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-dark-text">{debt.name}</p>
-          <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-dark-text-muted">
+          <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
             {DEBT_KIND_LABELS[debt.kind]}
             <Tag>{debt.annualRatePct.toFixed(1)}% a.a.</Tag>
             {debt.isSecured && (
@@ -191,7 +191,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
             {formatCurrency(debt.balance)}
           </p>
           {debt.installment > 0 && (
-            <p className="text-[11px] tabular-nums text-dark-text-muted">
+            <p className="text-xs tabular-nums text-dark-text-muted">
               {formatCurrency(debt.installment)}/mês
             </p>
           )}
@@ -256,7 +256,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
 
           <InstallmentSplit debt={debt} />
           {debt.isSecured ? (
-            <p className="rounded-lg border border-dark-border bg-dark-input/40 px-3 py-2 text-[11px] leading-relaxed text-dark-text-secondary">
+            <p className="rounded-lg border border-dark-border bg-dark-input/40 px-3 py-2 text-xs leading-relaxed text-dark-text-secondary">
               Esta dívida tem um bem do outro lado, então ela não entra na conta de "amortizar ou
               investir" — a decisão aqui não é essa, é se vale a pena continuar morando neste
               imóvel. Essa comparação, com aluguel equivalente, está no painel de bens.
@@ -267,7 +267,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
 
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">Nome</span>
+              <span className="mb-1 block text-xs text-dark-text-muted">Nome</span>
               <input
                 value={debt.name}
                 onChange={(event) => debts.updateDebt(debt.id, { name: event.target.value })}
@@ -275,7 +275,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">Tipo</span>
+              <span className="mb-1 block text-xs text-dark-text-muted">Tipo</span>
               <select
                 value={debt.kind}
                 onChange={(event) =>
@@ -291,7 +291,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">
+              <span className="mb-1 block text-xs text-dark-text-muted">
                 Saldo devedor (do extrato)
               </span>
               <CurrencyInput
@@ -301,7 +301,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">Parcela mensal</span>
+              <span className="mb-1 block text-xs text-dark-text-muted">Parcela mensal</span>
               <CurrencyInput
                 value={debt.installment}
                 onChange={(value) => debts.updateDebt(debt.id, { installment: value })}
@@ -309,7 +309,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">Juros ao mês (%)</span>
+              <span className="mb-1 block text-xs text-dark-text-muted">Juros ao mês (%)</span>
               <input
                 type="number"
                 step="0.01"
@@ -323,7 +323,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">
+              <span className="mb-1 block text-xs text-dark-text-muted">
                 Parcelas restantes (0 = estimar)
               </span>
               <input
@@ -338,7 +338,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
               />
             </label>
             <label className="block sm:col-span-2">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">
+              <span className="mb-1 block text-xs text-dark-text-muted">
                 Custo fixo que já representa esta parcela no orçamento
               </span>
               <select
@@ -357,7 +357,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
               </select>
             </label>
             <label className="block sm:col-span-2">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">
+              <span className="mb-1 block text-xs text-dark-text-muted">
                 Bem que esta dívida financia
               </span>
               <select
@@ -374,14 +374,14 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
                   </option>
                 ))}
               </select>
-              <span className="mt-1 block text-[11px] text-dark-text-muted">
+              <span className="mt-1 block text-xs text-dark-text-muted">
                 Sem o bem, o app conta o saldo devedor sem contar o que ele comprou.
               </span>
             </label>
           </div>
 
           {debt.linkedCostMismatch !== null && (
-            <p className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-[11px] leading-relaxed text-amber-200">
+            <p className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-xs leading-relaxed text-amber-200">
               <AlertTriangle size={13} className="mt-px shrink-0" />
               <span>
                 O custo fixo ligado a esta dívida está{' '}
@@ -455,7 +455,7 @@ function NewDebtForm({ onClose }: { onClose: () => void }) {
     <div className="mt-4 space-y-3 rounded-lg border border-dark-border bg-dark-surface/60 p-3">
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Nome</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Nome</span>
           <input
             autoFocus
             value={name}
@@ -466,7 +466,7 @@ function NewDebtForm({ onClose }: { onClose: () => void }) {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Tipo</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Tipo</span>
           <select
             value={kind}
             onChange={(event) => setKind(event.target.value as DebtKind)}
@@ -479,21 +479,21 @@ function NewDebtForm({ onClose }: { onClose: () => void }) {
             ))}
           </select>
           {selectedKind && (
-            <span className="mt-1 block text-[11px] text-dark-text-muted">
+            <span className="mt-1 block text-xs text-dark-text-muted">
               Ex: {selectedKind.hint}
             </span>
           )}
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Saldo devedor hoje</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Saldo devedor hoje</span>
           <CurrencyInput value={balance} onChange={setBalance} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Parcela mensal</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Parcela mensal</span>
           <CurrencyInput value={installment} onChange={setInstallment} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Juros ao mês (%)</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Juros ao mês (%)</span>
           <input
             type="number"
             step="0.01"
@@ -503,12 +503,12 @@ function NewDebtForm({ onClose }: { onClose: () => void }) {
             onChange={(event) => setMonthlyRatePct(Number(event.target.value))}
             className={`${inputClass} text-right tabular-nums`}
           />
-          <span className="mt-1 block text-[11px] text-dark-text-muted">
+          <span className="mt-1 block text-xs text-dark-text-muted">
             {((Math.pow(1 + monthlyRatePct / 100, 12) - 1) * 100).toFixed(1)}% ao ano
           </span>
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">
+          <span className="mb-1 block text-xs text-dark-text-muted">
             Parcelas restantes (opcional)
           </span>
           <input
@@ -523,7 +523,7 @@ function NewDebtForm({ onClose }: { onClose: () => void }) {
         </label>
         {scenarios.costs.length > 0 && (
           <label className="block sm:col-span-2">
-            <span className="mb-1 block text-[11px] text-dark-text-muted">
+            <span className="mb-1 block text-xs text-dark-text-muted">
               Custo fixo que já representa esta parcela (opcional)
             </span>
             <select
@@ -542,7 +542,7 @@ function NewDebtForm({ onClose }: { onClose: () => void }) {
         )}
         {assets.assets.length > 0 && (
           <label className="block sm:col-span-2">
-            <span className="mb-1 block text-[11px] text-dark-text-muted">
+            <span className="mb-1 block text-xs text-dark-text-muted">
               Bem que esta dívida financia (opcional)
             </span>
             <select
@@ -681,7 +681,7 @@ export function DebtsManager() {
             {/* Com os dois tipos na tela, o cabeçalho evita ler o financiamento
                 com os olhos de quem está decidindo o que quitar primeiro. */}
             {unsecured.length > 0 && secured.length > 0 && (
-              <p className="text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
+              <p className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">
                 Sem contrapartida
               </p>
             )}
@@ -692,7 +692,7 @@ export function DebtsManager() {
             {secured.length > 0 && (
               <>
                 {unsecured.length > 0 && (
-                  <p className="pt-2 text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
+                  <p className="pt-2 text-xs font-medium uppercase tracking-wider text-dark-text-muted">
                     Com bem do outro lado
                   </p>
                 )}
@@ -704,7 +704,7 @@ export function DebtsManager() {
 
             {settled.length > 0 && (
               <>
-                <p className="pt-2 text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
+                <p className="pt-2 text-xs font-medium uppercase tracking-wider text-dark-text-muted">
                   Quitadas
                 </p>
                 {settled.map((debt) => (
@@ -717,7 +717,7 @@ export function DebtsManager() {
       </div>
 
       {showsRanking && summary.unsecured.costliest && (
-        <p className="mt-3 border-t border-dark-border-subtle pt-3 text-[11px] leading-relaxed text-dark-text-muted">
+        <p className="mt-3 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed text-dark-text-muted">
           A dívida mais cara de carregar é{' '}
           <strong className="text-dark-text">{summary.unsecured.costliest.name}</strong>, a{' '}
           {summary.unsecured.costliest.annualRatePct.toFixed(1)}% a.a. — cada real amortizado ali

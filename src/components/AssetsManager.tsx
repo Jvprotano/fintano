@@ -23,7 +23,7 @@ function EquityBar({ asset }: { asset: AssetSummary }) {
 
   return (
     <div>
-      <div className="mb-1.5 flex items-baseline justify-between text-[11px]">
+      <div className="mb-1.5 flex items-baseline justify-between text-xs">
         <span className="text-dark-text-muted">Quanto já é seu</span>
         <span className="tabular-nums text-dark-text-muted">
           {Math.max(0, asset.equityPct).toFixed(0)}%
@@ -36,7 +36,7 @@ function EquityBar({ asset }: { asset: AssetSummary }) {
         height={8}
         overIsBad={false}
       />
-      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span className="text-dark-text-secondary">
           Seu <strong className="tabular-nums text-dark-text">{formatCurrency(asset.equity)}</strong>
         </span>
@@ -71,14 +71,14 @@ function OwnVsRent({ asset }: { asset: AssetSummary }) {
           <dd className="font-semibold tabular-nums text-rose-400">
             {formatCurrency(comparison.monthlyInterest)}
           </dd>
-          <dd className="text-[10px] text-dark-text-muted">a despesa de verdade</dd>
+          <dd className="text-xs text-dark-text-muted">a despesa de verdade</dd>
         </div>
         <div className="rounded-md bg-dark-surface px-2.5 py-1.5">
           <dt className="text-dark-text-muted">Valorização</dt>
           <dd className="font-semibold tabular-nums text-primary-400">
             {formatCurrency(comparison.monthlyAppreciation)}
           </dd>
-          <dd className="text-[10px] text-dark-text-muted">
+          <dd className="text-xs text-dark-text-muted">
             {asset.annualAppreciationPct.toFixed(1)}% a.a. estimados
           </dd>
         </div>
@@ -87,18 +87,18 @@ function OwnVsRent({ asset }: { asset: AssetSummary }) {
           <dd className="font-semibold tabular-nums text-dark-text">
             {formatCurrency(comparison.ownershipCost)}
           </dd>
-          <dd className="text-[10px] text-dark-text-muted">juros − valorização</dd>
+          <dd className="text-xs text-dark-text-muted">juros − valorização</dd>
         </div>
         <div className="rounded-md bg-dark-surface px-2.5 py-1.5">
           <dt className="text-dark-text-muted">Aluguel equivalente</dt>
           <dd className="font-semibold tabular-nums text-dark-text">
             {formatCurrency(comparison.rentEquivalent)}
           </dd>
-          <dd className="text-[10px] text-dark-text-muted">informado por você</dd>
+          <dd className="text-xs text-dark-text-muted">informado por você</dd>
         </div>
       </dl>
 
-      <p className="mt-2 text-[11px] leading-relaxed text-dark-text-secondary">
+      <p className="mt-2 text-xs leading-relaxed text-dark-text-secondary">
         Ser dono sai{' '}
         <strong className={ownWins ? 'text-primary-400' : 'text-amber-300'}>
           {formatCurrency(Math.abs(comparison.difference))} {ownWins ? 'mais barato' : 'mais caro'}
@@ -111,7 +111,7 @@ function OwnVsRent({ asset }: { asset: AssetSummary }) {
       {/* A valorização é a premissa mais frágil da conta. Quando é ela que
           decide o resultado, o número merece a ressalva. */}
       {comparison.monthlyAppreciation > comparison.monthlyInterest / 2 && (
-        <p className="mt-1.5 text-[11px] leading-relaxed text-amber-200">
+        <p className="mt-1.5 text-xs leading-relaxed text-amber-200">
           Boa parte dessa vantagem vem da valorização de {asset.annualAppreciationPct.toFixed(1)}% ao
           ano, que é uma premissa sua, não um fato. Sem ela, o custo de ser dono seria{' '}
           {formatCurrency(comparison.monthlyInterest)} por mês.
@@ -140,7 +140,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-dark-text">{asset.name}</p>
-          <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-dark-text-muted">
+          <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
             {ASSET_KIND_LABELS[asset.kind]}
             <Tag>
               {asset.annualAppreciationPct >= 0 ? '+' : ''}
@@ -154,7 +154,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
             {formatCurrency(asset.value)}
           </p>
           {asset.hasDebt && (
-            <p className="text-[11px] tabular-nums text-dark-text-muted">
+            <p className="text-xs tabular-nums text-dark-text-muted">
               {formatCurrency(asset.equity)} seus
             </p>
           )}
@@ -174,7 +174,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
 
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">Nome</span>
+              <span className="mb-1 block text-xs text-dark-text-muted">Nome</span>
               <input
                 value={asset.name}
                 onChange={(event) => assets.updateAsset(asset.id, { name: event.target.value })}
@@ -182,7 +182,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">Tipo</span>
+              <span className="mb-1 block text-xs text-dark-text-muted">Tipo</span>
               <select
                 value={asset.kind}
                 onChange={(event) =>
@@ -198,7 +198,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">
+              <span className="mb-1 block text-xs text-dark-text-muted">
                 Valor de mercado hoje
               </span>
               <CurrencyInput
@@ -208,7 +208,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">
+              <span className="mb-1 block text-xs text-dark-text-muted">
                 Aluguel equivalente (opcional)
               </span>
               <CurrencyInput
@@ -216,12 +216,12 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
                 onChange={(value) => assets.updateAsset(asset.id, { rentEquivalent: value })}
                 className="!py-1.5"
               />
-              <span className="mt-1 block text-[11px] text-dark-text-muted">
+              <span className="mt-1 block text-xs text-dark-text-muted">
                 O que custaria alugar um equivalente — habilita a comparação acima.
               </span>
             </label>
             <label className="block sm:col-span-2">
-              <span className="mb-1 flex items-baseline justify-between text-[11px] text-dark-text-muted">
+              <span className="mb-1 flex items-baseline justify-between text-xs text-dark-text-muted">
                 <span>Valorização esperada</span>
                 <strong className="tabular-nums text-dark-text">
                   {asset.annualAppreciationPct >= 0 ? '+' : ''}
@@ -245,7 +245,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
           </div>
 
           {linkedDebts.length > 0 ? (
-            <p className="text-[11px] leading-relaxed text-dark-text-muted">
+            <p className="text-xs leading-relaxed text-dark-text-muted">
               Financiado por{' '}
               <strong className="text-dark-text">
                 {linkedDebts.map((debt) => debt.name).join(', ')}
@@ -254,7 +254,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
               separada entre juro e patrimônio.
             </p>
           ) : (
-            <p className="text-[11px] leading-relaxed text-amber-200">
+            <p className="text-xs leading-relaxed text-amber-200">
               Nenhuma dívida aponta para este bem. Se ele é financiado, ligue os dois no painel de
               dívidas: sem isso o app conta o saldo devedor sem a contrapartida.
             </p>
@@ -305,7 +305,7 @@ function NewAssetForm({ onClose }: { onClose: () => void }) {
     <div className="mt-4 space-y-3 rounded-lg border border-dark-border bg-dark-surface/60 p-3">
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Nome</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Nome</span>
           <input
             autoFocus
             value={name}
@@ -316,7 +316,7 @@ function NewAssetForm({ onClose }: { onClose: () => void }) {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Tipo</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Tipo</span>
           <select
             value={kind}
             onChange={(event) => selectKind(event.target.value as AssetKind)}
@@ -329,24 +329,24 @@ function NewAssetForm({ onClose }: { onClose: () => void }) {
             ))}
           </select>
           {selected && (
-            <span className="mt-1 block text-[11px] text-dark-text-muted">Ex: {selected.hint}</span>
+            <span className="mt-1 block text-xs text-dark-text-muted">Ex: {selected.hint}</span>
           )}
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">Valor de mercado hoje</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Valor de mercado hoje</span>
           <CurrencyInput value={value} onChange={setValue} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-dark-text-muted">
+          <span className="mb-1 block text-xs text-dark-text-muted">
             Aluguel equivalente (opcional)
           </span>
           <CurrencyInput value={rentEquivalent} onChange={setRentEquivalent} />
-          <span className="mt-1 block text-[11px] text-dark-text-muted">
+          <span className="mt-1 block text-xs text-dark-text-muted">
             Quanto custaria alugar um igual — é o que transforma o financiamento em decisão.
           </span>
         </label>
         <label className="block sm:col-span-2">
-          <span className="mb-1 flex items-baseline justify-between text-[11px] text-dark-text-muted">
+          <span className="mb-1 flex items-baseline justify-between text-xs text-dark-text-muted">
             <span>Valorização esperada</span>
             <strong className="tabular-nums text-dark-text">
               {appreciation >= 0 ? '+' : ''}
@@ -410,7 +410,7 @@ export function AssetsManager() {
       {showForm && <NewAssetForm onClose={() => setShowForm(false)} />}
 
       {orphanSecuredDebts.length > 0 && (
-        <p className="mt-4 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-[11px] leading-relaxed text-amber-200">
+        <p className="mt-4 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-xs leading-relaxed text-amber-200">
           Você tem {orphanSecuredDebts.length === 1 ? 'um financiamento' : 'financiamentos'} sem bem
           cadastrado ({orphanSecuredDebts.map((debt) => debt.name).join(', ')}). Enquanto o bem não
           existir, o app soma o saldo devedor sem somar o que ele comprou — e o patrimônio líquido
@@ -469,7 +469,7 @@ export function AssetsManager() {
 
       {summary.assets.length > 0 && summary.totalLinkedDebt > 0 && (
         <p
-          className="mt-3 border-t border-dark-border-subtle pt-3 text-[11px] leading-relaxed"
+          className="mt-3 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed"
           style={{ color: CHART_PALETTE.muted }}
         >
           A parcela de um bem financiado já é custo fixo do orçamento. Nada aqui é cobrado de novo:

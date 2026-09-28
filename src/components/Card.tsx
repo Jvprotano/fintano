@@ -54,12 +54,12 @@ export function Card({
         {...(collapsible
           ? { type: 'button' as const, onClick: toggleCollapse, 'aria-expanded': !collapsed }
           : {})}
-        className={`flex w-full items-center gap-3 px-4 py-4 text-left sm:px-5 ${
+        className={`flex w-full min-w-0 items-center gap-3 px-4 py-4 text-left sm:px-6 ${
           collapsed ? '' : 'border-b border-dark-border-subtle'
         } ${collapsible ? 'select-none transition-colors hover:bg-dark-hover/40' : ''}`}
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.045] bg-white/[0.035] text-dark-text-muted">{icon}</span>
-        <h2 className="flex-1 text-[15px] font-semibold tracking-tight text-dark-text">{title}</h2>
+        <h2 className="min-w-0 flex-1 text-base font-semibold tracking-tight text-dark-text">{title}</h2>
         {headerExtra && (
           <span
             onClick={(event) => event.stopPropagation()}
@@ -78,7 +78,7 @@ export function Card({
           />
         )}
       </HeaderTag>
-      {!collapsed && <div className="p-4 sm:p-5">{children}</div>}
+      {!collapsed && <div className="p-4 sm:p-6">{children}</div>}
     </section>
   )
 }

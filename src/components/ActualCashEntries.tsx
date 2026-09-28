@@ -26,7 +26,7 @@ function EntryRow({
       <span className="w-full min-w-0 text-sm font-medium text-dark-text sm:flex-1">
         <span className="block truncate">{entry.name}</span>
         {entry.sourceEventId && (
-          <span className="mt-0.5 block text-[11px] font-normal text-dark-text-muted">
+          <span className="mt-0.5 block text-xs font-normal text-dark-text-muted">
             previsto em Futuro
           </span>
         )}
@@ -84,20 +84,20 @@ export function ActualCashEntries({
       className={`rounded-xl border p-4 ${
         income
           ? 'border-primary-500/20 bg-primary-500/[0.04]'
-          : 'border-amber-500/20 bg-amber-500/[0.04]'
+          : 'border-dark-border bg-dark-surface/40'
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-dark-text">
-            <span className={income ? 'text-primary-300' : 'text-amber-300'}>{icon}</span>
+            <span className={income ? 'text-primary-300' : 'text-dark-text-secondary'}>{icon}</span>
             {title}
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-dark-text-muted">{description}</p>
         </div>
         <strong
           className={`text-lg font-semibold tabular-nums ${
-            income ? 'text-primary-300' : 'text-amber-200'
+            income ? 'text-primary-300' : 'text-dark-text'
           }`}
         >
           {formatCurrency(total)}
@@ -114,7 +114,7 @@ export function ActualCashEntries({
 
       {expected.length > 0 && (
         <div className="mt-3 rounded-lg border border-dark-border-subtle bg-dark-surface/50 p-3">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
+          <span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">
             Previsto em Futuro
           </span>
           <ul className="mt-2 space-y-1.5">
@@ -146,15 +146,21 @@ export function ActualCashEntries({
         </div>
       )}
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto]">
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          onKeyDown={(event) => event.key === 'Enter' && add()}
-          placeholder={income ? 'Descrição (ex.: banco de horas)' : 'Descrição (ex.: IPVA)'}
-          className={inputClass}
-        />
-        <CurrencyInput value={amount} onChange={setAmount} placeholder="Valor" />
+      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-end">
+        <label className="block min-w-0">
+          <span className="app-form-label mb-1.5 block">Descrição</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && add()}
+            placeholder={income ? 'Ex.: banco de horas' : 'Ex.: IPVA'}
+            className={inputClass}
+          />
+        </label>
+        <label className="block min-w-0">
+          <span className="app-form-label mb-1.5 block">Valor {income ? 'recebido' : 'pago'}</span>
+          <CurrencyInput value={amount} onChange={setAmount} />
+        </label>
         <PrimaryButton onClick={add} disabled={!name.trim() || amount <= 0}>
           <Plus size={14} />
           Adicionar

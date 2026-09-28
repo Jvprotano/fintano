@@ -130,7 +130,7 @@ export function CostManager() {
             </div>
             <Meter value={totalCosts} max={necessidadesTarget} color={BUDGET_AREA_COLORS.necessidades} />
             {(realized > 0 || costsOnCard > 0) && (
-              <p className="mt-1.5 text-[11px] leading-relaxed text-dark-text-muted">
+              <p className="mt-1.5 text-xs leading-relaxed text-dark-text-muted">
                 {costsOnCard > 0 && (
                   <>
                     <strong className="text-dark-text-secondary">
@@ -172,34 +172,33 @@ export function CostManager() {
         </div>
 
         <div className="rounded-lg border border-dark-border bg-dark-surface/60 p-3">
+          <p className="mb-3 text-sm font-semibold text-dark-text">Novo custo fixo</p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <input
+            <label className="app-form-label">Nome<input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              placeholder="Nome do custo"
-              className={inputClass}
-            />
-            <select
+              placeholder="Ex.: aluguel"
+              className={`${inputClass} mt-1.5`}
+            /></label>
+            <label className="app-form-label">Categoria<select
               value={category}
               onChange={(e) => setCategory(e.target.value as CostCategory)}
-              className={selectClass}
+              className={`${selectClass} mt-1.5`}
             >
               {COST_CATEGORIES.map(({ key, label }) => (
                 <option key={key} value={key}>
                   {label}
                 </option>
               ))}
-            </select>
+            </select></label>
           </div>
           {selectedCat && (
-            <p className="mt-1.5 px-1 text-[11px] text-dark-text-muted">Ex: {selectedCat.hint}</p>
+            <p className="mt-1.5 px-1 text-xs text-dark-text-muted">Ex: {selectedCat.hint}</p>
           )}
-          <div className="mt-2 flex gap-2">
-            <div className="flex-1">
-              <CurrencyInput value={value} onChange={setValue} placeholder="Valor cheio da conta" />
-            </div>
+          <div className="mt-2 flex items-end gap-2">
+            <label className="app-form-label min-w-0 flex-1">Valor cheio da conta<span className="mt-1.5 block"><CurrencyInput value={value} onChange={setValue} /></span></label>
             <PrimaryButton onClick={handleAdd} disabled={!name.trim() || value <= 0}>
               <Plus size={15} />
               Adicionar
@@ -208,7 +207,7 @@ export function CostManager() {
 
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              <span className="text-[11px] text-dark-text-muted">Pago por</span>
+              <span className="text-xs text-dark-text-muted">Pago por</span>
               <SegmentedControl
                 options={PAYMENT_OPTIONS}
                 value={paidWith}
@@ -231,13 +230,13 @@ export function CostManager() {
           {splitting && (
             <div className="mt-2 grid gap-2 border-t border-dark-border-subtle pt-2 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-[11px] text-dark-text-muted">
+                <span className="mb-1 block text-xs text-dark-text-muted">
                   Parte da outra pessoa
                 </span>
                 <CurrencyInput value={sharedAmount} onChange={setSharedAmount} />
               </label>
               <label className="block">
-                <span className="mb-1 block text-[11px] text-dark-text-muted">Com quem</span>
+                <span className="mb-1 block text-xs text-dark-text-muted">Com quem</span>
                 <input
                   type="text"
                   value={sharedWith}
@@ -247,7 +246,7 @@ export function CostManager() {
                 />
               </label>
               {value > 0 && (
-                <p className="text-[11px] text-dark-text-muted sm:col-span-2">
+                <p className="text-xs text-dark-text-muted sm:col-span-2">
                   Entra no orçamento:{' '}
                   <strong className="tabular-nums text-dark-text">
                     {formatCurrency(Math.max(0, value - Math.min(sharedAmount, value)))}
@@ -300,7 +299,7 @@ export function CostManager() {
                           {formatCurrency(personal)}
                         </span>
                         {shared > 0 && (
-                          <span className="block text-[11px] tabular-nums text-dark-text-muted">
+                          <span className="block text-xs tabular-nums text-dark-text-muted">
                             de {formatCurrency(cost.value)}
                           </span>
                         )}
@@ -326,7 +325,7 @@ export function CostManager() {
                   {isEditing && (
                     <div className="mt-2.5 grid gap-2 border-t border-dark-border-subtle pt-2.5 sm:grid-cols-3">
                       <label className="block sm:col-span-3">
-                        <span className="mb-1 block text-[11px] text-dark-text-muted">
+                        <span className="mb-1 block text-xs text-dark-text-muted">
                           Pago por — o que passa no cartão só sai da conta quando a fatura vence
                         </span>
                         <SegmentedControl
@@ -337,7 +336,7 @@ export function CostManager() {
                         />
                       </label>
                       <label className="block">
-                        <span className="mb-1 block text-[11px] text-dark-text-muted">
+                        <span className="mb-1 block text-xs text-dark-text-muted">
                           Valor cheio
                         </span>
                         <CurrencyInput
@@ -347,7 +346,7 @@ export function CostManager() {
                         />
                       </label>
                       <label className="block">
-                        <span className="mb-1 block text-[11px] text-dark-text-muted">
+                        <span className="mb-1 block text-xs text-dark-text-muted">
                           Parte de terceiros
                         </span>
                         <CurrencyInput
@@ -361,7 +360,7 @@ export function CostManager() {
                         />
                       </label>
                       <label className="block">
-                        <span className="mb-1 block text-[11px] text-dark-text-muted">Com quem</span>
+                        <span className="mb-1 block text-xs text-dark-text-muted">Com quem</span>
                         <input
                           type="text"
                           value={cost.sharedWith ?? ''}

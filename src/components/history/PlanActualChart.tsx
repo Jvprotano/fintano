@@ -81,7 +81,7 @@ export function PlanActualChart({ points }: { points: HistoryPoint[] }) {
           onChange={setMetric}
           className="w-full sm:w-[390px]"
         />
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-dark-text-muted">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-dark-text-muted">
           <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-sm bg-dark-text-muted/60" /> Planejado
           </span>
@@ -138,7 +138,7 @@ export function PlanActualChart({ points }: { points: HistoryPoint[] }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-dark-text-muted">
+      <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">
         Últimos {data.length} {data.length === 1 ? 'mês fechado' : 'meses fechados'}. Em investimentos,
         superar a meta é positivo; em custos, Desejos e cartão, ficar abaixo do limite é positivo.
       </p>

@@ -71,7 +71,7 @@ export function CostAdjustmentControl({
           <button
             type="submit"
             disabled={amount <= 0}
-            className="inline-flex h-7 items-center justify-center gap-1 rounded-md border border-dark-border-subtle bg-dark-input px-1.5 text-[10px] font-semibold text-dark-text-secondary transition-colors hover:border-primary-500/40 hover:text-primary-300 disabled:cursor-not-allowed disabled:opacity-35"
+            className="inline-flex h-7 items-center justify-center gap-1 rounded-md border border-dark-border-subtle bg-dark-input px-1.5 text-xs font-semibold text-dark-text-secondary transition-colors hover:border-primary-500/40 hover:text-primary-300 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label={`Confirmar valor para ${action} em ${costName}`}
             title="Confirmar ajuste"
           >
@@ -146,7 +146,7 @@ export function ActualsPanel() {
         actions={
           <>
             <span className="text-right">
-              <span className="block text-[11px] uppercase tracking-wider text-dark-text-muted">
+              <span className="block text-xs uppercase tracking-wider text-dark-text-muted">
                 Custos do mês
               </span>
               <strong className="block text-lg font-semibold tabular-nums text-dark-text">
@@ -230,7 +230,7 @@ export function ActualsPanel() {
                     <span className="h-2 w-2 shrink-0 rounded-full bg-violet-400" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-dark-text">{row.want.name}</p>
-                      <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-dark-text-muted">
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
                         <span>plano {formatCurrency(row.planned)}</span>
                         <Tag>fora do cartão</Tag>
                       </p>
@@ -325,7 +325,7 @@ export function ActualsPanel() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-dark-text">{row.cost.name}</p>
-                    <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-dark-text-muted">
+                    <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
                       {COST_CATEGORY_LABELS[row.cost.category]}
                       <span>plano {formatCurrency(row.planned)}</span>
                       {row.cost.paidWith === 'card' && <Tag>no cartão</Tag>}

@@ -45,7 +45,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
       >
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-dark-text">{holding.name}</p>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-dark-text-muted">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dark-text-muted">
             {holding.institution && (
               <span className="inline-flex items-center gap-1">
                 <Building2 size={10} />
@@ -61,7 +61,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
           <p className="text-sm font-semibold tabular-nums text-dark-text">
             {formatCurrency(holding.marketValue)}
           </p>
-          <p className="text-[11px]">
+          <p className="text-xs">
             <GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} />
           </p>
         </div>
@@ -110,7 +110,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
           <div className="rounded-2xl border border-dark-border/70 bg-dark-input/20 p-3 sm:p-4">
             <div className="mb-3">
               <h4 className="text-xs font-semibold text-dark-text">Dados da reserva</h4>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-dark-text-muted">Identifique onde está o dinheiro e em quanto tempo ele fica disponível.</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Identifique onde está o dinheiro e em quanto tempo ele fica disponível.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Saldo atual" hint="marcação a mercado">
@@ -222,32 +222,33 @@ function NewReservePositionForm({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="mt-4 space-y-3 rounded-lg border border-dark-border bg-dark-surface/60 p-3">
+      <h4 className="text-sm font-semibold text-dark-text">Nova posição da reserva</h4>
       <div className="grid gap-2 sm:grid-cols-2">
-        <input
+        <FormField label="Produto"><input
           autoFocus
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Produto — ex.: CDB liquidez diária"
+          placeholder="Ex.: CDB liquidez diária"
           className={inputClass}
-        />
-        <input
+        /></FormField>
+        <FormField label="Instituição"><input
           value={institution}
           onChange={(event) => setInstitution(event.target.value)}
-          placeholder="Instituição — ex.: Inter"
+          placeholder="Ex.: Inter"
           className={inputClass}
-        />
-        <input
+        /></FormField>
+        <FormField label="Referência"><input
           value={benchmark}
           onChange={(event) => setBenchmark(event.target.value)}
-          placeholder="Referência — ex.: 100% CDI"
+          placeholder="Ex.: 100% CDI"
           className={inputClass}
-        />
-        <input
+        /></FormField>
+        <FormField label="Liquidez"><input
           value={liquidity}
           onChange={(event) => setLiquidity(event.target.value)}
-          placeholder="Liquidez — ex.: D+0"
+          placeholder="Ex.: D+0"
           className={inputClass}
-        />
+        /></FormField>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -315,7 +316,7 @@ export function ReserveSection() {
               {formatCurrency(emergencyFund.current)}
             </p>
             {target > 0 && (
-              <p className="text-[11px] text-dark-text-muted">
+              <p className="text-xs text-dark-text-muted">
                 {progress.toFixed(0)}% da meta ({emergencyFund.targetMonths} meses)
               </p>
             )}

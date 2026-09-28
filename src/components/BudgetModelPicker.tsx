@@ -31,14 +31,14 @@ export function BudgetModelPicker() {
       storageKey="budget-model"
       headerExtra={
         <div className="text-right leading-tight">
-          <span className="block text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">
+          <span className="block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
             Modelo
           </span>
           <span className="block text-sm font-semibold text-primary-400">{selectedModel.name}</span>
           {/* Nos modelos prontos o próprio nome já são as metas; no personalizado
               elas só apareceriam ao expandir o card. */}
           {isCustom && (
-            <span className="block whitespace-nowrap text-[11px] tabular-nums text-dark-text-muted">
+            <span className="block whitespace-nowrap text-xs tabular-nums text-dark-text-muted">
               {AREAS.map(({ field }) => `${customModel[field]}%`).join(' / ')}
             </span>
           )}
@@ -66,7 +66,7 @@ export function BudgetModelPicker() {
                 >
                   {model.name}
                 </span>
-                <span className="mt-0.5 block text-[11px] leading-tight text-dark-text-muted">
+                <span className="mt-0.5 block text-xs leading-tight text-dark-text-muted">
                   {model.description}
                 </span>
               </button>

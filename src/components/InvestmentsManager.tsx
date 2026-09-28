@@ -79,7 +79,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-dark-text">{holding.name}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-dark-text-muted">
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
           <span className="inline-flex items-center gap-1"><Building2 size={10} />{holding.institution || 'Instituição não informada'}</span>
           {assetClass && <span>· {assetClass.name}</span>}
           {holding.benchmark && <span>· {holding.benchmark}</span>}
@@ -88,12 +88,12 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         <div className="mt-1.5 flex flex-wrap gap-1">
           <Tag>{purpose === 'emergency_fund' ? 'Reserva de emergência' : 'Carteira'}</Tag>
           {allocations.map((allocation) => <Tag key={allocation.goal}><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: allocation.color }} />{allocation.goal}: {formatCurrency(allocation.amount)}</Tag>)}
-          {missingLocation && <span className="inline-flex items-center gap-1 text-[10px] text-amber-300"><AlertCircle size={10} /> complete a instituição</span>}
+          {missingLocation && <span className="inline-flex items-center gap-1 text-xs text-amber-300"><AlertCircle size={10} /> complete a instituição</span>}
         </div>
       </div>
       <div className="shrink-0 text-right">
         <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(holding.marketValue)}</p>
-        <p className="text-[11px]"><GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} /></p>
+        <p className="text-xs"><GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} /></p>
       </div>
       <ChevronDown size={15} className={`shrink-0 text-dark-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} />
     </button>
@@ -118,7 +118,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
       <div className="rounded-2xl border border-dark-border/70 bg-dark-input/20 p-3 sm:p-4">
         <div className="mb-3">
           <h4 className="text-xs font-semibold text-dark-text">Dados da posição</h4>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-dark-text-muted">Saldo, classificação e identificação do produto.</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Saldo, classificação e identificação do produto.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <FormField label="Saldo atual" hint="marcação a mercado"><CurrencyInput value={holding.marketValue} onChange={(value) => setMarketValue(holding.id, value)} className="!py-2" /></FormField>
@@ -170,11 +170,12 @@ function NewPositionForm({ onClose }: { onClose: () => void }) {
   }
 
   return <div className="mt-4 space-y-3 rounded-xl border border-dark-border bg-dark-surface/60 p-4">
+    <h4 className="text-sm font-semibold text-dark-text">Nova posição financeira</h4>
     <SegmentedControl options={[{ value: 'portfolio' as const, label: 'Carteira / metas' }, { value: 'emergency_fund' as const, label: 'Reserva de emergência' }]} value={purpose} onChange={setPurpose} />
-    <p className="text-[11px] text-dark-text-muted">A classe diz no que está aplicado; a finalidade diz para que o dinheiro existe.</p>
+    <p className="text-xs text-dark-text-muted">A classe diz no que está aplicado; a finalidade diz para que o dinheiro existe.</p>
     <div className="grid gap-2 sm:grid-cols-2">
-      <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Produto — ex.: CDB Itaú 110% CDI" className={inputClass} aria-label="Nome da posição" />
-      <input value={institution} onChange={(event) => setInstitution(event.target.value)} placeholder="Instituição — ex.: Itaú, XP, Nubank" className={inputClass} aria-label="Instituição" />
+      <FormField label="Produto"><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: CDB Itaú 110% CDI" className={inputClass} /></FormField>
+      <FormField label="Instituição"><input value={institution} onChange={(event) => setInstitution(event.target.value)} placeholder="Ex.: Itaú, XP, Nubank" className={inputClass} /></FormField>
     </div>
     <div>
       <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Classe de ativo</span>
@@ -200,13 +201,13 @@ function NewPositionForm({ onClose }: { onClose: () => void }) {
 function BalanceEquation({ financialAssets, physicalAssets, liabilities, netWorth }: { financialAssets: number; physicalAssets: number; liabilities: number; netWorth: number }) {
   const grossAssets = financialAssets + physicalAssets
   return <Panel>
-    <PanelHeader title="Como o patrimônio fecha" description="Uma conta legível no lugar de barras com escalas difíceis de comparar." />
+    <PanelHeader title="Como o patrimônio fecha" description="Ativos menos dívidas, com cada valor identificado." />
     <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-stretch">
-      <div className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-4"><span className="text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">Tudo que você tem</span><strong className="mt-1 block text-lg tabular-nums text-dark-text">{formatCurrency(grossAssets)}</strong><span className="mt-1 block text-[11px] text-dark-text-muted">{formatCurrency(financialAssets)} financeiro{physicalAssets > 0 ? ` + ${formatCurrency(physicalAssets)} em bens` : ''}</span></div>
+      <div className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-4"><span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">Tudo que você tem</span><strong className="mt-1 block text-lg tabular-nums text-dark-text">{formatCurrency(grossAssets)}</strong><span className="mt-1 block text-xs text-dark-text-muted">{formatCurrency(financialAssets)} financeiro{physicalAssets > 0 ? ` + ${formatCurrency(physicalAssets)} em bens` : ''}</span></div>
       <span className="self-center text-center text-xl text-dark-text-muted">−</span>
-      <div className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-4"><span className="text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">Tudo que você deve</span><strong className="mt-1 block text-lg tabular-nums text-dark-text">{formatCurrency(liabilities)}</strong><span className="mt-1 block text-[11px] text-dark-text-muted">saldo devedor atual</span></div>
+      <div className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-4"><span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">Tudo que você deve</span><strong className="mt-1 block text-lg tabular-nums text-dark-text">{formatCurrency(liabilities)}</strong><span className="mt-1 block text-xs text-dark-text-muted">saldo devedor atual</span></div>
       <span className="self-center text-center text-xl text-dark-text-muted">=</span>
-      <div className={`rounded-xl border p-4 ${netWorth >= 0 ? 'border-primary-500/25 bg-primary-500/[0.07]' : 'border-rose-500/25 bg-rose-500/[0.07]'}`}><span className="text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">Patrimônio líquido</span><strong className={`mt-1 block text-lg tabular-nums ${netWorth >= 0 ? 'text-primary-300' : 'text-rose-300'}`}>{formatCurrency(netWorth)}</strong><span className="mt-1 block text-[11px] text-dark-text-muted">o que efetivamente é seu</span></div>
+      <div className={`rounded-xl border p-4 ${netWorth >= 0 ? 'border-primary-500/25 bg-primary-500/[0.07]' : 'border-rose-500/25 bg-rose-500/[0.07]'}`}><span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">Patrimônio líquido</span><strong className={`mt-1 block text-lg tabular-nums ${netWorth >= 0 ? 'text-primary-300' : 'text-rose-300'}`}>{formatCurrency(netWorth)}</strong><span className="mt-1 block text-xs text-dark-text-muted">o que efetivamente é seu</span></div>
     </div>
   </Panel>
 }
@@ -245,22 +246,22 @@ function PayrollInvestmentsPanel({ onNavigate }: { onNavigate: (section: Section
             >
               <div className="min-w-0">
                 <strong className="block truncate text-sm text-dark-text">{deduction.name}</strong>
-                <span className="text-[10px] text-dark-text-muted">
+                <span className="text-xs text-dark-text-muted">
                   {linkedHolding
                     ? `${linkedHolding.name}: ${formatCurrency(linkedHolding.marketValue)}`
                     : 'Sem posição patrimonial vinculada'}
                 </span>
               </div>
               <span className="text-xs text-dark-text-secondary">
-                <span className="block text-[10px] text-dark-text-muted">Você</span>
+                <span className="block text-xs text-dark-text-muted">Você</span>
                 {formatCurrency(deduction.value)}
               </span>
               <span className="text-xs text-dark-text-secondary">
-                <span className="block text-[10px] text-dark-text-muted">Empresa</span>
+                <span className="block text-xs text-dark-text-muted">Empresa</span>
                 {formatCurrency(employer)}
               </span>
               <strong className="text-xs text-primary-300">
-                <span className="block text-[10px] font-normal text-dark-text-muted">Creditado/mês</span>
+                <span className="block text-xs font-normal text-dark-text-muted">Creditado/mês</span>
                 {formatCurrency(deduction.value + employer)}
               </strong>
             </div>
@@ -290,7 +291,7 @@ function PayrollInvestmentsPanel({ onNavigate }: { onNavigate: (section: Section
         (deduction) =>
           !summary.allHoldings.some((holding) => holding.id === deduction.linkedHoldingId),
       ) && (
-        <p className="mt-3 rounded-lg border border-amber-500/15 bg-amber-500/[0.045] px-3 py-2 text-[10px] leading-relaxed text-dark-text-muted">
+        <p className="mt-3 rounded-lg border border-amber-500/15 bg-amber-500/[0.045] px-3 py-2 text-xs leading-relaxed text-dark-text-muted">
           Vincule cada previdência, em Planejar, a uma posição com seu saldo atual. O FinTano não
           inventa o patrimônio acumulado a partir da contribuição mensal nem lança o aporte duas
           vezes.
@@ -336,8 +337,8 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
     {(goalsWithoutSources.length > 0 || positionsWithoutInstitution.length > 0) && <Panel>
       <PanelHeader title="Próximos ajustes" icon={<AlertCircle size={16} />} description="Poucos dados faltam para o mapa ficar completo." />
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {goalsWithoutSources.length > 0 && <a href="#patrimonio-metas" className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-3 text-left hover:border-primary-500/35"><span className="flex items-center gap-2 text-xs font-semibold text-dark-text"><Flag size={14} className="text-violet-300" />Ligar {goalsWithoutSources.length} meta{goalsWithoutSources.length > 1 ? 's' : ''} a posições</span><span className="mt-1 block text-[11px] text-dark-text-muted">{goalsWithoutSources.map((goal) => goal.name).join(', ')}</span></a>}
-        {positionsWithoutInstitution.length > 0 && <button type="button" onClick={() => onNavigate('holdings')} className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-3 text-left hover:border-primary-500/35"><span className="flex items-center gap-2 text-xs font-semibold text-dark-text"><Building2 size={14} className="text-amber-300" />Informar instituição de {positionsWithoutInstitution.length} {positionsWithoutInstitution.length === 1 ? 'posição' : 'posições'}</span><span className="mt-1 block text-[11px] text-dark-text-muted">{positionsWithoutInstitution.map((holding) => holding.name).join(', ')}</span></button>}
+        {goalsWithoutSources.length > 0 && <a href="#patrimonio-metas" className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-3 text-left hover:border-primary-500/35"><span className="flex items-center gap-2 text-xs font-semibold text-dark-text"><Flag size={14} className="text-violet-300" />Ligar {goalsWithoutSources.length} meta{goalsWithoutSources.length > 1 ? 's' : ''} a posições</span><span className="mt-1 block text-xs text-dark-text-muted">{goalsWithoutSources.map((goal) => goal.name).join(', ')}</span></a>}
+        {positionsWithoutInstitution.length > 0 && <button type="button" onClick={() => onNavigate('holdings')} className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-3 text-left hover:border-primary-500/35"><span className="flex items-center gap-2 text-xs font-semibold text-dark-text"><Building2 size={14} className="text-amber-300" />Informar instituição de {positionsWithoutInstitution.length} {positionsWithoutInstitution.length === 1 ? 'posição' : 'posições'}</span><span className="mt-1 block text-xs text-dark-text-muted">{positionsWithoutInstitution.map((holding) => holding.name).join(', ')}</span></button>}
       </div>
     </Panel>}
 
@@ -377,10 +378,10 @@ export function InvestmentsManager() {
 
   return <div className="space-y-4">
     <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-      <StatTile label="Dinheiro e investimentos" value={formatCurrency(summary.financialAssets)} detail={`${summary.allHoldings.length} ${summary.allHoldings.length === 1 ? 'posição' : 'posições'} · ${formatCurrency(summary.reserveBalance)} de reserva`} tone="accent" />
-      <StatTile label="Patrimônio líquido" value={formatCurrency(summary.netWorth)} detail={`${formatCurrency(summary.grossAssets)} em ativos − ${formatCurrency(summary.liabilities)} em dívidas`} tone={summary.netWorth >= 0 ? 'accent' : 'negative'} />
+      <StatTile label="Patrimônio líquido" value={formatCurrency(summary.netWorth)} detail={`${formatCurrency(summary.grossAssets)} em ativos − ${formatCurrency(summary.liabilities)} em dívidas`} tone={summary.netWorth > 0 ? 'accent' : summary.netWorth < 0 ? 'negative' : 'neutral'} />
+      <StatTile label="Dinheiro e investimentos" value={formatCurrency(summary.financialAssets)} detail={`${summary.allHoldings.length} ${summary.allHoldings.length === 1 ? 'posição' : 'posições'} · ${formatCurrency(summary.reserveBalance)} de reserva`} tone="neutral" />
       <StatTile label="Dívidas" value={formatCurrency(summary.liabilities)} detail={summary.liabilities > 0 ? `${formatCurrency(debts.summary.totalMonthlyInterest)}/mês de juros` : 'nenhuma dívida cadastrada'} tone="neutral" />
-      <StatTile label="Rendimento financeiro" value={`${summary.financialGain >= 0 ? '+' : '−'} ${formatCurrency(Math.abs(summary.financialGain))}`} detail={summary.financialInvested > 0 ? `${((summary.financialGain / summary.financialInvested) * 100).toFixed(1)}% sobre o aportado · ${activeGoals} meta${activeGoals === 1 ? '' : 's'} aberta${activeGoals === 1 ? '' : 's'}` : undefined} tone={summary.financialGain >= 0 ? 'positive' : 'negative'} />
+      <StatTile label="Rendimento financeiro" value={`${summary.financialGain >= 0 ? '+' : '−'} ${formatCurrency(Math.abs(summary.financialGain))}`} detail={summary.financialInvested > 0 ? `${((summary.financialGain / summary.financialInvested) * 100).toFixed(1)}% sobre o aportado · ${activeGoals} meta${activeGoals === 1 ? '' : 's'} aberta${activeGoals === 1 ? '' : 's'}` : undefined} tone={summary.financialGain > 0 ? 'positive' : summary.financialGain < 0 ? 'negative' : 'neutral'} />
     </div>
 
     <nav aria-label="Seções do patrimônio">

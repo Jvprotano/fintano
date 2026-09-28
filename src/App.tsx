@@ -87,6 +87,39 @@ const VIEWS: { id: View; label: string; icon: typeof CalendarCheck }[] = [
   { id: 'forecast', label: 'Futuro', icon: CalendarClock },
 ]
 
+const VIEW_CONTEXT: Record<View, { eyebrow: string; title: string; description: string }> = {
+  closing: {
+    eyebrow: 'Competência ativa · realizado e caixa',
+    title: 'Seu ciclo',
+    description: 'Veja o que entrou, registre o realizado e feche o mês quando os valores estiverem prontos.',
+  },
+  planning: {
+    eyebrow: 'Plano · competência ativa',
+    title: 'Planejar',
+    description: 'Distribua a renda entre compromissos, Desejos e aportes. Valores planejados ainda não são dinheiro em caixa.',
+  },
+  cards: {
+    eyebrow: 'Fatura · lançamentos e pagamentos',
+    title: 'Cartões',
+    description: 'Confira a fatura pessoal e seus itens. O envelope Cartão já inclui os detalhes lançados aqui.',
+  },
+  investments: {
+    eyebrow: 'Posição atual · ativos e dívidas',
+    title: 'Patrimônio',
+    description: 'Acompanhe onde seu dinheiro está e quanto resta depois das dívidas.',
+  },
+  history: {
+    eyebrow: 'Passado · ciclos encerrados',
+    title: 'Histórico',
+    description: 'Compare o que foi planejado com o realizado nos ciclos já encerrados.',
+  },
+  forecast: {
+    eyebrow: 'Projeção · cenários e premissas',
+    title: 'Futuro',
+    description: 'Explore possibilidades para os próximos ciclos. Projeção não é saldo disponível hoje.',
+  },
+}
+
 const SHORTCUTS: { keys: string; description: string }[] = [
   ...VIEWS.map((view, index) => ({ keys: String(index + 1), description: `Ir para ${view.label}` })),
   { keys: '/', description: 'Buscar na fatura (aba Cartões)' },
@@ -105,7 +138,7 @@ function TabBar({
 }) {
   return (
     <nav
-      className={`grid grid-cols-3 gap-1 rounded-xl border border-dark-border/90 bg-dark-card/85 p-1.5 shadow-inner shadow-black/20 sm:grid-cols-6 ${className}`}
+      className={`grid grid-cols-3 gap-1 rounded-2xl border border-dark-border/90 bg-dark-card/85 p-1.5 shadow-inner shadow-black/20 sm:grid-cols-6 ${className}`}
       aria-label="Navegação principal"
     >
       {VIEWS.map(({ id, label, icon: Icon }) => {
@@ -117,15 +150,15 @@ function TabBar({
             type="button"
             onClick={() => setActiveView(id)}
             aria-current={active ? 'page' : undefined}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-sm font-medium transition-[background-color,border-color,color,box-shadow] ${
+            className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-medium transition-[background-color,border-color,color,box-shadow] sm:text-sm ${
               active
-                ? 'border-primary-500/15 bg-primary-500/[0.075] text-primary-100 shadow-sm shadow-black/20'
+                ? 'border-primary-500/25 bg-primary-500/[0.12] text-primary-100 shadow-sm shadow-black/20'
                 : secondary
                   ? 'border-transparent text-dark-text-muted/65 hover:bg-white/[0.025] hover:text-dark-text-muted'
                   : 'border-transparent text-dark-text-muted hover:bg-white/[0.025] hover:text-dark-text'
             }`}
           >
-            <Icon size={14} className={secondary && !active ? 'opacity-70' : undefined} />
+            <Icon size={15} className={`shrink-0 ${secondary && !active ? 'opacity-70' : ''}`} />
             <span className="hidden whitespace-nowrap lg:inline">{label}</span>
             <span className="whitespace-nowrap lg:hidden">{label.split(' ')[0]}</span>
           </button>
@@ -285,10 +318,19 @@ function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
   )
 }
 
-function MasonryColumns({ children }: { children: ReactNode }) {
+function ViewIntro({ view }: { view: View }) {
+  const content = VIEW_CONTEXT[view]
   return (
-    <div className="columns-1 gap-4 xl:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
-      {children}
+    <div className="app-page-heading flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+      <div className="min-w-0">
+        <p className="app-eyebrow">{content.eyebrow}</p>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-[-0.04em] text-dark-text sm:text-[1.8rem]">
+          {content.title}
+        </h1>
+        <p className="mt-1 max-w-3xl text-sm leading-relaxed text-dark-text-secondary">
+          {content.description}
+        </p>
+      </div>
     </div>
   )
 }
@@ -433,14 +475,15 @@ function AppShell() {
   }
 
   return (
-    <div className="min-h-screen text-dark-text">
+    <div className="min-h-screen min-w-0 text-dark-text">
       <header className="sticky top-0 z-40 border-b border-dark-border-subtle bg-dark-bg/78 shadow-[0_1px_0_rgba(255,255,255,0.015)] backdrop-blur-2xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
-          <h1 className="flex shrink-0 items-center gap-2.5 truncate text-[15px] font-semibold tracking-tight text-dark-text">
-            <span className="hidden sm:inline">FinTano</span>
-          </h1>
+          <div className="flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-dark-text" aria-label="FinTano">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary-500/25 bg-primary-500/10 text-xs font-bold text-primary-300">F</span>
+            <span>FinTano</span>
+          </div>
 
-          <TabBar activeView={activeView} setActiveView={setActiveView} className="hidden md:grid" />
+          <TabBar activeView={activeView} setActiveView={setActiveView} className="hidden xl:grid" />
 
           <div className="flex items-center gap-2">
             <div className="hidden sm:block">
@@ -500,12 +543,14 @@ function AppShell() {
             </button>
           </div>
         )}
-        <div className="flex items-center justify-between gap-3 md:hidden">
+        <div className="flex items-center justify-between gap-3 xl:hidden">
           <TabBar activeView={activeView} setActiveView={setActiveView} className="flex-1" />
         </div>
         <div className="sm:hidden">
           <CycleSwitcher />
         </div>
+
+        <ViewIntro view={activeView} />
 
         {activeView === 'closing' && (
           <ClosingView
@@ -515,13 +560,17 @@ function AppShell() {
         )}
 
         {activeView === 'planning' && (
-          <MasonryColumns>
-            <IncomePanel />
-            <CostManager />
-            <BudgetModelPicker />
-            <WantsManager />
-            <InvestmentPlan />
-          </MasonryColumns>
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            <div className="min-w-0 space-y-4">
+              <IncomePanel />
+              <CostManager />
+            </div>
+            <div className="min-w-0 space-y-4">
+              <BudgetModelPicker />
+              <WantsManager />
+              <InvestmentPlan />
+            </div>
+          </div>
         )}
 
         <Suspense

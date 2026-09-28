@@ -38,7 +38,7 @@ function CycleMonthControl({
         onChange={(event) => onChange(event.target.value)}
         aria-label={label}
         className={`min-w-0 border-0 bg-transparent p-0 font-semibold text-dark-text outline-none ${
-          compact ? 'w-[118px] text-[10px]' : 'w-[138px] text-xs'
+          compact ? 'w-[118px] text-xs' : 'w-[138px] text-xs'
         }`}
       />
     </label>
@@ -101,14 +101,14 @@ export function LedgerMoveForm({
           </span>
           <div>
             <strong className="block text-sm font-semibold text-dark-text">Nova movimentação</strong>
-            <span className="mt-0.5 block text-[11px] leading-relaxed text-dark-text-muted">
+            <span className="mt-0.5 block text-xs leading-relaxed text-dark-text-muted">
               Informe o valor e escolha entre entrada ou saída.
             </span>
           </div>
         </div>
         {cycleMonth && (
           <div className="sm:text-right">
-            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-dark-text-muted">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-dark-text-muted">
               Competência
             </span>
             <CycleMonthControl
@@ -153,7 +153,7 @@ export function LedgerMoveForm({
         className="app-field mt-2 w-full px-3 py-2 text-sm placeholder:text-dark-text-muted"
       />
       {cycleMonth && (
-        <div className="mt-2 flex items-center gap-2 rounded-lg border border-primary-500/10 bg-primary-500/[0.035] px-2.5 py-2 text-[10px] leading-relaxed text-dark-text-muted">
+        <div className="mt-2 flex items-center gap-2 rounded-lg border border-primary-500/10 bg-primary-500/[0.035] px-2.5 py-2 text-xs leading-relaxed text-dark-text-muted">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400" />
           <span>
             Será contabilizado em <strong className="font-semibold text-primary-200">{formatMonthKey(selectedCycleMonth || cycleMonth)}</strong>.
@@ -191,12 +191,12 @@ export function LedgerList({
         <div className="min-w-0">
           <span className="text-xs font-semibold text-dark-text">Histórico de movimentações</span>
           {onCycleMonthChange && (
-            <p className="mt-0.5 text-[10px] leading-relaxed text-dark-text-muted">
+            <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">
               Alterar a competência ou remover um registro recalcula os ciclos fechados.
             </p>
           )}
         </div>
-        <span className="shrink-0 rounded-full border border-dark-border bg-dark-input px-2 py-0.5 text-[10px] tabular-nums text-dark-text-muted">
+        <span className="shrink-0 rounded-full border border-dark-border bg-dark-input px-2 py-0.5 text-xs tabular-nums text-dark-text-muted">
           {transactions.length} {transactions.length === 1 ? 'registro' : 'registros'}
         </span>
       </div>
@@ -221,7 +221,7 @@ export function LedgerList({
                   {tx.note || (isDeposit ? inLabel : outLabel)}
                 </p>
                 {onCycleMonthChange ? (
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-dark-text-muted">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-dark-text-muted">
                     <span>Feito em {formatDate(tx.date)}</span>
                     <CycleMonthControl
                       compact
@@ -231,7 +231,7 @@ export function LedgerList({
                     />
                   </div>
                 ) : (
-                  <p className="text-[10px] text-dark-text-muted">{formatDate(tx.date)}</p>
+                  <p className="text-xs text-dark-text-muted">{formatDate(tx.date)}</p>
                 )}
               </div>
               <span

@@ -114,15 +114,15 @@ export function InvestmentPlan() {
           ))}
         </div>
 
-        <div className="flex gap-2">
-          <input
+        <div className="flex items-end gap-2">
+          <label className="app-form-label min-w-0 flex-1">Classe de ativo<input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd(newName)}
-            placeholder="Outra classe de ativo..."
-            className={`${inputClass} flex-1`}
-          />
+            placeholder="Ex.: renda fixa"
+            className={`${inputClass} mt-1.5`}
+          /></label>
           <PrimaryButton onClick={() => handleAdd(newName)} disabled={!newName.trim()}>
             <Plus size={15} />
           </PrimaryButton>
@@ -146,7 +146,7 @@ export function InvestmentPlan() {
                       {unallocatedPct > 0 && (
                         <button
                           onClick={() => assignRemainingToSlice(slice.id)}
-                          className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold text-dark-text-muted opacity-100 transition-all hover:bg-primary-500/10 hover:text-primary-300 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
+                          className="shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold text-dark-text-muted opacity-100 transition-all hover:bg-primary-500/10 hover:text-primary-300 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
                           title={`Somar os ${unallocatedPct}% que sobraram aqui`}
                         >
                           +{unallocatedPct}%
@@ -173,7 +173,7 @@ export function InvestmentPlan() {
                           className="app-field w-full !rounded-lg py-1 pl-2 pr-4 text-right text-xs font-medium tabular-nums"
                           aria-label={`Percentual de ${slice.name}`}
                         />
-                        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-dark-text-muted">
+                        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-dark-text-muted">
                           %
                         </span>
                       </div>

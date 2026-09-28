@@ -26,6 +26,9 @@
   --color-dark-text-secondary: #aebbb4;
   --color-dark-text-muted: #788b82;
 
+  /* Papéis semânticos para contêineres e estados compartilhados. */
+  --color-app-focus: #34d399;
+
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
 }
@@ -51,6 +54,7 @@
       linear-gradient(180deg, #0a0e0c 0%, var(--color-dark-bg) 42%, #070908 100%);
     background-attachment: fixed;
     color: var(--color-dark-text);
+    overflow-wrap: break-word;
   }
 
   #root {
@@ -75,6 +79,14 @@
     color-scheme: dark;
   }
 
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   input[type="month"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
     filter: brightness(1.35) saturate(0.7);
@@ -89,7 +101,7 @@
   /* Um anel visível só para navegação por teclado: o app é usado com atalhos e
      tab, e sem isto o foco some nos botões que já têm estilo próprio. */
   :focus-visible {
-    outline: 2px solid var(--color-primary-500);
+    outline: 2px solid var(--color-app-focus);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -166,9 +178,45 @@
   }
 
   .app-field:focus {
-    border-color: var(--color-primary-500);
+    border-color: var(--color-app-focus);
     background: var(--color-dark-input);
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
     outline: none;
+  }
+
+  .app-page-heading {
+    border-bottom: 1px solid var(--color-dark-border-subtle);
+    padding-bottom: 1.15rem;
+  }
+
+  .app-eyebrow {
+    color: var(--color-dark-text-muted);
+    font-size: 0.7rem;
+    font-weight: 650;
+    letter-spacing: 0.11em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  .app-inset {
+    border: 1px solid var(--color-dark-border-subtle);
+    border-radius: 0.875rem;
+    background: color-mix(in srgb, var(--color-dark-input) 58%, transparent);
+  }
+
+  .app-form-label {
+    color: var(--color-dark-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 550;
+    line-height: 1.4;
+  }
+
+  .app-icon-button {
+    display: inline-flex;
+    min-height: 2.5rem;
+    min-width: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.625rem;
   }
 }

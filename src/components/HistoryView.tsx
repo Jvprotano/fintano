@@ -77,7 +77,7 @@ function SnapshotEditorContent({ point, onClose }: { point: HistoryPoint; onClos
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {fields.map((field) => (
             <label key={field.key} className="block">
-              <span className="mb-1 block text-[11px] text-dark-text-muted">{field.label}</span>
+              <span className="mb-1 block text-xs text-dark-text-muted">{field.label}</span>
               <CurrencyInput
                 value={field.value}
                 onChange={(value) => set({ [field.key]: value } as SnapshotPatch)}
@@ -86,7 +86,7 @@ function SnapshotEditorContent({ point, onClose }: { point: HistoryPoint; onClos
             </label>
           ))}
           <label className="block sm:col-span-2 xl:col-span-4">
-            <span className="mb-1 block text-[11px] text-dark-text-muted">Nota do mês</span>
+            <span className="mb-1 block text-xs text-dark-text-muted">Nota do mês</span>
             <input
               value={point.note ?? ''}
               onChange={(event) => set({ note: event.target.value })}
@@ -95,7 +95,7 @@ function SnapshotEditorContent({ point, onClose }: { point: HistoryPoint; onClos
             />
           </label>
         </div>
-        <p className="mt-2.5 text-[11px] leading-relaxed text-dark-text-muted">
+        <p className="mt-2.5 text-xs leading-relaxed text-dark-text-muted">
           Aportes e resgates seguem a competência do livro-razão em Patrimônio. Aqui você
           corrige a previdência em folha, a contrapartida da empresa e os valores congelados no fechamento. A taxa de
           poupança, o saldo e o patrimônio líquido são recalculados a partir dessas fontes.
@@ -180,13 +180,13 @@ function PlanVariance({
 
   return (
     <div className="rounded-xl border border-dark-border-subtle bg-dark-input/30 px-3.5 py-3.5 shadow-inner shadow-black/10">
-      <span className="block text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
+      <span className="block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
         {label}
       </span>
       <strong className="mt-1 block text-base font-semibold tabular-nums text-dark-text">
         {formatCurrency(actual)}
       </strong>
-      <span className="mt-1 block text-[11px] text-dark-text-muted">
+      <span className="mt-1 block text-xs text-dark-text-muted">
         plano {formatCurrency(planned)}
       </span>
       <span
@@ -219,7 +219,7 @@ function CompactPlanDelta({
 
   return (
     <span
-      className={`mt-0.5 block text-[10px] font-medium tabular-nums ${
+      className={`mt-0.5 block text-xs font-medium tabular-nums ${
         favorable ? 'text-primary-400' : 'text-rose-400'
       }`}
       title={`Planejado ${formatCurrency(planned)}`}
@@ -244,7 +244,7 @@ function WantAllocationDetails({
   if (compact) {
     return (
       <span
-        className="mt-0.5 block max-w-52 truncate text-[10px] text-dark-text-muted"
+        className="mt-0.5 block max-w-52 truncate text-xs text-dark-text-muted"
         title={title}
       >
         {point.wantAllocations
@@ -336,7 +336,7 @@ function LatestMonthComparison({ points }: { points: HistoryPoint[] }) {
 
       {previous && categoryChanges.length > 0 && (
         <div className="mt-4 border-t border-dark-border-subtle pt-4">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
+          <span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">
             Maiores mudanças desde {formatMonthKey(previous.month)}
           </span>
           <div className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
@@ -406,7 +406,7 @@ export function HistoryView() {
           label="Aporte médio"
           value={formatCurrency(stats.averageInvested)}
           detail={`${stats.averageSavingsRate.toFixed(1)}% da renda por ciclo`}
-          tone="accent"
+          tone={stats.averageInvested > 0 ? 'accent' : 'neutral'}
         />
         <StatTile
           label="Último aporte"
@@ -511,7 +511,7 @@ export function HistoryView() {
                   <WantAllocationDetails point={point} />
                 </dl>
                 {(point.extraIncome > 0.005 || point.extraExpense > 0.005) && (
-                  <div className="mt-3 border-t border-dark-border-subtle pt-2 text-[11px] leading-relaxed">
+                  <div className="mt-3 border-t border-dark-border-subtle pt-2 text-xs leading-relaxed">
                     {point.extraIncome > 0.005 && (
                       <p className="text-primary-300">+ {formatCurrency(point.extraIncome)} em entradas extras</p>
                     )}
@@ -532,7 +532,7 @@ export function HistoryView() {
         <div className="hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-dark-text-muted">
+              <tr className="text-left text-xs uppercase tracking-wider text-dark-text-muted">
                 <th className="px-5 py-2.5 font-medium">Mês</th>
                 <th
                   className="px-4 py-2.5 text-right font-medium"
@@ -569,7 +569,7 @@ export function HistoryView() {
                       )}
                       {point.extraIncome > 0.005 && (
                         <span
-                          className="mt-0.5 block max-w-64 truncate text-[11px] text-primary-300"
+                          className="mt-0.5 block max-w-64 truncate text-xs text-primary-300"
                           title={point.extraIncomeEntries
                             .map((entry) => `${entry.name}: ${formatCurrency(entry.amount)}`)
                             .join(' · ')}
@@ -582,7 +582,7 @@ export function HistoryView() {
                       )}
                       {point.extraExpense > 0.005 && (
                         <span
-                          className="mt-0.5 block max-w-64 truncate text-[11px] text-amber-300"
+                          className="mt-0.5 block max-w-64 truncate text-xs text-amber-300"
                           title={point.extraExpenseEntries
                             .map((entry) => `${entry.name}: ${formatCurrency(entry.amount)}`)
                             .join(' · ')}
@@ -608,7 +608,7 @@ export function HistoryView() {
                       {formatCurrency(point.costs)}
                       {point.costsDelta !== null && Math.abs(point.costsDelta) > 0.005 && (
                         <span
-                          className={`ml-1.5 text-[11px] ${
+                          className={`ml-1.5 text-xs ${
                             point.costsDelta > 0 ? 'text-rose-400' : 'text-primary-400'
                           }`}
                         >
@@ -644,7 +644,7 @@ export function HistoryView() {
                       {formatCurrency(point.netWorth)}
                       {point.netWorthDelta !== null && (
                         <span
-                          className={`ml-1.5 text-[11px] ${
+                          className={`ml-1.5 text-xs ${
                             point.netWorthDelta >= 0 ? 'text-primary-400' : 'text-rose-400'
                           }`}
                         >

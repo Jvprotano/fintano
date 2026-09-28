@@ -113,7 +113,7 @@ export function HistoryTrendExplorer({ points }: { points: HistoryPoint[] }) {
 
       <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1 sm:max-w-sm">
-          <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
             Visão
           </span>
           <SegmentedControl
@@ -124,7 +124,7 @@ export function HistoryTrendExplorer({ points }: { points: HistoryPoint[] }) {
           />
         </div>
         <div className="w-full sm:w-44">
-          <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
             Período
           </span>
           <SegmentedControl
@@ -146,7 +146,7 @@ export function HistoryTrendExplorer({ points }: { points: HistoryPoint[] }) {
                 type="button"
                 onClick={() => toggleSeries(series.id)}
                 aria-pressed={selected}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
                   selected
                     ? 'border-dark-border bg-dark-hover text-dark-text'
                     : 'border-dark-border-subtle bg-transparent text-dark-text-muted hover:text-dark-text-secondary'
@@ -163,7 +163,7 @@ export function HistoryTrendExplorer({ points }: { points: HistoryPoint[] }) {
         </div>
       )}
 
-      <p className="mt-2.5 text-[10px] leading-relaxed text-dark-text-muted">
+      <p className="mt-2.5 text-xs leading-relaxed text-dark-text-muted">
         {viewDescription(view)}
       </p>
 

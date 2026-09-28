@@ -38,14 +38,14 @@ export function HeaderMetric({
   return (
     <div className="text-right leading-tight">
       {label && (
-        <span className="block text-[10px] font-medium uppercase tracking-wider text-dark-text-muted">{label}</span>
+        <span className="block text-xs font-medium uppercase tracking-wider text-dark-text-muted">{label}</span>
       )}
       <span className={`block text-sm font-semibold tabular-nums ${toneClass[tone]}`}>
         {formatCurrency(amount)}
       </span>
       {baseAmount > 0 && (
         <span
-          className={`block whitespace-nowrap text-[11px] tabular-nums ${
+          className={`block whitespace-nowrap text-xs tabular-nums ${
             over ? 'text-rose-400' : 'text-dark-text-muted'
           }`}
         >

@@ -109,7 +109,7 @@ export function IncomePanel() {
                         <span className="flex items-center gap-1.5 truncate text-sm font-medium text-dark-text">
                           {deduction.name}
                           {investment && (
-                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-medium text-primary-300">
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-300">
                               <TrendingUp size={10} />
                               Investimento
                             </span>
@@ -176,19 +176,20 @@ export function IncomePanel() {
           )}
 
           <div className="rounded-lg border border-dark-border bg-dark-surface/60 p-3">
+            <p className="mb-3 text-sm font-semibold text-dark-text">Novo desconto em folha</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              <input
+              <label className="app-form-label">Nome<input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                placeholder="Nome (ex: Previdência XP)"
-                className={inputClass}
-              />
-              <select
+                placeholder="Ex.: Previdência XP"
+                className={`${inputClass} mt-1.5`}
+              /></label>
+              <label className="app-form-label">Tipo<select
                 value={type}
                 onChange={(e) => setType(e.target.value as DeductionType)}
-                className={selectClass}
+                className={`${selectClass} mt-1.5`}
               >
                 {(Object.entries(DEDUCTION_TYPE_LABELS) as [DeductionType, string][]).map(
                   ([key, label]) => (
@@ -197,19 +198,18 @@ export function IncomePanel() {
                     </option>
                   ),
                 )}
-              </select>
-              <CurrencyInput value={value} onChange={setValue} placeholder="Seu desconto" />
+              </select></label>
+              <label className="app-form-label">Seu desconto<span className="mt-1.5 block"><CurrencyInput value={value} onChange={setValue} /></span></label>
               {isInvestment && (
                 <>
-                  <CurrencyInput
+                  <label className="app-form-label">Contrapartida da empresa<span className="mt-1.5 block"><CurrencyInput
                     value={employerContribution}
                     onChange={setEmployerContribution}
-                    placeholder="Contrapartida da empresa"
-                  />
-                  <select
+                  /></span></label>
+                  <label className="app-form-label">Posição patrimonial<select
                     value={linkedHoldingId}
                     onChange={(event) => setLinkedHoldingId(event.target.value)}
-                    className={selectClass}
+                    className={`${selectClass} mt-1.5`}
                     aria-label="Posição patrimonial vinculada"
                   >
                     <option value="">Posição patrimonial (opcional)</option>
@@ -218,7 +218,7 @@ export function IncomePanel() {
                         {holding.name}
                       </option>
                     ))}
-                  </select>
+                  </select></label>
                 </>
               )}
             </div>
