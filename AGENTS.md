@@ -17,6 +17,7 @@
 
 ## Sistema visual
 
+- Mantenha cada tela enxuta, direta e clara. Mostre primeiro o que ajuda a decidir ou agir; revele detalhes sob demanda. Nao repita os mesmos eventos e totais em blocos concorrentes.
 - Preserve a linguagem escura, calma e objetiva do FinTano. Use profundidade sutil, verde apenas para acento/estado positivo e cores quentes apenas para alertas reais.
 - Evolua primeiro tokens e componentes compartilhados; evite controles isolados com aparencia nativa ou classes unicas quando o mesmo padrao pode atender outras telas.
 - Formularios devem ter rotulos persistentes, exemplos em placeholders e hierarquia clara entre acao, contexto e configuracao. Competencia de ciclo faz parte da movimentacao, nao e metadado solto.

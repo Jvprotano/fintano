@@ -63,7 +63,7 @@ export function PanelHeader({
           {icon}
         </span>
       )}
-      <div className="min-w-0 flex-1 basis-56">
+      <div className="min-w-[min(100%,14rem)] flex-1 basis-56">
         <h3 className="text-base font-semibold tracking-tight text-dark-text">{title}</h3>
         {description && (
           <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-dark-text-secondary">{description}</p>

@@ -36,9 +36,7 @@ import { monthKey, monthsBetween } from '../lib/shared'
 import { useFinancasStore } from '../context/financasStore'
 import type { ExpectedEvent, ExpectedEventKind, ExpectedEventRecurrence, GoalSummary } from '../types'
 import { CHART_PALETTE, RECURRENCE_LABELS } from '../types/constants'
-import { ForecastCommitments } from './ForecastCommitments'
-import { upcomingOccurrences } from '../lib/forecastCoverage'
-import { addMonths } from '../lib/shared'
+import { ForecastCommitments, ForecastEventOccurrences } from './ForecastCommitments'
 
 // ---------------------------------------------------------------------------
 // Futuro.
@@ -50,11 +48,6 @@ import { addMonths } from '../lib/shared'
 // ---------------------------------------------------------------------------
 
 const HORIZONS = [12, 18, 24, 36]
-
-/** Próxima vez que o evento acontece, a partir do mês corrente. */
-function nextOccurrence(event: ExpectedEvent, from: string): string | null {
-  return occurrencesInRange([event], from, 120)[0]?.month ?? null
-}
 
 function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEvent }) {
   const store = useFinancasStore()
@@ -74,15 +67,18 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
   const [recurrence, setRecurrence] = useState<ExpectedEventRecurrence>(event?.recurrence ?? 'once')
   const [savedPct, setSavedPct] = useState(event?.savedPct ?? 100)
   const [groupId, setGroupId] = useState(event?.groupId ?? '')
+  const [newGroup, setNewGroup] = useState('')
   const [cashTreatment, setCashTreatment] = useState(event?.cashTreatment ?? 'extra')
   const [cardDueMonth, setCardDueMonth] = useState(event?.cardDueMonth ?? '')
   const [confirmed, setConfirmed] = useState(event?.confirmed ?? false)
   const [note, setNote] = useState(event?.note ?? '')
 
   const handleAdd = () => {
-    if (!name.trim() || amount <= 0 || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))) return
+    if (!name.trim() || amount <= 0 || (groupId === '__new' && !newGroup.trim()) ||
+      (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))) return
+    const selectedGroupId = groupId === '__new' ? forecast.addFund(newGroup) : groupId
     const input = { name, kind, amount, month, date: date || undefined, recurrence,
-      savedPct, groupId: groupId || undefined, cashTreatment,
+      savedPct, groupId: selectedGroupId || undefined, cashTreatment,
       cardDueMonth: cashTreatment === 'card' ? cardDueMonth || undefined : undefined,
       confirmed, note: note || undefined }
     if (event) forecast.updateEvent(event.id, input)
@@ -94,8 +90,9 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
 
   return (
     <div className="mt-4 space-y-3 rounded-lg border border-dark-border bg-dark-surface/60 p-3">
-      {!event && <div className="flex flex-wrap gap-1.5">
-        {EVENT_SUGGESTIONS.filter((item) => !forecast.events.some((e) => e.name === item.name)).map(
+      {!event && <details className="text-xs text-dark-text-secondary">
+        <summary className="cursor-pointer marker:text-dark-text-muted">Usar um exemplo</summary>
+        <div className="mt-2 flex flex-wrap gap-1.5">{EVENT_SUGGESTIONS.filter((item) => !forecast.events.some((e) => e.name === item.name)).map(
           (item) => (
             <button
               key={item.name}
@@ -111,8 +108,8 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
               + {item.name}
             </button>
           ),
-        )}
-      </div>}
+        )}</div>
+      </details>}
 
       {hasLinkedFacts ? <p className="text-sm text-dark-text-secondary">{kind === 'income' ? 'Entra dinheiro' : 'Sai dinheiro'} · tipo preservado porque já há fatos vinculados.</p> : <SegmentedControl
         options={[
@@ -142,7 +139,7 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
           <CurrencyInput value={amount} onChange={setAmount} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-dark-text-muted">Mês</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Mês previsto</span>
           <input
             type="month"
             disabled={hasLinkedFacts}
@@ -152,7 +149,7 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-dark-text-muted">Dia esperado (opcional)</span>
+          <span className="mb-1 block text-xs text-dark-text-muted">Dia exato (se souber)</span>
           <input type="date" disabled={hasLinkedFacts} value={date} onChange={(event) => {
             setDate(event.target.value)
             if (event.target.value) setMonth(event.target.value.slice(0, 7))
@@ -177,8 +174,12 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
           <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className={inputClass}>
             <option value="">Sem grupo</option>
             {forecast.funds.map((fund) => <option key={fund.id} value={fund.id}>{fund.name}</option>)}
+            <option value="__new">+ Criar grupo</option>
           </select>
         </label>
+        {groupId === '__new' && <label className="block"><span className="app-form-label mb-1 block">Nome do grupo</span>
+          <input value={newGroup} onChange={(event) => setNewGroup(event.target.value)} placeholder="Ex.: Viagem 2027" className={inputClass} />
+        </label>}
         {kind === 'expense' && <label className="block"><span className="app-form-label mb-1 block">Como será pago</span>
           <select value={cashTreatment} onChange={(event) => setCashTreatment(event.target.value as typeof cashTreatment)} className={inputClass}>
             <option value="extra">Extraordinário em conta</option>
@@ -189,24 +190,25 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
         {kind === 'expense' && cashTreatment === 'card' && <label className="block"><span className="app-form-label mb-1 block">Mês da fatura</span>
           <input type="month" min={month} value={cardDueMonth} onChange={(event) => setCardDueMonth(event.target.value)} className={inputClass} />
         </label>}
-        <label className="block sm:col-span-2"><span className="app-form-label mb-1 block">Observação</span>
-          <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Ex.: hotel cobrado no check-in" className={inputClass} />
-        </label>
       </div>
 
-      {kind === 'income' && <label className="flex items-center gap-2 text-sm text-dark-text-secondary">
-        <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="h-4 w-4 accent-primary-500" />
-        Entrada confirmada (ainda não recebida)
-      </label>}
-
-      {event && Object.entries(event.occurrenceOverrides ?? {}).length > 0 && <div className="rounded-lg border border-dark-border-subtle p-3">
-        <p className="text-xs font-semibold text-dark-text-secondary">Ajustes de ocorrências</p>
+      {event && Object.entries(event.occurrenceOverrides ?? {}).length > 0 && <details className="rounded-lg border border-dark-border-subtle p-3">
+        <summary className="cursor-pointer text-xs font-semibold text-dark-text-secondary marker:text-dark-text-muted">Ajustes de datas anteriores</summary>
         {Object.entries(event.occurrenceOverrides ?? {}).map(([originalMonth, override]) => <div key={originalMonth} className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-dark-text-muted">
           <span>{formatMonthKey(originalMonth)} · {override.cancelled ? 'cancelada' : override.date ?? override.month ?? 'valor alterado'}</span>
           <button type="button" onClick={() => forecast.clearOccurrenceOverride(event.id, originalMonth)} className="text-primary-400 hover:text-primary-300">Reverter ajuste</button>
         </div>)}
-      </div>}
+      </details>}
 
+      <details className="rounded-lg border border-dark-border-subtle p-3 text-sm text-dark-text-secondary">
+        <summary className="cursor-pointer marker:text-dark-text-muted">Mais opções</summary>
+        <label className="mt-3 block"><span className="app-form-label mb-1 block">Observação</span>
+          <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Ex.: hotel cobrado no check-in" className={inputClass} />
+        </label>
+        {kind === 'income' && <label className="mt-3 flex items-center gap-2 text-sm text-dark-text-secondary">
+          <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="h-4 w-4 accent-primary-500" />
+          Entrada confirmada, ainda não recebida
+        </label>}
       {kind === 'income' && (
         <label className="block">
           <span className="mb-1 flex items-baseline justify-between text-xs text-dark-text-muted">
@@ -229,9 +231,10 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
           </span>
         </label>
       )}
+      </details>
 
       <div className="flex gap-2">
-        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || amount <= 0 || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))}>
+        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || amount <= 0 || (groupId === '__new' && !newGroup.trim()) || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))}>
           <Plus size={15} />
           {event ? 'Salvar alterações' : 'Adicionar'}
         </PrimaryButton>
@@ -244,13 +247,14 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
 function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth: string }) {
   const { forecast } = useFinancasStore()
   const [editing, setEditing] = useState(false)
-  const next = nextOccurrence(event, currentMonth)
-  const monthsAway = next ? monthsBetween(currentMonth, next) : null
+  const [showDates, setShowDates] = useState(false)
+  const next = occurrencesInRange([event], currentMonth, 120)[0]
+  const monthsAway = next ? monthsBetween(currentMonth, next.month) : null
   const isIncome = event.kind === 'income'
 
   return (
-    <li className="group rounded-lg bg-dark-surface px-3 py-2.5">
-      <div className="flex items-center gap-3">
+    <li className="group rounded-lg border border-dark-border-subtle bg-dark-surface/45 px-3 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <span
         className={`shrink-0 rounded-md p-1.5 ${
           isIncome ? 'bg-primary-500/10 text-primary-400' : 'bg-white/[0.05] text-dark-text-secondary'
@@ -258,12 +262,12 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
       >
         {isIncome ? <Gift size={14} /> : <CalendarClock size={14} />}
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-dark-text">{event.name}</p>
+      <div className="min-w-[10rem] flex-1">
+        <p className="text-sm font-medium text-dark-text">{event.name}</p>
         <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
           {next ? (
             <>
-              {event.date && next === event.month ? event.date.split('-').reverse().join('/') : formatMonthKey(next)}
+              {next.date ? next.date.split('-').reverse().join('/') : formatMonthKey(next.month)}
               {monthsAway !== null && monthsAway > 0 && ` · em ${formatMonths(monthsAway)}`}
               {monthsAway === 0 && ' · este mês'}
             </>
@@ -279,13 +283,7 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
           {isIncome && (event.savedPct ?? 100) < 100 && <Tag>guarda {event.savedPct}%</Tag>}
         </p>
       </div>
-      <div className="w-24 shrink-0 sm:w-32">
-        <CurrencyInput
-          value={event.amount}
-          onChange={(value) => forecast.updateEvent(event.id, { amount: value })}
-          className="!py-1.5"
-        />
-      </div>
+      <strong className="shrink-0 text-sm tabular-nums text-dark-text">{isIncome ? '+' : '−'} {formatCurrency(event.amount)}</strong>
       <button type="button" onClick={() => setEditing((value) => !value)} aria-label={`Editar ${event.name}`}
         className="shrink-0 rounded-md p-1.5 text-dark-text-muted hover:bg-white/[0.06] hover:text-dark-text"><Pencil size={14} /></button>
       <button
@@ -297,9 +295,43 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
         <Trash2 size={14} />
       </button>
       </div>
+      <button type="button" onClick={() => setShowDates((value) => !value)}
+        className="mt-1 text-xs text-dark-text-muted hover:text-dark-text">
+        {showDates ? 'Ocultar datas' : 'Ver datas e status'}
+      </button>
+      {showDates && <ForecastEventOccurrences event={event} />}
       {editing && <EventForm event={event} onClose={() => setEditing(false)} />}
     </li>
   )
+}
+
+function ExpectedEventsPanel({ events, currentMonth }: { events: ExpectedEvent[]; currentMonth: string }) {
+  const { forecast } = useFinancasStore()
+  const [showForm, setShowForm] = useState(false)
+  const knownGroups = new Set(forecast.funds.map((fund) => fund.id))
+  const sections = [
+    ...forecast.funds.map((fund) => ({ id: fund.id, name: fund.name,
+      items: events.filter((event) => event.groupId === fund.id) })),
+    { id: '', name: 'Sem grupo', items: events.filter((event) => !event.groupId || !knownGroups.has(event.groupId)) },
+  ].filter((section) => section.items.length > 0)
+
+  return <Panel>
+    <PanelHeader title="Entradas e saídas esperadas" icon={<Sparkles size={16} />}
+      description="Datas e valores previstos. Eles só viram realizado quando você registra o recebimento ou pagamento."
+      actions={!showForm && <SecondaryButton onClick={() => setShowForm(true)}><Plus size={14} /> Novo evento</SecondaryButton>} />
+    {showForm && <EventForm onClose={() => setShowForm(false)} />}
+    {events.length === 0 ? <div className="mt-4"><EmptyState icon={<CalendarClock size={24} />} title="Nada previsto ainda"
+      action={!showForm && <PrimaryButton onClick={() => setShowForm(true)}><Plus size={15} /> Cadastrar o primeiro</PrimaryButton>}>
+      Cadastre uma entrada ou saída com o mês ou dia esperado.
+    </EmptyState></div> : <div className="mt-4 space-y-4">
+      {sections.map((section) => <div key={section.id || 'ungrouped'}>
+        {forecast.funds.length > 0 && <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-dark-text-muted">{section.name}</h4>}
+        <ul className="space-y-1.5">{section.items.map((event) =>
+          <EventRow key={event.id} event={event} currentMonth={currentMonth} />)}</ul>
+      </div>)}
+    </div>}
+    {(events.length > 0 || forecast.funds.length > 0) && <ForecastCommitments />}
+  </Panel>
 }
 
 /**
@@ -323,18 +355,6 @@ export function ForecastView() {
   const store = useFinancasStore()
   const { forecast, projection, monthlyContribution, metrics, investments } = store
   const { assumptions, currentMonth, events } = forecast
-  const upcomingYear = useMemo(() => {
-    const items = upcomingOccurrences(events, store.actuals.months, addMonths(currentMonth, 1), 12,
-      new Date().toISOString().slice(0, 10), store.cards.entries, store.cards.paidInvoices)
-    const income = items.filter((item) => item.event.kind === 'income')
-      .reduce((sum, item) => sum + item.remainingAmount, 0)
-    const expense = items.filter((item) => item.event.kind === 'expense')
-      .reduce((sum, item) => sum + item.remainingAmount, 0)
-    const saved = items.reduce((sum, item) => sum + item.savedAmount *
-      (item.amount > 0 ? item.remainingAmount / item.amount : 0), 0)
-    return { income, expense, net: income - expense, saved }
-  }, [events, store.actuals.months, currentMonth, store.cards.entries, store.cards.paidInvoices])
-  const [showForm, setShowForm] = useState(false)
   const [chartView, setChartView] = useState<'money' | 'balance'>('money')
 
   const real = assumptions.showInRealTerms
@@ -432,8 +452,8 @@ export function ForecastView() {
 
   return (
     <div className="space-y-4">
-      <ForecastCommitments />
-      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+      <ExpectedEventsPanel events={events} currentMonth={currentMonth} />
+      <div className="grid gap-2.5 sm:grid-cols-2">
         <StatTile
           label={`Patrimônio financeiro projetado em ${formatMonthKey(last?.month ?? currentMonth)}`}
           value={formatCurrency(financialLast)}
@@ -442,18 +462,6 @@ export function ForecastView() {
               ? `${formatCurrency(financialLast - financialNow)} a mais, em reais de hoje`
               : `${formatCurrency(financialLast - financialNow)} a mais que hoje`
           }
-          tone="neutral"
-        />
-        <StatTile
-          label="Entradas em 12 meses"
-          value={formatCurrency(upcomingYear.income)}
-          detail={upcomingYear.income > 0 ? '13º, bônus, férias…' : 'nada cadastrado ainda'}
-          tone="neutral"
-        />
-        <StatTile
-          label="Saídas em 12 meses"
-          value={formatCurrency(upcomingYear.expense)}
-          detail={upcomingYear.expense > 0 ? 'IPTU, IPVA, seguro…' : 'nada cadastrado ainda'}
           tone="neutral"
         />
         <StatTile
@@ -732,62 +740,6 @@ export function ForecastView() {
         </Panel>
       )}
 
-      <Panel>
-        <PanelHeader
-          title="Entradas e saídas esperadas"
-          icon={<Sparkles size={16} />}
-          description="Dinheiro que você já sabe que vem ou vai — 13º em dezembro, bônus em março, IPVA em janeiro."
-          actions={
-            !showForm && (
-              <SecondaryButton onClick={() => setShowForm(true)}>
-                <Plus size={14} />
-                Novo evento
-              </SecondaryButton>
-            )
-          }
-        />
-
-        {showForm && <EventForm onClose={() => setShowForm(false)} />}
-
-        <div className="mt-4">
-          {events.length === 0 ? (
-            <EmptyState
-              icon={<CalendarClock size={24} />}
-              title="Nada previsto ainda"
-              action={
-                !showForm && (
-                  <PrimaryButton onClick={() => setShowForm(true)}>
-                    <Plus size={15} />
-                    Cadastrar o primeiro
-                  </PrimaryButton>
-                )
-              }
-            >
-              Seu orçamento só conhece o mês que se repete. Cadastre o que cai fora dele e a
-              projeção passa a responder se você chega na meta — e o caixa do mês passa a avisar
-              quando um IPVA está chegando.
-            </EmptyState>
-          ) : (
-            <ul className="space-y-1.5">
-              {events.map((event) => (
-                <EventRow key={event.id} event={event} currentMonth={currentMonth} />
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {upcomingYear.net !== 0 && (
-          <p className="mt-3 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed text-dark-text-muted">
-            Nos próximos 12 meses após o ciclo ativo, entradas menos saídas cadastradas somam{' '}
-            <strong className={upcomingYear.net >= 0 ? 'text-primary-400' : 'text-rose-400'}>
-              {upcomingYear.net >= 0 ? '+' : '−'} {formatCurrency(Math.abs(upcomingYear.net))}
-            </strong>
-            . O efeito líquido considerado na projeção patrimonial é{' '}
-            <strong className="text-dark-text">{formatCurrency(upcomingYear.saved)}</strong>.
-            Saídas já incluídas no plano ou na fatura não são subtraídas novamente.
-          </p>
-        )}
-      </Panel>
     </div>
   )
 }

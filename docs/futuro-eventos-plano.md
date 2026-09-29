@@ -94,12 +94,14 @@ Prioridade é **vencimento → cobertura → mensalidade necessária → execuç
 - [x] Implementação da etapa 1: backup público v8 com importação de v7.
 - [x] Implementação da etapa 2: ocorrências, exceções e conciliação com realizados e fatura.
 - [x] Implementação da etapa 3: cobertura cronológica, grupos, metas de aporte e depósito mensal.
-- [x] Implementação da etapa 4: agenda em Futuro, compromissos no Ciclo e registro vinculado.
+- [x] Implementação da etapa 4: eventos agrupados em Futuro, ocorrências sob cada evento, compromissos recolhidos no Ciclo e registro vinculado.
 - [x] Implementação da etapa 5: componentes responsivos e validação automatizada.
-- [ ] Conferência renderizada em 390 px e desktop: conector do navegador local indisponível nesta sessão.
+- [x] Conferência de estrutura e geometria no navegador local em larguras estreita, intermediária e ampla, sem rolagem horizontal da página.
+- [x] Correção da grade de registro do Ciclo: os campos de entradas e saídas mantêm rótulos legíveis e botões dentro dos cartões lado a lado.
+- [ ] Conferência por captura de tela: o comando de captura do navegador expirou; a revisão de aparência por imagem segue pendente.
 
 ## Resultado e limites da revisão
 
 O cálculo de cobertura considera recursos atribuídos a cada grupo, entrada confirmada ainda prevista e entrada apenas esperada em cenários separados. Para eventos sem dia, saídas são consideradas no começo do mês e entradas no fim. Não há saldo bancário diário completo nem garantia de liquidez de investimentos.
 
-Valores marcados como `planned` pressupõem que o usuário já os tenha incluído no orçamento; o vínculo não seleciona um item específico de Desejos/custos. A agenda os identifica e não os desconta uma segunda vez. Uma cobrança de cartão pode ser vinculada à ocorrência quando a fatura entra em Cartões; o status só vira liquidado após o pagamento da fatura.
+Valores marcados como `planned` pressupõem que o usuário já os tenha incluído no orçamento; o vínculo não seleciona um item específico de Desejos/custos. A ocorrência sob o evento os identifica e não os desconta uma segunda vez. Uma cobrança de cartão pode ser vinculada à ocorrência quando a fatura entra em Cartões; o status só vira liquidado após o pagamento da fatura.

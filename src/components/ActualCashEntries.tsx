@@ -34,7 +34,7 @@ function ExpectedRow({ occurrence, income, currentMonth, onAdd }: {
         {occurrence.date ? `Vencimento ${occurrence.date.split('-').reverse().join('/')}` : `Previsto para ${occurrence.month}`}
         {occurrence.paidAmount > 0 && ` · já registrado ${formatCurrency(occurrence.paidAmount)}`}
       </p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 sm:items-end">
         <label className="block min-w-0">
           <span className="app-form-label mb-1 block">Valor {income ? 'recebido' : 'pago'}</span>
           <CurrencyInput value={amount} onChange={setAmount} />
@@ -47,7 +47,7 @@ function ExpectedRow({ occurrence, income, currentMonth, onAdd }: {
           <span className="app-form-label mb-1 block">Ciclo</span>
           <input type="month" value={cycle} onChange={(event) => setCycle(event.target.value)} className={inputClass} />
         </label>
-        <SecondaryButton disabled={amount <= 0 || !date || !cycle} onClick={() => {
+        <SecondaryButton className="sm:w-full" disabled={amount <= 0 || !date || !cycle} onClick={() => {
           onAdd(occurrence.event.name, amount, occurrence.event.id, cycle, occurrence.id, date)
           setAmount(Math.max(0, occurrence.remainingAmount - amount))
         }}>Marcar como {label}</SecondaryButton>
@@ -179,8 +179,8 @@ export function ActualCashEntries({
         </div>
       )}
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_10rem_10rem_9rem_auto] xl:items-end">
-        <label className="block min-w-0">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 sm:items-end">
+        <label className="block min-w-0 sm:col-span-2">
           <span className="app-form-label mb-1.5 block">Descrição</span>
           <input
             value={name}
@@ -196,7 +196,7 @@ export function ActualCashEntries({
         </label>
         <label className="block min-w-0"><span className="app-form-label mb-1.5 block">Data real</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label>
         <label className="block min-w-0"><span className="app-form-label mb-1.5 block">Ciclo</span><input type="month" value={cycle} onChange={(event) => setCycle(event.target.value)} className={inputClass} /></label>
-        <PrimaryButton onClick={add} disabled={!name.trim() || amount <= 0 || !date || !cycle}>
+        <PrimaryButton className="sm:w-full" onClick={add} disabled={!name.trim() || amount <= 0 || !date || !cycle}>
           <Plus size={14} />
           Adicionar
         </PrimaryButton>

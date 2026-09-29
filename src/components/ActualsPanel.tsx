@@ -169,31 +169,19 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
         }
       />
 
-      {cycleEvents.length > 0 && <div className="mt-4 rounded-xl border border-dark-border-subtle bg-dark-surface/40 p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-sm font-semibold text-dark-text">Compromissos esperados deste ciclo</h3>
-          <span className="text-xs text-dark-text-muted">Plano separado do realizado</span>
-        </div>
-        <ul className="mt-3 space-y-1.5">
-          {cycleEvents.map((item) => <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-dark-card px-3 py-2 text-sm">
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-dark-text">{item.event.name}</p>
-              <p className="text-xs text-dark-text-muted">
-                {item.date ? `previsto ${item.date.split('-').reverse().join('/')}` : `previsto em ${item.month}`}
-                {item.event.cashTreatment === 'card' ? ' · cartão' : item.event.cashTreatment === 'planned' ? ' · já no plano' : ' · extraordinário'}
-                {item.status === 'settled' ? ' · liquidado' : item.status === 'scheduled' ? ' · lançado, aguarda fatura' :
-                  item.status === 'partial' ? ` · parcial: ${formatCurrency(item.paidAmount)}` : item.status === 'overdue' ? ' · atrasado' : ' · pendente'}
-              </p>
-            </div>
-            <span className="tabular-nums text-dark-text-secondary">{formatCurrency(item.amount)}
-              {item.paidAmount > 0 && item.remainingAmount > 0 && ` · resta ${formatCurrency(item.remainingAmount)}`}
-            </span>
+      {cycleEvents.length > 0 && <details className="mt-4 rounded-lg border border-dark-border-subtle px-3 py-2.5">
+        <summary className="cursor-pointer text-sm text-dark-text-secondary marker:text-dark-text-muted">
+          {cycleEvents.length} {cycleEvents.length === 1 ? 'evento previsto' : 'eventos previstos'} neste ciclo
+        </summary>
+        <ul className="mt-3 space-y-2 border-t border-dark-border-subtle pt-3">
+          {cycleEvents.map((item) => <li key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span className="min-w-0 flex-1 text-dark-text">{item.event.name}</span>
+            <span className="tabular-nums text-dark-text-secondary">{formatCurrency(item.status === 'settled' ? item.paidAmount : item.remainingAmount)} {item.status === 'settled' ? 'realizado' : 'restante'}</span>
             {item.event.cashTreatment === 'card' && item.status !== 'settled' && <SecondaryButton onClick={onGoToCards}>Ver Cartões</SecondaryButton>}
             {item.event.cashTreatment === 'planned' && <SecondaryButton onClick={onGoToPlanning}>Ver Planejar</SecondaryButton>}
           </li>)}
         </ul>
-        <p className="mt-2 text-xs text-dark-text-muted">Entradas e saídas extraordinárias podem ser registradas nos quadros abaixo. Cobranças no cartão saem do caixa pela fatura.</p>
-      </div>}
+      </details>}
 
       <div className="mt-4 grid gap-3 xl:grid-cols-2">
         <ActualCashEntries

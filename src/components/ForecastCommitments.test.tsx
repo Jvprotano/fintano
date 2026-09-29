@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { normalizeExpectedEvent } from '../lib/forecast'
-import { ForecastCommitments } from './ForecastCommitments'
+import { ForecastEventOccurrences } from './ForecastCommitments'
 
 const addEntry = vi.fn()
 const cardEvent = normalizeExpectedEvent({ id: 'hotel', name: 'Hotel', kind: 'expense',
@@ -21,12 +21,13 @@ const store = {
 
 vi.mock('../context/financasStore', () => ({ useFinancasStore: () => store }))
 
-describe('agenda de compromissos', () => {
+describe('datas de um evento', () => {
   it('lança uma cobrança na próxima fatura com vínculo à ocorrência', async () => {
     addEntry.mockClear()
     const user = userEvent.setup()
-    render(<ForecastCommitments />)
-    expect(screen.getAllByText(/fatura de out/i).length).toBeGreaterThan(0)
+    render(<ForecastEventOccurrences event={cardEvent} />)
+    expect(screen.getByText(/fatura out/i)).toBeTruthy()
+    await user.click(screen.getByText('Cobrança apareceu no cartão? Registrar'))
     await user.click(screen.getByRole('button', { name: 'Lançar no cartão' }))
     expect(addEntry).toHaveBeenCalledWith(expect.objectContaining({
       cycle: 'next', description: 'Hotel', amount: 2000,

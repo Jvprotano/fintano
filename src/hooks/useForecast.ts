@@ -86,7 +86,9 @@ export function useForecast(cycleMonth = monthKey()) {
   const addFund = useCallback((name: string) => {
     const clean = name.trim()
     if (!clean) return
-    setFunds((prev) => [...prev, { id: uid(), name: clean, reservedAmount: 0 }])
+    const id = uid()
+    setFunds((prev) => [...prev, { id, name: clean, reservedAmount: 0 }])
+    return id
   }, [setFunds])
   const updateFund = useCallback((id: string, patch: Partial<Pick<ForecastFund, 'name' | 'reservedAmount' | 'goalId'>>) => {
     setFunds((prev) => prev.map((fund) => fund.id === id ? {
