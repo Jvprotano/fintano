@@ -70,7 +70,7 @@ export function PanelHeader({
         )}
       </div>
       {actions && (
-        <div className="ml-auto flex min-w-0 items-center gap-2 max-sm:ml-0 max-sm:w-full max-sm:pl-11">
+        <div className="ml-auto flex min-w-0 items-center gap-2 max-sm:ml-0 max-sm:w-full max-sm:flex-wrap">
           {actions}
         </div>
       )}

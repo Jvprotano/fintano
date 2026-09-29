@@ -43,6 +43,15 @@ describe('cobertura cronológica de eventos', () => {
     expect(partial.remainingAmount).toBe(1000)
   })
 
+  it('saída já incluída no plano pode ser efetivada sem lançamento de caixa duplicado', () => {
+    const planned = normalizeExpectedEvent({ ...hotel, cashTreatment: 'planned',
+      occurrenceOverrides: { '2027-01': { realizedAmount: 1200, realizedAt: '2027-01-05' } } })
+    const occurrence = occurrencesInMonth([planned], '2027-01')[0]
+    const result = reconcileOccurrence(occurrence, [], '2027-01-06')
+    expect(result.status).toBe('partial')
+    expect(result.remainingAmount).toBe(800)
+  })
+
   it('evento recorrente adiado mantém identidade e legado concilia pelo mês original', () => {
     const recurring = normalizeExpectedEvent({ ...hotel, recurrence: 'monthly',
       occurrenceOverrides: { '2027-01': { date: '2027-02-12', amount: 1800 } } })

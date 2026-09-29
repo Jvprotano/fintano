@@ -297,7 +297,7 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
       </div>
       <button type="button" onClick={() => setShowDates((value) => !value)}
         className="mt-1 text-xs text-dark-text-muted hover:text-dark-text">
-        {showDates ? 'Ocultar datas' : 'Ver datas e status'}
+        {showDates ? 'Ocultar datas' : 'Ver datas e registrar efetivação'}
       </button>
       {showDates && <ForecastEventOccurrences event={event} />}
       {editing && <EventForm event={event} onClose={() => setEditing(false)} />}
@@ -452,7 +452,6 @@ export function ForecastView() {
 
   return (
     <div className="space-y-4">
-      <ExpectedEventsPanel events={events} currentMonth={currentMonth} />
       <div className="grid gap-2.5 sm:grid-cols-2">
         <StatTile
           label={`Patrimônio financeiro projetado em ${formatMonthKey(last?.month ?? currentMonth)}`}
@@ -740,6 +739,7 @@ export function ForecastView() {
         </Panel>
       )}
 
+      <ExpectedEventsPanel events={events} currentMonth={currentMonth} />
     </div>
   )
 }

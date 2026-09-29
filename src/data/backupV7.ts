@@ -678,6 +678,8 @@ export function repositoryToBackupV7(
               date: override.date, month: override.month,
               amountCents: override.amount === undefined ? undefined : toCents(override.amount),
               cancelled: override.cancelled,
+              realizedAmountCents: override.realizedAmount === undefined ? undefined : toCents(override.realizedAmount),
+              realizedAt: override.realizedAt,
             }]),
           ),
           savedPct: event.savedPct,
@@ -956,6 +958,8 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
             date: override.date, month: override.month,
             amount: override.amountCents === undefined ? undefined : fromCents(override.amountCents),
             cancelled: override.cancelled,
+            realizedAmount: override.realizedAmountCents === undefined ? undefined : fromCents(override.realizedAmountCents),
+            realizedAt: override.realizedAt,
           }]),
         ),
         savedPct: event.savedPct,
@@ -1105,7 +1109,9 @@ function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null):
     for (const [originalMonth, override] of Object.entries(event.occurrenceOverrides ?? {})) {
       if (!MONTH_RE.test(originalMonth) || (override.date && !validCalendarDate(override.date)) ||
         (override.month && !MONTH_RE.test(override.month)) ||
-        (override.date && override.month && override.date.slice(0, 7) !== override.month)) {
+        (override.date && override.month && override.date.slice(0, 7) !== override.month) ||
+        (override.realizedAt && !validCalendarDate(override.realizedAt)) ||
+        (override.realizedAmountCents !== undefined && override.realizedAmountCents <= 0)) {
         add('error', 'forecast_override_invalid', 'Ajuste de ocorrência tem mês ou data inválida.', event.id)
       }
     }

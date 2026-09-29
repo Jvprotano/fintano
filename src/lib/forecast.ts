@@ -38,7 +38,10 @@ function normalizeOverrides(raw: ExpectedEvent['occurrenceOverrides']) {
     const month = date?.slice(0, 7) ?? (MONTH_RE.test(value.month ?? '') ? value.month : undefined)
     const amount = typeof value.amount === 'number' && Number.isFinite(value.amount) && value.amount > 0
       ? value.amount : undefined
-    entries.push([key, { date, month, amount, cancelled: value.cancelled === true }])
+    const realizedAmount = typeof value.realizedAmount === 'number' && Number.isFinite(value.realizedAmount) && value.realizedAmount > 0
+      ? value.realizedAmount : undefined
+    const realizedAt = validDate(value.realizedAt) ? value.realizedAt : undefined
+    entries.push([key, { date, month, amount, cancelled: value.cancelled === true, realizedAmount, realizedAt }])
   }
   return entries.length ? Object.fromEntries(entries) : undefined
 }

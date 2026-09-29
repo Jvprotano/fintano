@@ -283,7 +283,7 @@ export interface ForecastEventV7 {
   cashTreatment?: EventCashTreatment
   cardDueMonth?: MonthKey
   confirmed?: boolean
-  occurrenceOverrides?: Record<string, { date?: string; month?: MonthKey; amountCents?: MoneyCents; cancelled?: boolean }>
+  occurrenceOverrides?: Record<string, { date?: string; month?: MonthKey; amountCents?: MoneyCents; cancelled?: boolean; realizedAmountCents?: MoneyCents; realizedAt?: string }>
   savedPct?: number
   goalId?: string
   note?: string

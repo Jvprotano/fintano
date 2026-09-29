@@ -9,6 +9,10 @@ describe('eventos futuros no backup v8', () => {
       month: '2027-01', date: '2027-01-05', recurrence: 'once', groupId: 'trip',
       cashTreatment: 'extra', occurrenceOverrides: { '2027-01': { date: '2027-01-10', amountCents: 175000 } },
       createdAt: '2026-09-29T00:00:00.000Z' })
+    backup.forecast.events.push({ id: 'ipva', name: 'IPVA', kind: 'expense', amountCents: 90000,
+      month: '2027-02', recurrence: 'once', cashTreatment: 'planned',
+      occurrenceOverrides: { '2027-02': { realizedAmountCents: 90000, realizedAt: '2027-02-11' } },
+      createdAt: '2026-09-29T00:00:00.000Z' })
     backup.actuals.cycles.push({ month: '2027-01', costPayments: [], wantPayments: [], cashMovements: [
       { id: 'part', kind: 'expense', name: 'Hotel', amountCents: 50000,
         sourceForecastEventId: 'hotel', sourceOccurrenceId: 'hotel@2027-01', occurredAt: '2027-01-10' },
@@ -25,6 +29,9 @@ describe('eventos futuros no backup v8', () => {
     const exported = repositoryToBackupV8(backupV8ToRepository(backup), backup.exportedAt)
     expect(exported.forecast.funds).toEqual(backup.forecast.funds)
     expect(exported.forecast.events[0].occurrenceOverrides?.['2027-01'].amountCents).toBe(175000)
+    expect(exported.forecast.events[1].occurrenceOverrides?.['2027-02']).toMatchObject({
+      realizedAmountCents: 90000, realizedAt: '2027-02-11',
+    })
     expect(exported.actuals.cycles[0].cashMovements[0].sourceOccurrenceId).toBe('hotel@2027-01')
     expect(exported.actuals.cycles[0].cashMovements[0].occurredAt).toBe('2027-01-10')
     expect(exported.cards.charges[0].sourceForecastOccurrenceId).toBe('hotel@2027-01')

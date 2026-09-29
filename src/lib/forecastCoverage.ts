@@ -27,7 +27,9 @@ export function reconcileOccurrence(
       .filter((item) => item.id === occurrence.id)
       .reduce((sum, item) => sum + item.amount, 0)
     : 0
-  const paidAmount = actualPaid + cardPaid
+  const plannedPaid = occurrence.event.cashTreatment === 'planned'
+    ? occurrence.event.occurrenceOverrides?.[occurrence.originalMonth]?.realizedAmount ?? 0 : 0
+  const paidAmount = actualPaid + cardPaid + plannedPaid
   const remainingAmount = Math.max(0, occurrence.amount - paidAmount)
   const overdue = occurrence.date ? occurrence.date < today : occurrence.month < today.slice(0, 7)
   const status = remainingAmount <= 0.005 ? 'settled'

@@ -7,6 +7,9 @@ export interface ExpectedOccurrenceOverride {
   month?: string
   amount?: number
   cancelled?: boolean
+  /** Efetivação de uma saída já incluída no plano; não cria outra saída de caixa. */
+  realizedAmount?: number
+  realizedAt?: string
 }
 
 export interface ForecastFund {
