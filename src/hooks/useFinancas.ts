@@ -15,6 +15,7 @@ import { calculateCardCycleAccounting, cardAdvancePaymentsForMonth } from '../li
 import { calculateMonthlyInvestmentActuals } from '../lib/investmentActuals'
 import { calculateAssetsSummary } from '../lib/assets'
 import { occurrencesInMonth, projectNetWorth } from '../lib/forecast'
+import { reconcileOccurrence, upcomingOccurrences } from '../lib/forecastCoverage'
 import { maybeCreateAutoBackup } from '../lib/backup'
 import { addMonths } from '../lib/shared'
 import type { BudgetArea, CostCategory, ScenarioSummary } from '../types'
@@ -237,10 +238,10 @@ export function useFinancas() {
     const occurrences = occurrencesInMonth(forecast.events, month)
     const extraIncome = occurrences
       .filter((item) => item.event.kind === 'income')
-      .reduce((sum, item) => sum + item.event.amount, 0)
+      .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months, new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
     const extraExpense = occurrences
-      .filter((item) => item.event.kind === 'expense')
-      .reduce((sum, item) => sum + item.event.amount, 0)
+      .filter((item) => item.event.kind === 'expense' && item.event.cashTreatment !== 'planned' && item.event.cashTreatment !== 'card')
+      .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months, new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
 
     return calculateAllocationPreview({
       month,
@@ -263,6 +264,9 @@ export function useFinancas() {
     activeCycle.month,
     cardCycleAccounting.invoiceFormedByCycle.personalTotal,
     forecast.events,
+    actuals.months,
+    cards.entries,
+    cards.paidInvoices,
     cashFlow.costsOnAccount,
     metrics.directInvestmentTarget,
     metrics.paycheckInAccount,
@@ -306,8 +310,13 @@ export function useFinancas() {
   )
 
   const projection = useMemo(
-    () =>
-      projectNetWorth({
+    () => {
+      const remainingByOccurrence = Object.fromEntries(upcomingOccurrences(
+        forecast.events, actuals.months, addMonths(activeCycle.month, 1),
+        forecast.assumptions.horizonMonths, new Date().toISOString().slice(0, 10),
+        cards.entries, cards.paidInvoices,
+      ).map((item) => [item.id, item.remainingAmount]))
+      return projectNetWorth({
         startMonth: activeCycle.month,
         startAssets: investments.summary.financialAssets,
         monthlyContribution,
@@ -315,10 +324,12 @@ export function useFinancas() {
         inflationPct: forecast.assumptions.inflationPct,
         horizonMonths: forecast.assumptions.horizonMonths,
         events: forecast.events,
+        remainingByOccurrence,
         debts: projectedDebts,
         properties: projectedProperties,
         reinvestFreedInstallments: forecast.assumptions.reinvestFreedInstallments,
-      }),
+      })
+    },
     [
       activeCycle.month,
       forecast.assumptions.annualReturnPct,
@@ -326,6 +337,9 @@ export function useFinancas() {
       forecast.assumptions.horizonMonths,
       forecast.assumptions.reinvestFreedInstallments,
       forecast.events,
+      actuals.months,
+      cards.entries,
+      cards.paidInvoices,
       investments.summary.financialAssets,
       monthlyContribution,
       projectedDebts,

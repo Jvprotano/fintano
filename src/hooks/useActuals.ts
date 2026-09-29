@@ -129,18 +129,19 @@ export function useActuals(
       amount: number,
       sourceEventId?: string,
       targetMonth = month,
+      sourceOccurrenceId?: string,
+      occurredAt?: string,
     ) => {
       const cleanName = name.trim()
       if (!cleanName || amount <= 0) return
       updateMonth(targetMonth, (current) => {
-        if (sourceEventId && current[field].some((entry) => entry.sourceEventId === sourceEventId)) {
-          return current
-        }
         const entry: ExtraIncomeEntry = {
           id: uid(),
           name: cleanName,
           amount,
           sourceEventId: sourceEventId || undefined,
+          ...(sourceOccurrenceId ? { sourceOccurrenceId } : {}),
+          ...(occurredAt ? { occurredAt } : {}),
         }
         return { ...current, [field]: [...current[field], entry] }
       })
@@ -184,13 +185,13 @@ export function useActuals(
   )
 
   const addExtraIncome = useCallback(
-    (name: string, amount: number, sourceEventId?: string, targetMonth = month) =>
-      addCashEntry('extraIncome', name, amount, sourceEventId, targetMonth),
+    (name: string, amount: number, sourceEventId?: string, targetMonth = month, sourceOccurrenceId?: string, occurredAt?: string) =>
+      addCashEntry('extraIncome', name, amount, sourceEventId, targetMonth, sourceOccurrenceId, occurredAt),
     [addCashEntry, month],
   )
   const addExtraExpense = useCallback(
-    (name: string, amount: number, sourceEventId?: string, targetMonth = month) =>
-      addCashEntry('extraExpenses', name, amount, sourceEventId, targetMonth),
+    (name: string, amount: number, sourceEventId?: string, targetMonth = month, sourceOccurrenceId?: string, occurredAt?: string) =>
+      addCashEntry('extraExpenses', name, amount, sourceEventId, targetMonth, sourceOccurrenceId, occurredAt),
     [addCashEntry, month],
   )
   const updateExtraIncome = useCallback(

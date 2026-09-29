@@ -153,6 +153,25 @@ describe('projectNetWorth', () => {
     expect(points[2].eventsSaved).toBe(5_000)
   })
 
+  it('não reaplica uma entrada ou saída já conciliada antes do mês previsto', () => {
+    const points = projectNetWorth({ ...base, monthlyContribution: 0, horizonMonths: 2,
+      events: [event({ id: 'received', month: '2026-09', recurrence: 'once', amount: 2000 }),
+        event({ id: 'hotel', kind: 'expense', month: '2026-09', recurrence: 'once', amount: 1500 })],
+      remainingByOccurrence: { 'received@2026-09': 0, 'hotel@2026-09': 500 },
+    })
+    expect(points[2].eventsSaved).toBe(-500)
+    expect(points[2].assets).toBe(9500)
+  })
+
+  it('carrega déficit não financiado para meses posteriores', () => {
+    const points = projectNetWorth({ ...base, startAssets: 500, monthlyContribution: 300,
+      horizonMonths: 3, events: [event({ kind: 'expense', month: '2026-08', recurrence: 'once', amount: 1200 })] })
+    expect(points[1].assets).toBe(0)
+    expect(points[1].unfunded).toBe(400)
+    expect(points[2].unfunded).toBe(100)
+    expect(points[3].assets).toBe(200)
+  })
+
   it('amortiza a dívida e o líquido é a diferença', () => {
     const points = projectNetWorth({
       ...base,

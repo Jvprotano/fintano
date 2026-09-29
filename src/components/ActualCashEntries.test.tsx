@@ -3,14 +3,21 @@ import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import type { ExpectedOccurrence, ExtraIncomeEntry } from '../types'
+import type { ExtraIncomeEntry } from '../types'
+import type { ReconciledOccurrence } from '../lib/forecastCoverage'
 import { ActualCashEntries } from './ActualCashEntries'
 
-const expected: ExpectedOccurrence[] = [
+const expected: ReconciledOccurrence[] = [
   {
+    id: 'bonus-1@2026-08',
     month: '2026-08',
+    originalMonth: '2026-08',
+    amount: 500,
     signedAmount: 500,
     savedAmount: 500,
+    paidAmount: 0,
+    remainingAmount: 500,
+    status: 'pending',
     event: {
       id: 'bonus-1',
       name: 'Banco de horas',

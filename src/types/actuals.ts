@@ -6,6 +6,8 @@ export interface ExtraIncomeEntry {
   name: string
   amount: number
   sourceEventId?: string
+  sourceOccurrenceId?: string
+  occurredAt?: string
 }
 
 export type ExtraExpenseEntry = ExtraIncomeEntry

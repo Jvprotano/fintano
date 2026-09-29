@@ -10,7 +10,7 @@ const outputPath = process.env.FINTANO_BACKUP_OUTPUT
 const reportPath = process.env.FINTANO_MIGRATION_REPORT
 
 describe.skipIf(!inputPath || !outputPath || !reportPath)('conversão explícita de backup', () => {
-  it('preserva o original e grava backup v7 acompanhado do relatório', () => {
+  it('preserva o original e grava backup v8 acompanhado do relatório', () => {
     const payload = JSON.parse(readFileSync(inputPath!, 'utf8')) as unknown
     const inspection = inspectBackup(payload)
     const errors = inspection.issues.filter((issue) => issue.severity === 'error')
@@ -21,7 +21,7 @@ describe.skipIf(!inputPath || !outputPath || !reportPath)('conversão explícita
     writeFileSync(outputPath!, `${JSON.stringify(inspection.backup, null, 2)}\n`, 'utf8')
     writeFileSync(reportPath!, `${JSON.stringify(migrationReport(inspection), null, 2)}\n`, 'utf8')
 
-    expect(JSON.parse(readFileSync(outputPath!, 'utf8')).schemaVersion).toBe(7)
+    expect(JSON.parse(readFileSync(outputPath!, 'utf8')).schemaVersion).toBe(8)
     expect(JSON.parse(readFileSync(reportPath!, 'utf8')).issues).toEqual(inspection.issues)
   })
 })

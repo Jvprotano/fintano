@@ -12,9 +12,10 @@ import {
 import { CurrencyInput } from './CurrencyInput'
 import { EmptyState, Panel, PanelHeader, SecondaryButton, Tag } from './ui'
 import { formatCurrency, formatMonthLong } from '../lib/format'
-import { useActualsStore, useForecastStore } from '../context/financasStore'
+import { useActualsStore, useCardsStore, useForecastStore } from '../context/financasStore'
 import { COST_CATEGORY_COLORS, COST_CATEGORY_LABELS } from '../types/constants'
 import { ActualCashEntries } from './ActualCashEntries'
+import { reconcileOccurrence } from '../lib/forecastCoverage'
 
 // ---------------------------------------------------------------------------
 // Realizado do mês.
@@ -108,9 +109,10 @@ export function CostAdjustmentControl({
   )
 }
 
-export function ActualsPanel() {
+export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () => void; onGoToPlanning: () => void }) {
   const actuals = useActualsStore()
   const forecast = useForecastStore()
+  const cards = useCardsStore()
   const { summary } = actuals
   const {
     rows,
@@ -126,16 +128,14 @@ export function ActualsPanel() {
     extraIncome,
     extraExpenses,
   } = summary
-  const expectedIncome = forecast.monthOccurrences.filter(
-    (occurrence) =>
-      occurrence.event.kind === 'income' &&
-      !extraIncome.some((entry) => entry.sourceEventId === occurrence.event.id),
-  )
-  const expectedExpenses = forecast.monthOccurrences.filter(
-    (occurrence) =>
-      occurrence.event.kind === 'expense' &&
-      !extraExpenses.some((entry) => entry.sourceEventId === occurrence.event.id),
-  )
+  const today = new Date().toISOString().slice(0, 10)
+  const cycleEvents = forecast.monthOccurrences
+    .map((occurrence) => reconcileOccurrence(occurrence, actuals.months, today, cards.entries, cards.paidInvoices))
+  const pending = cycleEvents
+    .filter((occurrence) => occurrence.remainingAmount > 0.005)
+  const expectedIncome = pending.filter((occurrence) => occurrence.event.kind === 'income')
+  const expectedExpenses = pending.filter((occurrence) => occurrence.event.kind === 'expense' &&
+    occurrence.event.cashTreatment !== 'planned' && occurrence.event.cashTreatment !== 'card')
 
   return (
     <Panel>
@@ -169,25 +169,55 @@ export function ActualsPanel() {
         }
       />
 
+      {cycleEvents.length > 0 && <div className="mt-4 rounded-xl border border-dark-border-subtle bg-dark-surface/40 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="text-sm font-semibold text-dark-text">Compromissos esperados deste ciclo</h3>
+          <span className="text-xs text-dark-text-muted">Plano separado do realizado</span>
+        </div>
+        <ul className="mt-3 space-y-1.5">
+          {cycleEvents.map((item) => <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-dark-card px-3 py-2 text-sm">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-dark-text">{item.event.name}</p>
+              <p className="text-xs text-dark-text-muted">
+                {item.date ? `previsto ${item.date.split('-').reverse().join('/')}` : `previsto em ${item.month}`}
+                {item.event.cashTreatment === 'card' ? ' · cartão' : item.event.cashTreatment === 'planned' ? ' · já no plano' : ' · extraordinário'}
+                {item.status === 'settled' ? ' · liquidado' : item.status === 'scheduled' ? ' · lançado, aguarda fatura' :
+                  item.status === 'partial' ? ` · parcial: ${formatCurrency(item.paidAmount)}` : item.status === 'overdue' ? ' · atrasado' : ' · pendente'}
+              </p>
+            </div>
+            <span className="tabular-nums text-dark-text-secondary">{formatCurrency(item.amount)}
+              {item.paidAmount > 0 && item.remainingAmount > 0 && ` · resta ${formatCurrency(item.remainingAmount)}`}
+            </span>
+            {item.event.cashTreatment === 'card' && item.status !== 'settled' && <SecondaryButton onClick={onGoToCards}>Ver Cartões</SecondaryButton>}
+            {item.event.cashTreatment === 'planned' && <SecondaryButton onClick={onGoToPlanning}>Ver Planejar</SecondaryButton>}
+          </li>)}
+        </ul>
+        <p className="mt-2 text-xs text-dark-text-muted">Entradas e saídas extraordinárias podem ser registradas nos quadros abaixo. Cobranças no cartão saem do caixa pela fatura.</p>
+      </div>}
+
       <div className="mt-4 grid gap-3 xl:grid-cols-2">
         <ActualCashEntries
+          key={`${summary.month}-income`}
           title="Entradas extras recebidas"
           description="Banco de horas, bônus, venda ou qualquer dinheiro fora do salário recorrente."
           icon={<BanknoteArrowUp size={15} />}
           tone="income"
           entries={extraIncome}
           expected={expectedIncome}
+          currentMonth={summary.month}
           onAdd={actuals.addExtraIncome}
           onUpdate={(id, amount) => actuals.updateExtraIncome(id, { amount })}
           onRemove={actuals.removeExtraIncome}
         />
         <ActualCashEntries
+          key={`${summary.month}-expense`}
           title="Saídas extraordinárias pagas"
           description="IPVA, seguro, manutenção ou outra saída que não faz parte dos custos recorrentes."
           icon={<BanknoteArrowDown size={15} />}
           tone="expense"
           entries={extraExpenses}
           expected={expectedExpenses}
+          currentMonth={summary.month}
           onAdd={actuals.addExtraExpense}
           onUpdate={(id, amount) => actuals.updateExtraExpense(id, { amount })}
           onRemove={actuals.removeExtraExpense}

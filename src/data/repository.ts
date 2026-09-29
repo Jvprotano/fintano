@@ -19,6 +19,7 @@ export const LEGACY_DOMAIN_KEYS = {
   emergencyFund: 'uf_emergency_fund_v1',
   forecastAssumptions: 'uf_forecast_assumptions_v1',
   forecastEvents: 'uf_expected_events_v1',
+  forecastFunds: 'uf_forecast_funds_v1',
   goals: 'uf_goals_v1',
   history: 'uf_history_v1',
   investmentClasses: 'uf_investment_classes_v1',

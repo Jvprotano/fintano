@@ -4,6 +4,7 @@ import {
   Flag,
   Gift,
   Plus,
+  Pencil,
   Repeat,
   Sparkles,
   Trash2,
@@ -29,12 +30,15 @@ import {
   formatMonths,
   inputClass,
 } from '../lib/format'
-import { EVENT_SUGGESTIONS, nextMonthKeyFor, occursIn, projectedAt } from '../lib/forecast'
+import { EVENT_SUGGESTIONS, nextMonthKeyFor, occurrencesInRange, projectedAt } from '../lib/forecast'
 // `formatMonthLong` nomeia o mês em que a dívida zera; os demais formatos são de eixo.
-import { addMonths, monthKey, monthsBetween } from '../lib/shared'
+import { monthKey, monthsBetween } from '../lib/shared'
 import { useFinancasStore } from '../context/financasStore'
 import type { ExpectedEvent, ExpectedEventKind, ExpectedEventRecurrence, GoalSummary } from '../types'
 import { CHART_PALETTE, RECURRENCE_LABELS } from '../types/constants'
+import { ForecastCommitments } from './ForecastCommitments'
+import { upcomingOccurrences } from '../lib/forecastCoverage'
+import { addMonths } from '../lib/shared'
 
 // ---------------------------------------------------------------------------
 // Futuro.
@@ -49,25 +53,40 @@ const HORIZONS = [12, 18, 24, 36]
 
 /** Próxima vez que o evento acontece, a partir do mês corrente. */
 function nextOccurrence(event: ExpectedEvent, from: string): string | null {
-  for (let index = 0; index < 120; index += 1) {
-    const month = addMonths(from, index)
-    if (occursIn(event, month)) return month
-  }
-  return null
+  return occurrencesInRange([event], from, 120)[0]?.month ?? null
 }
 
-function EventForm({ onClose }: { onClose: () => void }) {
-  const { forecast } = useFinancasStore()
-  const [kind, setKind] = useState<ExpectedEventKind>('income')
-  const [name, setName] = useState('')
-  const [amount, setAmount] = useState(0)
-  const [month, setMonth] = useState(monthKey())
-  const [recurrence, setRecurrence] = useState<ExpectedEventRecurrence>('yearly')
-  const [savedPct, setSavedPct] = useState(100)
+function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEvent }) {
+  const store = useFinancasStore()
+  const { forecast } = store
+  const eventId = event?.id
+  const hasLinkedFacts = Boolean(eventId && (
+    store.actuals.months.some((cycle) => [...cycle.extraIncome, ...cycle.extraExpenses]
+      .some((entry) => entry.sourceEventId === eventId)) ||
+    store.cards.entries.some((entry) => entry.sourceForecastOccurrenceId?.startsWith(`${eventId}@`)) ||
+    store.cards.paidInvoices.some((invoice) => invoice.forecastOccurrences?.some((item) => item.id.startsWith(`${eventId}@`)))
+  ))
+  const [kind, setKind] = useState<ExpectedEventKind>(event?.kind ?? 'income')
+  const [name, setName] = useState(event?.name ?? '')
+  const [amount, setAmount] = useState(event?.amount ?? 0)
+  const [month, setMonth] = useState(event?.month ?? monthKey())
+  const [date, setDate] = useState(event?.date ?? '')
+  const [recurrence, setRecurrence] = useState<ExpectedEventRecurrence>(event?.recurrence ?? 'once')
+  const [savedPct, setSavedPct] = useState(event?.savedPct ?? 100)
+  const [groupId, setGroupId] = useState(event?.groupId ?? '')
+  const [cashTreatment, setCashTreatment] = useState(event?.cashTreatment ?? 'extra')
+  const [cardDueMonth, setCardDueMonth] = useState(event?.cardDueMonth ?? '')
+  const [confirmed, setConfirmed] = useState(event?.confirmed ?? false)
+  const [note, setNote] = useState(event?.note ?? '')
 
   const handleAdd = () => {
-    if (!name.trim() || amount <= 0) return
-    forecast.addEvent({ name, kind, amount, month, recurrence, savedPct })
+    if (!name.trim() || amount <= 0 || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))) return
+    const input = { name, kind, amount, month, date: date || undefined, recurrence,
+      savedPct, groupId: groupId || undefined, cashTreatment,
+      cardDueMonth: cashTreatment === 'card' ? cardDueMonth || undefined : undefined,
+      confirmed, note: note || undefined }
+    if (event) forecast.updateEvent(event.id, input)
+    else forecast.addEvent(input)
     setName('')
     setAmount(0)
     onClose()
@@ -75,7 +94,7 @@ function EventForm({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="mt-4 space-y-3 rounded-lg border border-dark-border bg-dark-surface/60 p-3">
-      <div className="flex flex-wrap gap-1.5">
+      {!event && <div className="flex flex-wrap gap-1.5">
         {EVENT_SUGGESTIONS.filter((item) => !forecast.events.some((e) => e.name === item.name)).map(
           (item) => (
             <button
@@ -93,9 +112,9 @@ function EventForm({ onClose }: { onClose: () => void }) {
             </button>
           ),
         )}
-      </div>
+      </div>}
 
-      <SegmentedControl
+      {hasLinkedFacts ? <p className="text-sm text-dark-text-secondary">{kind === 'income' ? 'Entra dinheiro' : 'Sai dinheiro'} · tipo preservado porque já há fatos vinculados.</p> : <SegmentedControl
         options={[
           { value: 'income' as ExpectedEventKind, label: 'Entra dinheiro' },
           { value: 'expense' as ExpectedEventKind, label: 'Sai dinheiro' },
@@ -103,7 +122,8 @@ function EventForm({ onClose }: { onClose: () => void }) {
         value={kind}
         onChange={setKind}
         className="sm:max-w-80"
-      />
+      />}
+      {hasLinkedFacts && <p className="text-xs text-dark-text-muted">O mês inicial e a repetição da série ficam fixos. Para mudar uma cobrança futura, use “Ajustar esta ocorrência” na agenda.</p>}
 
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
@@ -125,14 +145,22 @@ function EventForm({ onClose }: { onClose: () => void }) {
           <span className="mb-1 block text-xs text-dark-text-muted">Mês</span>
           <input
             type="month"
+            disabled={hasLinkedFacts}
             value={month}
-            onChange={(event) => setMonth(event.target.value || monthKey())}
+            onChange={(event) => { setMonth(event.target.value || monthKey()); setDate('') }}
             className={inputClass}
           />
         </label>
         <label className="block">
+          <span className="mb-1 block text-xs text-dark-text-muted">Dia esperado (opcional)</span>
+          <input type="date" disabled={hasLinkedFacts} value={date} onChange={(event) => {
+            setDate(event.target.value)
+            if (event.target.value) setMonth(event.target.value.slice(0, 7))
+          }} className={inputClass} />
+        </label>
+        <div className="block">
           <span className="mb-1 block text-xs text-dark-text-muted">Repete</span>
-          <SegmentedControl
+          {hasLinkedFacts ? <p className="flex h-[46px] items-center text-sm text-dark-text-secondary">{RECURRENCE_LABELS[recurrence]}</p> : <SegmentedControl
             options={(Object.keys(RECURRENCE_LABELS) as ExpectedEventRecurrence[]).map((value) => ({
               value,
               label: RECURRENCE_LABELS[value],
@@ -140,9 +168,44 @@ function EventForm({ onClose }: { onClose: () => void }) {
             value={recurrence}
             onChange={setRecurrence}
             className="h-[46px] items-center"
-          />
+          />}
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="block"><span className="app-form-label mb-1 block">Grupo</span>
+          <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className={inputClass}>
+            <option value="">Sem grupo</option>
+            {forecast.funds.map((fund) => <option key={fund.id} value={fund.id}>{fund.name}</option>)}
+          </select>
+        </label>
+        {kind === 'expense' && <label className="block"><span className="app-form-label mb-1 block">Como será pago</span>
+          <select value={cashTreatment} onChange={(event) => setCashTreatment(event.target.value as typeof cashTreatment)} className={inputClass}>
+            <option value="extra">Extraordinário em conta</option>
+            <option value="planned">Já incluído em Desejos ou custos</option>
+            <option value="card">Cartão (registrar em Cartões)</option>
+          </select>
+        </label>}
+        {kind === 'expense' && cashTreatment === 'card' && <label className="block"><span className="app-form-label mb-1 block">Mês da fatura</span>
+          <input type="month" min={month} value={cardDueMonth} onChange={(event) => setCardDueMonth(event.target.value)} className={inputClass} />
+        </label>}
+        <label className="block sm:col-span-2"><span className="app-form-label mb-1 block">Observação</span>
+          <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Ex.: hotel cobrado no check-in" className={inputClass} />
         </label>
       </div>
+
+      {kind === 'income' && <label className="flex items-center gap-2 text-sm text-dark-text-secondary">
+        <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="h-4 w-4 accent-primary-500" />
+        Entrada confirmada (ainda não recebida)
+      </label>}
+
+      {event && Object.entries(event.occurrenceOverrides ?? {}).length > 0 && <div className="rounded-lg border border-dark-border-subtle p-3">
+        <p className="text-xs font-semibold text-dark-text-secondary">Ajustes de ocorrências</p>
+        {Object.entries(event.occurrenceOverrides ?? {}).map(([originalMonth, override]) => <div key={originalMonth} className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-dark-text-muted">
+          <span>{formatMonthKey(originalMonth)} · {override.cancelled ? 'cancelada' : override.date ?? override.month ?? 'valor alterado'}</span>
+          <button type="button" onClick={() => forecast.clearOccurrenceOverride(event.id, originalMonth)} className="text-primary-400 hover:text-primary-300">Reverter ajuste</button>
+        </div>)}
+      </div>}
 
       {kind === 'income' && (
         <label className="block">
@@ -168,9 +231,9 @@ function EventForm({ onClose }: { onClose: () => void }) {
       )}
 
       <div className="flex gap-2">
-        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || amount <= 0}>
+        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || amount <= 0 || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))}>
           <Plus size={15} />
-          Adicionar
+          {event ? 'Salvar alterações' : 'Adicionar'}
         </PrimaryButton>
         <SecondaryButton onClick={onClose}>Cancelar</SecondaryButton>
       </div>
@@ -180,15 +243,17 @@ function EventForm({ onClose }: { onClose: () => void }) {
 
 function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth: string }) {
   const { forecast } = useFinancasStore()
+  const [editing, setEditing] = useState(false)
   const next = nextOccurrence(event, currentMonth)
   const monthsAway = next ? monthsBetween(currentMonth, next) : null
   const isIncome = event.kind === 'income'
 
   return (
-    <li className="group flex items-center gap-3 rounded-lg bg-dark-surface px-3 py-2.5">
+    <li className="group rounded-lg bg-dark-surface px-3 py-2.5">
+      <div className="flex items-center gap-3">
       <span
         className={`shrink-0 rounded-md p-1.5 ${
-          isIncome ? 'bg-primary-500/10 text-primary-400' : 'bg-rose-500/10 text-rose-400'
+          isIncome ? 'bg-primary-500/10 text-primary-400' : 'bg-white/[0.05] text-dark-text-secondary'
         }`}
       >
         {isIncome ? <Gift size={14} /> : <CalendarClock size={14} />}
@@ -198,7 +263,7 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
         <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
           {next ? (
             <>
-              {formatMonthKey(next)}
+              {event.date && next === event.month ? event.date.split('-').reverse().join('/') : formatMonthKey(next)}
               {monthsAway !== null && monthsAway > 0 && ` · em ${formatMonths(monthsAway)}`}
               {monthsAway === 0 && ' · este mês'}
             </>
@@ -214,13 +279,15 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
           {isIncome && (event.savedPct ?? 100) < 100 && <Tag>guarda {event.savedPct}%</Tag>}
         </p>
       </div>
-      <div className="w-32 shrink-0">
+      <div className="w-24 shrink-0 sm:w-32">
         <CurrencyInput
           value={event.amount}
           onChange={(value) => forecast.updateEvent(event.id, { amount: value })}
           className="!py-1.5"
         />
       </div>
+      <button type="button" onClick={() => setEditing((value) => !value)} aria-label={`Editar ${event.name}`}
+        className="shrink-0 rounded-md p-1.5 text-dark-text-muted hover:bg-white/[0.06] hover:text-dark-text"><Pencil size={14} /></button>
       <button
         type="button"
         onClick={() => forecast.removeEvent(event.id)}
@@ -229,6 +296,8 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
       >
         <Trash2 size={14} />
       </button>
+      </div>
+      {editing && <EventForm event={event} onClose={() => setEditing(false)} />}
     </li>
   )
 }
@@ -253,7 +322,18 @@ function goalOutlook(goal: GoalSummary, projected: number | null, currentFinanci
 export function ForecastView() {
   const store = useFinancasStore()
   const { forecast, projection, monthlyContribution, metrics, investments } = store
-  const { assumptions, upcomingYear, currentMonth, events } = forecast
+  const { assumptions, currentMonth, events } = forecast
+  const upcomingYear = useMemo(() => {
+    const items = upcomingOccurrences(events, store.actuals.months, addMonths(currentMonth, 1), 12,
+      new Date().toISOString().slice(0, 10), store.cards.entries, store.cards.paidInvoices)
+    const income = items.filter((item) => item.event.kind === 'income')
+      .reduce((sum, item) => sum + item.remainingAmount, 0)
+    const expense = items.filter((item) => item.event.kind === 'expense')
+      .reduce((sum, item) => sum + item.remainingAmount, 0)
+    const saved = items.reduce((sum, item) => sum + item.savedAmount *
+      (item.amount > 0 ? item.remainingAmount / item.amount : 0), 0)
+    return { income, expense, net: income - expense, saved }
+  }, [events, store.actuals.months, currentMonth, store.cards.entries, store.cards.paidInvoices])
   const [showForm, setShowForm] = useState(false)
   const [chartView, setChartView] = useState<'money' | 'balance'>('money')
 
@@ -347,13 +427,15 @@ export function ForecastView() {
     ? projection.find((point) => point.debt - point.securedDebt <= 0)
     : undefined
   const equityBuiltInHorizon = projection.reduce((sum, point) => sum + point.equityBuilt, 0)
+  const worstUnfunded = Math.max(...projection.map((point) => point.unfunded))
   const datedGoals = investments.goals.filter((goal) => goal.targetMonth && goal.targetAmount > 0)
 
   return (
     <div className="space-y-4">
+      <ForecastCommitments />
       <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
-          label={`Saldo projetado em ${formatMonthKey(last?.month ?? currentMonth)}`}
+          label={`Patrimônio financeiro projetado em ${formatMonthKey(last?.month ?? currentMonth)}`}
           value={formatCurrency(financialLast)}
           detail={
             real
@@ -524,6 +606,10 @@ export function ForecastView() {
         <div className="mt-4">
           <TrendChart labels={labels} series={series} height={240} />
         </div>
+        {worstUnfunded > 0.005 && <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs text-amber-200">
+          A projeção fica sem {formatCurrency(worstUnfunded)} para financiar todas as saídas em pelo menos um mês.
+          Esse déficit continua na curva até ser coberto por aportes ou entradas posteriores.
+        </p>}
 
         {real && (
           <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">
@@ -692,16 +778,13 @@ export function ForecastView() {
 
         {upcomingYear.net !== 0 && (
           <p className="mt-3 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed text-dark-text-muted">
-            Nos próximos 12 meses, o saldo desses eventos é{' '}
+            Nos próximos 12 meses após o ciclo ativo, entradas menos saídas cadastradas somam{' '}
             <strong className={upcomingYear.net >= 0 ? 'text-primary-400' : 'text-rose-400'}>
               {upcomingYear.net >= 0 ? '+' : '−'} {formatCurrency(Math.abs(upcomingYear.net))}
             </strong>
-            , dos quais {formatCurrency(Math.max(0, upcomingYear.saved))} viram patrimônio na
-            projeção. Isso equivale a{' '}
-            <strong className="text-dark-text">
-              {formatCurrency(Math.max(0, upcomingYear.saved) / 12)}
-            </strong>{' '}
-            por mês de aporte extra — a partir de {formatMonthLong(currentMonth)}.
+            . O efeito líquido considerado na projeção patrimonial é{' '}
+            <strong className="text-dark-text">{formatCurrency(upcomingYear.saved)}</strong>.
+            Saídas já incluídas no plano ou na fatura não são subtraídas novamente.
           </p>
         )}
       </Panel>

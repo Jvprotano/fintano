@@ -24,6 +24,7 @@ export interface CreditCardEntry {
   creditSource?: 'payment' | 'reward'
   cashCycleMonth?: string
   originCreditId?: string
+  sourceForecastOccurrenceId?: string
 }
 
 export interface CreditCardSettings {

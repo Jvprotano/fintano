@@ -6,6 +6,7 @@ import type {
   DeductionType,
   ExpectedEventKind,
   ExpectedEventRecurrence,
+  EventCashTreatment,
   GoalInclusionType,
   GoalKind,
   PaymentMethod,
@@ -129,6 +130,8 @@ export interface CycleActualsV7 {
     name: string
     amountCents: MoneyCents
     sourceForecastEventId?: string
+    sourceOccurrenceId?: string
+    occurredAt?: string
   }[]
 }
 
@@ -162,6 +165,7 @@ export interface CardChargeV7 {
   creditSource?: 'payment' | 'reward'
   cashCycleMonth?: MonthKey
   originCreditId?: string
+  sourceForecastOccurrenceId?: string
 }
 
 export interface CardStatementV7 {
@@ -171,6 +175,7 @@ export interface CardStatementV7 {
   totalCents: MoneyCents | null
   personalTotalCents: MoneyCents
   paidAt: string
+  forecastOccurrences?: { id: string; amountCents: MoneyCents }[]
   credits?: { id: string; accountId: string; description: string; date: string; amountCents: MoneyCents; source: 'payment' | 'reward'; cashCycleMonth?: MonthKey; originCreditId?: string }[]
   spending: {
     month: MonthKey
@@ -272,7 +277,13 @@ export interface ForecastEventV7 {
   kind: ExpectedEventKind
   amountCents: MoneyCents
   month: MonthKey
+  date?: string
   recurrence: ExpectedEventRecurrence
+  groupId?: string
+  cashTreatment?: EventCashTreatment
+  cardDueMonth?: MonthKey
+  confirmed?: boolean
+  occurrenceOverrides?: Record<string, { date?: string; month?: MonthKey; amountCents?: MoneyCents; cancelled?: boolean }>
   savedPct?: number
   goalId?: string
   note?: string
@@ -305,9 +316,9 @@ export interface CycleClosureV7 {
   cash: {
     paycheckCents: MoneyCents
     extraIncomeCents: MoneyCents
-    extraIncomeEntries: { id: string; name: string; amountCents: MoneyCents; sourceForecastEventId?: string }[]
+    extraIncomeEntries: { id: string; name: string; amountCents: MoneyCents; sourceForecastEventId?: string; sourceOccurrenceId?: string; occurredAt?: string }[]
     extraExpenseCents: MoneyCents
-    extraExpenseEntries: { id: string; name: string; amountCents: MoneyCents; sourceForecastEventId?: string }[]
+    extraExpenseEntries: { id: string; name: string; amountCents: MoneyCents; sourceForecastEventId?: string; sourceOccurrenceId?: string; occurredAt?: string }[]
     costsCents: MoneyCents
     wantsCents: MoneyCents
     leftoverCents: MoneyCents
@@ -348,7 +359,7 @@ export interface BackupValidationIssue {
 }
 
 export interface BackupInspection {
-  backup: FinTanoBackupV7
+  backup: FinTanoBackupV8
   migratedFromVersion: number | null
   issues: BackupValidationIssue[]
   counts: {
@@ -360,5 +371,12 @@ export interface BackupInspection {
     valuations: number
     ledgerEntries: number
     closures: number
+  }
+}
+
+export interface FinTanoBackupV8 extends Omit<FinTanoBackupV7, 'schemaVersion' | 'forecast'> {
+  schemaVersion: 8
+  forecast: FinTanoBackupV7['forecast'] & {
+    funds: { id: string; name: string; reservedAmountCents: MoneyCents; goalId?: string }[]
   }
 }

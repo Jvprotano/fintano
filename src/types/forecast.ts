@@ -1,5 +1,22 @@
 export type ExpectedEventKind = 'income' | 'expense'
 export type ExpectedEventRecurrence = 'once' | 'yearly' | 'monthly'
+export type EventCashTreatment = 'extra' | 'planned' | 'card'
+
+export interface ExpectedOccurrenceOverride {
+  date?: string
+  month?: string
+  amount?: number
+  cancelled?: boolean
+}
+
+export interface ForecastFund {
+  id: string
+  name: string
+  /** Valor reservado informado pelo usuário; não cria caixa ou patrimônio. */
+  reservedAmount: number
+  /** Meta de aporte que já tem saldo próprio; substitui o valor manual. */
+  goalId?: string
+}
 
 export interface ExpectedEvent {
   id: string
@@ -7,7 +24,16 @@ export interface ExpectedEvent {
   kind: ExpectedEventKind
   amount: number
   month: string
+  /** Ausente em eventos antigos ou quando só o mês é conhecido. */
+  date?: string
   recurrence: ExpectedEventRecurrence
+  groupId?: string
+  cashTreatment?: EventCashTreatment
+  /** Mês de pagamento da fatura, quando a cobrança esperada será no cartão. */
+  cardDueMonth?: string
+  /** Entrada esperada pode ser marcada como confirmada, sem virar caixa realizado. */
+  confirmed?: boolean
+  occurrenceOverrides?: Record<string, ExpectedOccurrenceOverride>
   savedPct?: number
   goalId?: string
   note?: string
@@ -15,8 +41,12 @@ export interface ExpectedEvent {
 }
 
 export interface ExpectedOccurrence {
+  id: string
   event: ExpectedEvent
   month: string
+  originalMonth: string
+  date?: string
+  amount: number
   signedAmount: number
   savedAmount: number
 }
@@ -45,6 +75,8 @@ export interface ForecastPoint {
   financialNetWorthReal: number
   contribution: number
   eventsSaved: number
+  /** Valor que o patrimônio financeiro projetado não conseguiu financiar. */
+  unfunded: number
   returns: number
   debtPaid: number
   equityBuilt: number

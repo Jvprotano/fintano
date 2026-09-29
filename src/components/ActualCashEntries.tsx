@@ -3,7 +3,58 @@ import { Plus, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { PrimaryButton, SecondaryButton } from './ui'
 import { formatCurrency, inputClass } from '../lib/format'
-import type { ExpectedOccurrence, ExtraIncomeEntry } from '../types'
+import type { ExtraIncomeEntry } from '../types'
+import type { ReconciledOccurrence } from '../lib/forecastCoverage'
+import { monthKey } from '../lib/shared'
+
+function todayKey() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+function ExpectedRow({ occurrence, income, currentMonth, onAdd }: {
+  occurrence: ReconciledOccurrence
+  income: boolean
+  currentMonth: string
+  onAdd: (name: string, amount: number, sourceEventId?: string, targetMonth?: string, sourceOccurrenceId?: string, occurredAt?: string) => void
+}) {
+  const [amount, setAmount] = useState(occurrence.remainingAmount)
+  const [date, setDate] = useState(todayKey)
+  const [cycle, setCycle] = useState(currentMonth)
+  const label = income ? 'recebida' : 'paga'
+  return (
+    <li className="rounded-lg border border-dark-border-subtle bg-dark-card p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+        <span className="font-medium text-dark-text">{occurrence.event.name}</span>
+        <span className="tabular-nums text-dark-text-secondary">
+          previsto {formatCurrency(occurrence.amount)} · restante {formatCurrency(occurrence.remainingAmount)}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-dark-text-muted">
+        {occurrence.date ? `Vencimento ${occurrence.date.split('-').reverse().join('/')}` : `Previsto para ${occurrence.month}`}
+        {occurrence.paidAmount > 0 && ` · já registrado ${formatCurrency(occurrence.paidAmount)}`}
+      </p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+        <label className="block min-w-0">
+          <span className="app-form-label mb-1 block">Valor {income ? 'recebido' : 'pago'}</span>
+          <CurrencyInput value={amount} onChange={setAmount} />
+        </label>
+        <label className="block min-w-0">
+          <span className="app-form-label mb-1 block">Data real</span>
+          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} />
+        </label>
+        <label className="block min-w-0">
+          <span className="app-form-label mb-1 block">Ciclo</span>
+          <input type="month" value={cycle} onChange={(event) => setCycle(event.target.value)} className={inputClass} />
+        </label>
+        <SecondaryButton disabled={amount <= 0 || !date || !cycle} onClick={() => {
+          onAdd(occurrence.event.name, amount, occurrence.event.id, cycle, occurrence.id, date)
+          setAmount(Math.max(0, occurrence.remainingAmount - amount))
+        }}>Marcar como {label}</SecondaryButton>
+      </div>
+    </li>
+  )
+}
 
 function EntryRow({
   entry,
@@ -30,6 +81,7 @@ function EntryRow({
             previsto em Futuro
           </span>
         )}
+        {entry.occurredAt && <span className="mt-0.5 block text-xs text-dark-text-muted">{entry.occurredAt.split('-').reverse().join('/')}</span>}
       </span>
       <div className="ml-auto w-32 shrink-0">
         <CurrencyInput value={amount} onChange={setAmount} onBlur={commit} className="!py-1.5" />
@@ -53,6 +105,7 @@ export function ActualCashEntries({
   tone,
   entries,
   expected,
+  currentMonth = monthKey(),
   onAdd,
   onUpdate,
   onRemove,
@@ -62,19 +115,22 @@ export function ActualCashEntries({
   icon: ReactNode
   tone: 'income' | 'expense'
   entries: ExtraIncomeEntry[]
-  expected: ExpectedOccurrence[]
-  onAdd: (name: string, amount: number, sourceEventId?: string) => void
+  expected: ReconciledOccurrence[]
+  currentMonth?: string
+  onAdd: (name: string, amount: number, sourceEventId?: string, targetMonth?: string, sourceOccurrenceId?: string, occurredAt?: string) => void
   onUpdate: (id: string, amount: number) => void
   onRemove: (id: string) => void
 }) {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState(0)
+  const [date, setDate] = useState(todayKey)
+  const [cycle, setCycle] = useState(currentMonth)
   const total = entries.reduce((sum, entry) => sum + entry.amount, 0)
   const income = tone === 'income'
 
   const add = () => {
     if (!name.trim() || amount <= 0) return
-    onAdd(name, amount)
+    onAdd(name, amount, undefined, cycle, undefined, date)
     setName('')
     setAmount(0)
   }
@@ -118,35 +174,12 @@ export function ActualCashEntries({
             Previsto em Futuro
           </span>
           <ul className="mt-2 space-y-1.5">
-            {expected.map((occurrence) => (
-              <li
-                key={occurrence.event.id}
-                className="flex flex-wrap items-center justify-between gap-2 text-sm"
-              >
-                <span className="min-w-0 text-dark-text-secondary">
-                  {occurrence.event.name}{' '}
-                  <strong className="font-medium tabular-nums text-dark-text">
-                    {formatCurrency(occurrence.event.amount)}
-                  </strong>
-                </span>
-                <SecondaryButton
-                  onClick={() =>
-                    onAdd(
-                      occurrence.event.name,
-                      occurrence.event.amount,
-                      occurrence.event.id,
-                    )
-                  }
-                >
-                  Marcar como {income ? 'recebida' : 'paga'}
-                </SecondaryButton>
-              </li>
-            ))}
+            {expected.map((occurrence) => <ExpectedRow key={occurrence.id} occurrence={occurrence} income={income} currentMonth={currentMonth} onAdd={onAdd} />)}
           </ul>
         </div>
       )}
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-end">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_10rem_10rem_9rem_auto] xl:items-end">
         <label className="block min-w-0">
           <span className="app-form-label mb-1.5 block">Descrição</span>
           <input
@@ -161,7 +194,9 @@ export function ActualCashEntries({
           <span className="app-form-label mb-1.5 block">Valor {income ? 'recebido' : 'pago'}</span>
           <CurrencyInput value={amount} onChange={setAmount} />
         </label>
-        <PrimaryButton onClick={add} disabled={!name.trim() || amount <= 0}>
+        <label className="block min-w-0"><span className="app-form-label mb-1.5 block">Data real</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label>
+        <label className="block min-w-0"><span className="app-form-label mb-1.5 block">Ciclo</span><input type="month" value={cycle} onChange={(event) => setCycle(event.target.value)} className={inputClass} /></label>
+        <PrimaryButton onClick={add} disabled={!name.trim() || amount <= 0 || !date || !cycle}>
           <Plus size={14} />
           Adicionar
         </PrimaryButton>

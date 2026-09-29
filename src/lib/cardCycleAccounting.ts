@@ -24,6 +24,7 @@ export interface PaidInvoiceSnapshot {
   paidAt: string
   /** Composição preservada no instante do pagamento. */
   spending: PaidInvoiceMonthSummary[]
+  forecastOccurrences?: { id: string; amount: number }[]
   credits?: { id: string; cardName: string; description: string; purchaseDate: string; amount: number; source: 'payment' | 'reward'; cashCycleMonth?: string; originCreditId?: string }[]
 }
 
@@ -106,6 +107,9 @@ export function normalizePaidInvoiceSnapshot(
     personalTotal: Math.max(0, finiteNumber(raw.personalTotal)),
     paidAt: typeof raw.paidAt === 'string' ? raw.paidAt : '',
     spending,
+    forecastOccurrences: Array.isArray(raw.forecastOccurrences) ? raw.forecastOccurrences.filter((item) =>
+      item && typeof item.id === 'string' && Number.isFinite(item.amount) && item.amount > 0,
+    ) : [],
     credits: Array.isArray(raw.credits) ? raw.credits.filter((credit) =>
       credit && typeof credit === 'object' &&
       typeof credit.id === 'string' && typeof credit.cardName === 'string' &&
@@ -224,6 +228,9 @@ export function createPaidInvoiceSnapshot(input: {
     personalTotal: Math.max(0, finiteNumber(input.personalTotal)),
     paidAt: input.paidAt ?? new Date().toISOString(),
     spending: Array.from(months.values()).sort((a, b) => a.spendingMonth.localeCompare(b.spendingMonth)),
+    forecastOccurrences: currentEntries.filter((entry) => entry.sourceForecastOccurrenceId).map((entry) => ({
+      id: entry.sourceForecastOccurrenceId!, amount: entry.personalAmount,
+    })),
     credits: input.entries.filter((entry) => entry.cycle === 'current' && entry.entryType === 'invoiceCredit').map((entry) => ({
       id: entry.id,
       cardName: entry.cardName,

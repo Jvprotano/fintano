@@ -66,6 +66,7 @@ import type {
   CycleClosureV7,
   DomainLedgerEntryV7,
   FinTanoBackupV7,
+  FinTanoBackupV8,
   LedgerEntryKind,
   LedgerOwnerType,
   MoneyCents,
@@ -224,6 +225,8 @@ function snapshotToClosure(raw: Partial<MonthlySnapshot>): CycleClosureV7 {
         name: entry.name,
         amountCents: toCents(entry.amount),
         sourceForecastEventId: entry.sourceEventId,
+        sourceOccurrenceId: entry.sourceOccurrenceId,
+        occurredAt: entry.occurredAt,
       })),
       extraExpenseCents: toCents(snapshot.extraExpense),
       extraExpenseEntries: snapshot.extraExpenseEntries.map((entry) => ({
@@ -231,6 +234,8 @@ function snapshotToClosure(raw: Partial<MonthlySnapshot>): CycleClosureV7 {
         name: entry.name,
         amountCents: toCents(entry.amount),
         sourceForecastEventId: entry.sourceEventId,
+        sourceOccurrenceId: entry.sourceOccurrenceId,
+        occurredAt: entry.occurredAt,
       })),
       costsCents: toCents(snapshot.costs),
       wantsCents: toCents(snapshot.wants),
@@ -292,6 +297,8 @@ function closureToSnapshot(closure: CycleClosureV7): MonthlySnapshot {
       name: entry.name,
       amount: fromCents(entry.amountCents),
       sourceEventId: entry.sourceForecastEventId,
+      sourceOccurrenceId: entry.sourceOccurrenceId,
+      occurredAt: entry.occurredAt,
     })),
     extraExpense,
     extraExpenseEntries: closure.cash.extraExpenseEntries.map((entry) => ({
@@ -299,6 +306,8 @@ function closureToSnapshot(closure: CycleClosureV7): MonthlySnapshot {
       name: entry.name,
       amount: fromCents(entry.amountCents),
       sourceEventId: entry.sourceForecastEventId,
+      sourceOccurrenceId: entry.sourceOccurrenceId,
+      occurredAt: entry.occurredAt,
     })),
     costs,
     costsPlanned: fromCents(closure.plan.costsCents),
@@ -498,6 +507,8 @@ export function repositoryToBackupV7(
             name: entry.name,
             amountCents: toCents(entry.amount),
             sourceForecastEventId: entry.sourceEventId,
+            sourceOccurrenceId: entry.sourceOccurrenceId,
+            occurredAt: entry.occurredAt,
           })),
           ...cycle.extraExpenses.map((entry) => ({
             id: entry.id,
@@ -505,6 +516,8 @@ export function repositoryToBackupV7(
             name: entry.name,
             amountCents: toCents(entry.amount),
             sourceForecastEventId: entry.sourceEventId,
+            sourceOccurrenceId: entry.sourceOccurrenceId,
+            occurredAt: entry.occurredAt,
           })),
         ],
       })),
@@ -547,6 +560,7 @@ export function repositoryToBackupV7(
           creditSource: entry.creditSource,
           cashCycleMonth: entry.cashCycleMonth,
           originCreditId: entry.originCreditId,
+          sourceForecastOccurrenceId: entry.sourceForecastOccurrenceId,
         }
       }),
       statements: normalizePaidInvoiceSnapshots(
@@ -558,6 +572,7 @@ export function repositoryToBackupV7(
         totalCents: statement.total === null ? null : toCents(statement.total),
         personalTotalCents: toCents(statement.personalTotal),
         paidAt: normalizePersistedInstant(statement.paidAt),
+        forecastOccurrences: statement.forecastOccurrences?.map((item) => ({ id: item.id, amountCents: toCents(item.amount) })),
         credits: statement.credits?.map((credit) => ({
           id: credit.id,
           accountId: accountByName.get(normalizeText(credit.cardName))?.id ?? accounts[0]?.id ?? '',
@@ -652,7 +667,19 @@ export function repositoryToBackupV7(
           kind: event.kind,
           amountCents: toCents(event.amount),
           month: event.month,
+          date: event.date,
           recurrence: event.recurrence,
+          groupId: event.groupId,
+          cashTreatment: event.cashTreatment,
+          cardDueMonth: event.cardDueMonth,
+          confirmed: event.confirmed,
+          occurrenceOverrides: event.occurrenceOverrides && Object.fromEntries(
+            Object.entries(event.occurrenceOverrides).map(([month, override]) => [month, {
+              date: override.date, month: override.month,
+              amountCents: override.amount === undefined ? undefined : toCents(override.amount),
+              cancelled: override.cancelled,
+            }]),
+          ),
           savedPct: event.savedPct,
           goalId: event.goalId,
           note: event.note,
@@ -748,6 +775,8 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         name: item.name,
         amount: fromCents(item.amountCents),
         sourceEventId: item.sourceForecastEventId,
+        sourceOccurrenceId: item.sourceOccurrenceId,
+        occurredAt: item.occurredAt,
       })),
     extraExpenses: cycle.cashMovements
       .filter((item) => item.kind === 'expense')
@@ -756,6 +785,8 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         name: item.name,
         amount: fromCents(item.amountCents),
         sourceEventId: item.sourceForecastEventId,
+        sourceOccurrenceId: item.sourceOccurrenceId,
+        occurredAt: item.occurredAt,
       })),
   }))
   const latestValuationByHolding = new Map<string, (typeof backup.investments.valuations)[number]>()
@@ -833,6 +864,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
       creditSource: charge.creditSource,
       cashCycleMonth: charge.cashCycleMonth,
       originCreditId: charge.originCreditId,
+      sourceForecastOccurrenceId: charge.sourceForecastOccurrenceId,
       spendingMonth: charge.spendingMonth,
     } as CreditCardEntry
   })
@@ -866,6 +898,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         total: statement.totalCents === null ? null : fromCents(statement.totalCents),
         personalTotal: fromCents(statement.personalTotalCents),
         paidAt: statement.paidAt,
+        forecastOccurrences: statement.forecastOccurrences?.map((item) => ({ id: item.id, amount: fromCents(item.amountCents) })),
         credits: statement.credits?.map((credit) => ({
           id: credit.id,
           cardName: accountById.get(credit.accountId)?.name ?? 'Cartão',
@@ -912,7 +945,19 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         kind: event.kind,
         amount: fromCents(event.amountCents),
         month: event.month,
+        date: event.date,
         recurrence: event.recurrence,
+        groupId: event.groupId,
+        cashTreatment: event.cashTreatment,
+        cardDueMonth: event.cardDueMonth,
+        confirmed: event.confirmed,
+        occurrenceOverrides: event.occurrenceOverrides && Object.fromEntries(
+          Object.entries(event.occurrenceOverrides).map(([month, override]) => [month, {
+            date: override.date, month: override.month,
+            amount: override.amountCents === undefined ? undefined : fromCents(override.amountCents),
+            cancelled: override.cancelled,
+          }]),
+        ),
         savedPct: event.savedPct,
         goalId: event.goalId,
         note: event.note,
@@ -1004,11 +1049,14 @@ function isBackupV7(value: unknown): value is FinTanoBackupV7 {
     Array.isArray(candidate.investments?.holdings) &&
     Array.isArray(candidate.investments?.valuations) &&
     Array.isArray(candidate.investments?.ledgerEntries) &&
+    Array.isArray(candidate.forecast?.events) &&
+    Array.isArray(candidate.goals) &&
+    Array.isArray(candidate.balanceSheet?.debts) &&
     Array.isArray(candidate.history?.closures)
   )
 }
 
-function inspectV7(backup: FinTanoBackupV7, migratedFromVersion: number | null): BackupInspection {
+function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null): BackupInspection {
   const issues: BackupValidationIssue[] = []
   const add = (
     severity: BackupValidationIssue['severity'],
@@ -1031,10 +1079,44 @@ function inspectV7(backup: FinTanoBackupV7, migratedFromVersion: number | null):
   const holdingIds = ids(backup.investments.holdings, 'Posição')
   ids(backup.investments.valuations, 'Avaliação de posição')
   const goalIds = ids(backup.goals, 'Meta')
+  const fundIds = ids(backup.forecast.funds, 'Grupo de compromisso')
+  ids(backup.forecast.events, 'Evento esperado')
   const debtIds = ids(backup.balanceSheet.debts, 'Dívida')
   ids(backup.cards.charges, 'Cobrança')
   ids(backup.investments.ledgerEntries, 'Movimentação')
   ids(backup.history.closures, 'Fechamento')
+
+  for (const event of backup.forecast.events) {
+    if (event.groupId && !fundIds.has(event.groupId)) {
+      add('error', 'forecast_fund_missing', 'Evento aponta para grupo inexistente.', event.id)
+    }
+    if (event.date && event.date.slice(0, 7) !== event.month) {
+      add('error', 'forecast_date_month_mismatch', 'Data do evento não corresponde ao mês.', event.id)
+    }
+    if (event.date && !validCalendarDate(event.date)) {
+      add('error', 'forecast_date_invalid', 'Data inválida no evento esperado.', event.id)
+    }
+    if (event.amountCents <= 0) {
+      add('error', 'forecast_amount_invalid', 'Evento esperado precisa ter valor positivo.', event.id)
+    }
+    if (event.cashTreatment === 'card' && event.cardDueMonth && event.cardDueMonth < event.month) {
+      add('error', 'forecast_card_due_invalid', 'Fatura não pode vencer antes da cobrança.', event.id)
+    }
+    for (const [originalMonth, override] of Object.entries(event.occurrenceOverrides ?? {})) {
+      if (!MONTH_RE.test(originalMonth) || (override.date && !validCalendarDate(override.date)) ||
+        (override.month && !MONTH_RE.test(override.month)) ||
+        (override.date && override.month && override.date.slice(0, 7) !== override.month)) {
+        add('error', 'forecast_override_invalid', 'Ajuste de ocorrência tem mês ou data inválida.', event.id)
+      }
+    }
+  }
+  const usedFundingGoals = new Set<string>()
+  for (const fund of backup.forecast.funds) {
+    if (fund.reservedAmountCents < 0) add('error', 'forecast_fund_negative', 'Valor reservado não pode ser negativo.', fund.id)
+    if (fund.goalId && !goalIds.has(fund.goalId)) add('warning', 'forecast_fund_goal_missing', 'A meta vinculada ao grupo não existe mais; o valor manual continua disponível.', fund.id)
+    if (fund.goalId && usedFundingGoals.has(fund.goalId)) add('error', 'forecast_goal_reused', 'A mesma meta não pode financiar dois grupos.', fund.id)
+    if (fund.goalId) usedFundingGoals.add(fund.goalId)
+  }
 
   for (const plan of backup.planning.cycles) {
     if (!templateIds.has(plan.planningTemplateId)) {
@@ -1149,17 +1231,64 @@ function inspectV7(backup: FinTanoBackupV7, migratedFromVersion: number | null):
 }
 
 export function inspectBackupPayload(payload: unknown): BackupInspection {
-  if (isBackupV7(payload)) return inspectV7(payload, null)
+  if (isBackupV8(payload)) return inspectV8(payload, null)
+  if (isBackupV7(payload)) return inspectV8(migrateV7ToV8(payload), 7)
   if (!payload || typeof payload !== 'object') throw new Error('Backup inválido.')
   const legacy = payload as LegacyBackupPayloadLike
   if (!legacy.localStorage || typeof legacy.localStorage !== 'object') {
     throw new Error('O arquivo não contém dados reconhecidos do FinTano.')
   }
-  const backup = repositoryToBackupV7(
+  const backup = repositoryToBackupV8(
     legacyPayloadToRepository(legacy),
     legacy.exportedAt ?? new Date().toISOString(),
   )
-  return inspectV7(backup, typeof legacy.version === 'number' ? legacy.version : 6)
+  return inspectV8(backup, typeof legacy.version === 'number' ? legacy.version : 6)
+}
+
+function migrateV7ToV8(backup: FinTanoBackupV7): FinTanoBackupV8 {
+  return { ...backup, schemaVersion: 8, forecast: { ...backup.forecast, funds: [] } }
+}
+
+function isBackupV8(value: unknown): value is FinTanoBackupV8 {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<FinTanoBackupV8>
+  return candidate.app === 'fintano' && candidate.schemaVersion === 8 &&
+    candidate.currency === 'BRL' && candidate.timezone === 'America/Sao_Paulo' &&
+    Array.isArray(candidate.forecast?.events) && Array.isArray(candidate.forecast?.funds) &&
+    Array.isArray(candidate.planning?.templates) && Array.isArray(candidate.planning?.cycles) &&
+    Array.isArray(candidate.actuals?.cycles) && Array.isArray(candidate.cards?.accounts) &&
+    Array.isArray(candidate.cards?.charges) && Array.isArray(candidate.cards?.statements) &&
+    Array.isArray(candidate.investments?.holdings) && Array.isArray(candidate.investments?.valuations) &&
+    Array.isArray(candidate.investments?.ledgerEntries) && Array.isArray(candidate.balanceSheet?.debts) &&
+    Array.isArray(candidate.goals) &&
+    Array.isArray(candidate.history?.closures)
+}
+
+function validCalendarDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T12:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+export function repositoryToBackupV8(document: RepositoryDocument, exportedAt = new Date().toISOString()): FinTanoBackupV8 {
+  const base = repositoryToBackupV7(document, exportedAt)
+  const funds = Array.isArray(document.collections.forecastFunds)
+    ? document.collections.forecastFunds as { id: string; name: string; reservedAmount: number; goalId?: string }[] : []
+  return {
+    ...base,
+    schemaVersion: 8,
+    forecast: { ...base.forecast, funds: funds.map((fund) => ({
+      id: fund.id, name: fund.name, reservedAmountCents: toCents(fund.reservedAmount), goalId: fund.goalId,
+    })) },
+  }
+}
+
+export function backupV8ToRepository(backup: FinTanoBackupV8): RepositoryDocument {
+  const base = backupV7ToRepository({ ...backup, schemaVersion: 7 })
+  base.collections.forecastFunds = backup.forecast.funds.map((fund) => ({
+    id: fund.id, name: fund.name, reservedAmount: fromCents(fund.reservedAmountCents), goalId: fund.goalId,
+  }))
+  return base
 }
 
 export function createEmptyBackupV7(exportedAt = new Date().toISOString()): FinTanoBackupV7 {
@@ -1178,14 +1307,18 @@ export function createEmptyBackupV7(exportedAt = new Date().toISOString()): FinT
   )
 }
 
+export function createEmptyBackupV8(exportedAt = new Date().toISOString()): FinTanoBackupV8 {
+  return migrateV7ToV8(createEmptyBackupV7(exportedAt))
+}
+
 export function migratedBackupFileName(originalName: string): string {
   const base = originalName.replace(/\.json$/i, '')
-  return `${base}-v7.json`
+  return `${base}-v8.json`
 }
 
 export function migrationReport(inspection: BackupInspection) {
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     migratedFromVersion: inspection.migratedFromVersion,
     generatedAt: new Date().toISOString(),
     counts: inspection.counts,

@@ -3,6 +3,7 @@ import type {
   ExpectedEventKind,
   ExpectedEventRecurrence,
   ExpectedOccurrence,
+  ExpectedOccurrenceOverride,
   ForecastAssumptions,
   ForecastPoint,
 } from '../types'
@@ -20,6 +21,27 @@ import { addMonths, finiteNumber, monthKey, monthsBetween, nowIso, uid } from '.
 // ---------------------------------------------------------------------------
 
 const RECURRENCES: ExpectedEventRecurrence[] = ['once', 'yearly', 'monthly']
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/
+
+function validDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T12:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+function normalizeOverrides(raw: ExpectedEvent['occurrenceOverrides']) {
+  if (!raw || typeof raw !== 'object') return undefined
+  const entries: [string, ExpectedOccurrenceOverride][] = []
+  for (const [key, value] of Object.entries(raw)) {
+    if (!MONTH_RE.test(key) || !value || typeof value !== 'object') continue
+    const date = validDate(value.date) ? value.date : undefined
+    const month = date?.slice(0, 7) ?? (MONTH_RE.test(value.month ?? '') ? value.month : undefined)
+    const amount = typeof value.amount === 'number' && Number.isFinite(value.amount) && value.amount > 0
+      ? value.amount : undefined
+    entries.push([key, { date, month, amount, cancelled: value.cancelled === true }])
+  }
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
 
 export const DEFAULT_ASSUMPTIONS: ForecastAssumptions = {
   monthlyContribution: null,
@@ -40,10 +62,18 @@ export function normalizeExpectedEvent(raw: Partial<ExpectedEvent> | undefined):
     name: raw?.name?.trim() || (kind === 'income' ? 'Entrada' : 'Saída'),
     kind,
     amount: Math.max(0, finiteNumber(raw?.amount)),
-    month: /^\d{4}-\d{2}$/.test(raw?.month ?? '') ? (raw?.month as string) : monthKey(),
+    month: MONTH_RE.test(raw?.month ?? '') ? (raw?.month as string) : monthKey(),
+    date: validDate(raw?.date) && raw.date.slice(0, 7) === raw.month ? raw.date : undefined,
     recurrence: RECURRENCES.includes(raw?.recurrence as ExpectedEventRecurrence)
       ? (raw?.recurrence as ExpectedEventRecurrence)
       : 'once',
+    groupId: raw?.groupId || undefined,
+    cashTreatment: kind === 'expense' && (raw?.cashTreatment === 'planned' || raw?.cashTreatment === 'card')
+      ? raw.cashTreatment : 'extra',
+    cardDueMonth: raw?.cashTreatment === 'card' && MONTH_RE.test(raw?.cardDueMonth ?? '')
+      ? raw?.cardDueMonth : undefined,
+    confirmed: kind === 'income' && raw?.confirmed === true,
+    occurrenceOverrides: normalizeOverrides(raw?.occurrenceOverrides),
     savedPct: kind === 'income' ? savedPct : undefined,
     goalId: raw?.goalId || undefined,
     note: raw?.note?.trim() || undefined,
@@ -78,18 +108,41 @@ export function occursIn(event: ExpectedEvent, month: string): boolean {
   return distance % 12 === 0
 }
 
-function toOccurrence(event: ExpectedEvent, month: string): ExpectedOccurrence {
-  const signedAmount = event.kind === 'income' ? event.amount : -event.amount
+function expectedDateInMonth(event: ExpectedEvent, month: string): string | undefined {
+  if (!event.date) return undefined
+  const day = Number(event.date.slice(8, 10))
+  const [year, monthNumber] = month.split('-').map(Number)
+  const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
+  return `${month}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
+}
+
+function toOccurrence(event: ExpectedEvent, originalMonth: string): ExpectedOccurrence | null {
+  const override = event.occurrenceOverrides?.[originalMonth]
+  if (override?.cancelled) return null
+  const date = override?.date ?? (override?.month ? undefined : expectedDateInMonth(event, originalMonth))
+  const month = date?.slice(0, 7) ?? override?.month ?? originalMonth
+  const amount = override?.amount ?? event.amount
+  const signedAmount = event.kind === 'income' ? amount : -amount
   // Uma entrada só vira patrimônio na fatia que você poupa; uma saída esperada
   // sai inteira do que sobraria.
-  const savedAmount =
-    event.kind === 'income' ? (event.amount * (event.savedPct ?? 100)) / 100 : -event.amount
+  const savedAmount = event.kind === 'income'
+    ? (amount * (event.savedPct ?? 100)) / 100
+    : event.cashTreatment === 'planned' || event.cashTreatment === 'card' ? 0 : -amount
 
-  return { event, month, signedAmount, savedAmount }
+  return { id: `${event.id}@${originalMonth}`, event, month, originalMonth, date, amount, signedAmount, savedAmount }
 }
 
 export function occurrencesInMonth(events: ExpectedEvent[], month: string): ExpectedOccurrence[] {
-  return events.filter((event) => occursIn(event, month)).map((event) => toOccurrence(event, month))
+  const list: ExpectedOccurrence[] = []
+  for (const event of events) {
+    const candidates = new Set([month, ...Object.keys(event.occurrenceOverrides ?? {})])
+    for (const originalMonth of candidates) {
+      if (!occursIn(event, originalMonth)) continue
+      const occurrence = toOccurrence(event, originalMonth)
+      if (occurrence?.month === month) list.push(occurrence)
+    }
+  }
+  return list.sort((a, b) => (a.date ?? `${a.month}-99`).localeCompare(b.date ?? `${b.month}-99`))
 }
 
 /** Todas as ocorrências entre `startMonth` e os `months` meses seguintes. */
@@ -122,10 +175,10 @@ export function summarizeUpcoming(
   const occurrences = occurrencesInRange(events, startMonth, months)
   const income = occurrences
     .filter((item) => item.event.kind === 'income')
-    .reduce((sum, item) => sum + item.event.amount, 0)
+    .reduce((sum, item) => sum + item.amount, 0)
   const expense = occurrences
     .filter((item) => item.event.kind === 'expense')
-    .reduce((sum, item) => sum + item.event.amount, 0)
+    .reduce((sum, item) => sum + item.amount, 0)
 
   return {
     income,
@@ -166,6 +219,8 @@ export interface ProjectionInput {
   inflationPct: number
   horizonMonths: number
   events: ExpectedEvent[]
+  /** Restante previsto após conciliar fatos já recebidos/pagos. */
+  remainingByOccurrence?: Record<string, number>
   debts?: ProjectedDebt[]
   properties?: ProjectedProperty[]
   /** Somar ao aporte a parcela de cada dívida já quitada. */
@@ -214,6 +269,7 @@ export function projectNetWorth(input: ProjectionInput): ForecastPoint[] {
       financialNetWorthReal: startFinancialNetWorth,
       contribution: 0,
       eventsSaved: 0,
+      unfunded: 0,
       returns: 0,
       debtPaid: 0,
       equityBuilt: 0,
@@ -222,10 +278,14 @@ export function projectNetWorth(input: ProjectionInput): ForecastPoint[] {
   ]
 
   let assets = input.startAssets
+  let unfunded = 0
   for (let index = 1; index <= input.horizonMonths; index += 1) {
     const month = addMonths(input.startMonth, index)
     const occurrences = occurrencesInMonth(input.events, month)
-    const eventsSaved = occurrences.reduce((sum, item) => sum + item.savedAmount, 0)
+    const eventsSaved = occurrences.reduce((sum, item) => {
+      const remaining = input.remainingByOccurrence?.[item.id] ?? item.amount
+      return sum + item.savedAmount * (item.amount > 0 ? Math.max(0, remaining) / item.amount : 0)
+    }, 0)
     const returns = assets * monthlyRate
 
     let debtPaid = 0
@@ -248,14 +308,16 @@ export function projectNetWorth(input: ProjectionInput): ForecastPoint[] {
     }
 
     const contribution = input.monthlyContribution + freedInstallments
-    assets = Math.max(0, assets + contribution + eventsSaved + returns)
+    const nextAssets = assets + contribution + eventsSaved + returns - unfunded
+    assets = Math.max(0, nextAssets)
+    unfunded = Math.max(0, -nextAssets)
     const debt = debts.reduce((sum, item) => sum + item.balance, 0)
     const securedDebt = debts
       .filter((item) => item.secured)
       .reduce((sum, item) => sum + item.balance, 0)
     const properties = propertyList.reduce((sum, item) => sum + item.value, 0)
-    const netWorth = assets + properties - debt
-    const financialNetWorth = assets - (debt - securedDebt)
+    const netWorth = assets + properties - debt - unfunded
+    const financialNetWorth = assets - (debt - securedDebt) - unfunded
     // Deflator acumulado até este mês: os valores em reais de hoje.
     const deflator = Math.pow(1 + monthlyInflation, index)
 
@@ -273,6 +335,7 @@ export function projectNetWorth(input: ProjectionInput): ForecastPoint[] {
       financialNetWorthReal: financialNetWorth / deflator,
       contribution,
       eventsSaved,
+      unfunded,
       returns,
       debtPaid,
       equityBuilt,

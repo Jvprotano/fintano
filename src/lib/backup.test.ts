@@ -66,7 +66,7 @@ function repository(): RepositoryDocument {
   }
 }
 
-describe('backup v7 seguro', () => {
+describe('backup v8 seguro', () => {
   it('exporta domínio em centavos sem preferências ou chaves de localStorage', () => {
     const storage = new MemoryStorage()
     const document = repository()
@@ -77,7 +77,7 @@ describe('backup v7 seguro', () => {
 
     const backup = buildBackupPayload(storage, '2026-09-01T12:00:00.000Z')
 
-    expect(backup.schemaVersion).toBe(7)
+    expect(backup.schemaVersion).toBe(8)
     expect(backup.planning.templates[0].salaryCents).toBe(902_400)
     expect(JSON.stringify(backup)).not.toContain('uf_collapsed_income')
     expect(JSON.stringify(backup)).not.toContain('localStorage')

@@ -36,7 +36,7 @@ Planejamento financeiro pessoal: orçamento do mês, patrimônio, cartões e o h
 - **Meta de poupança × meta de patrimônio** — a primeira guarda dinheiro próprio em livro-razão; a segunda pode apenas englobar saldos existentes sem duplicá-los.
 - **Investimento planejado × realizado** — o plano diz quanto deveria ser investido; o fechamento soma o que realmente foi aportado em folha, reserva, posições e metas, líquido de retiradas. Marcação a mercado não é aporte.
 - **Saldo inicial × aporte** — saldo inicial abre uma posição patrimonial no valor correto, mas não representa dinheiro investido naquele ciclo. O Histórico o identifica separadamente sem inflar aportes ou taxa de poupança.
-- **Eventos esperados** — entradas e saídas fora do mês a mês, com mês, recorrência e a fatia que você guarda. Alimentam a projeção e a prévia dos próximos ciclos.
+- **Eventos esperados** — entradas e saídas com dia opcional, recorrência, grupos de cobertura e valor já reservado. A agenda mostra vencimentos, depósito mensal necessário e o restante depois de pagamentos parciais; eventos sem dia continuam com precisão mensal.
 - **Entrada prevista × recebida** — “Futuro” antecipa bônus, 13º e outros eventos; só o que for marcado como recebido no Realizado vira caixa, entra no fechamento e fica identificado no Histórico.
 - **Realizado do mês** — o que de fato foi pago/usado no ciclo. Onde não houver realizado informado, o plano funciona como fallback.
 - **Valores de hoje** — a projeção pode ser lida descontada da inflação.
@@ -119,7 +119,7 @@ src/
 
 Tudo continua local ao navegador. O estado financeiro é persistido como um documento único em `fintano_data_v7`; os hooks acessam coleções desse repositório e não mantêm chaves de domínio independentes. Preferências de interface e até três cópias automáticas ficam separadas porque não fazem parte dos fatos financeiros.
 
-O backup público v7 não é um despejo do `localStorage`. Ele é um contrato de domínio legível, identificado por `app: "fintano"` e `schemaVersion: 7`, com:
+O backup público v8 não é um despejo do `localStorage`. Ele é um contrato de domínio legível, identificado por `app: "fintano"` e `schemaVersion: 8`, com:
 
 - valores monetários como inteiros em centavos;
 - datas em ISO e competências no formato `AAAA-MM`;
@@ -128,10 +128,11 @@ O backup público v7 não é um despejo do `localStorage`. Ele é um contrato de
 - posições de investimento separadas de suas avaliações;
 - saldos iniciais classificados sem inflar aportes;
 - fechamentos com plano, caixa, folha e marca patrimonial separados.
+- eventos futuros com datas opcionais, grupos de cobertura, ocorrências recorrentes e vínculo com pagamentos efetivos.
 
-Antes de importar, a aplicação apresenta a contagem das entidades, converte backups v6 em memória e bloqueia referências inválidas. A gravação só começa depois de validar espaço e criar uma cópia automática; falhas restauram o documento anterior. Backups novos usam o nome `fintano-backup-v7-AAAA-MM-DD.json`.
+Antes de importar, a aplicação apresenta a contagem das entidades, converte backups v6 e v7 em memória e bloqueia referências inválidas. A gravação só começa depois de validar espaço e criar uma cópia automática; falhas restauram o documento anterior. Backups novos usam o nome `fintano-backup-v8-AAAA-MM-DD.json`.
 
-O contrato completo e as regras de migração estão em [`docs/modelo-de-dados-v7.md`](docs/modelo-de-dados-v7.md).
+O contrato base está em [`docs/modelo-de-dados-v7.md`](docs/modelo-de-dados-v7.md), e a evolução dos eventos em [`docs/backup-v8.md`](docs/backup-v8.md).
 
 ## Licença
 

@@ -18,6 +18,8 @@ import { formatCurrency, formatMonthLong, inputClass } from '../lib/format'
 import { useFinancasStore } from '../context/financasStore'
 import { cycleSalaryMonth } from '../lib/activeCycle'
 import { usePersistenceStatus } from '../hooks/usePersistenceStatus'
+import { occurrencesInMonth } from '../lib/forecast'
+import { reconcileOccurrence } from '../lib/forecastCoverage'
 import {
   evaluateBudgetCeiling,
   evaluateGoalProgress,
@@ -80,6 +82,7 @@ export function ClosingView({
     cardCycleAccounting,
     investmentActuals,
     nextCycleAllocation,
+    forecast,
     closeCurrentMonth,
   } = useFinancasStore()
   const { currentMonth, isCurrentMonthClosed } = history
@@ -135,7 +138,13 @@ export function ClosingView({
   }
 
   const allocationReliable = invoiceKnown
-  const allocationTone = nextCycleAllocation.shortfall > 0.005 ? 'negative' : 'accent'
+  const nextExpectedIncome = occurrencesInMonth(forecast.events, nextCycleAllocation.month)
+    .filter((item) => item.event.kind === 'income' && !item.event.confirmed)
+    .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months,
+      new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
+  const allocationWithoutUncertainIncome = nextCycleAllocation.availableToAllocate - nextExpectedIncome
+  const allocationTone = nextCycleAllocation.shortfall > 0.005 ? 'negative' :
+    nextExpectedIncome > 0.005 ? 'neutral' : 'accent'
   const allocationPlanDelta = nextCycleAllocation.afterPlannedWants
   const costsStatus = evaluateBudgetCeiling(
     actuals.summary.plannedCosts,
@@ -288,10 +297,15 @@ export function ClosingView({
               extraordinárias previstas.
             </p>
           )}
+          {nextExpectedIncome > 0.005 && <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-dark-text-secondary">
+            Esta prévia depende de {formatCurrency(nextExpectedIncome)} em entradas ainda não confirmadas.
+            Sem elas, o valor para alocar seria {formatCurrency(allocationWithoutUncertainIncome)}.
+            Confira as datas em Futuro antes de assumir que cobrem uma cobrança.
+          </p>}
         </Panel>
       )}
 
-      <ActualsPanel />
+      <ActualsPanel onGoToCards={onGoToCards} onGoToPlanning={onGoToPlanning} />
 
       <Panel>
         <PanelHeader

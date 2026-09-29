@@ -30,6 +30,10 @@ export function normalizeExtraIncomeEntries(raw: unknown): ExtraIncomeEntry[] {
           typeof entry?.sourceEventId === 'string' && entry.sourceEventId
             ? entry.sourceEventId
             : undefined,
+        ...(typeof entry?.sourceOccurrenceId === 'string' && entry.sourceOccurrenceId
+          ? { sourceOccurrenceId: entry.sourceOccurrenceId } : {}),
+        ...(typeof entry?.occurredAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(entry.occurredAt)
+          ? { occurredAt: entry.occurredAt } : {}),
       }
     })
     .filter((entry) => entry.id && entry.name && entry.amount > 0)

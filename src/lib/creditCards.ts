@@ -174,6 +174,7 @@ export function normalizeCreditCardEntry(entry: CreditCardEntry): CreditCardEntr
     creditSource: entry.entryType === 'invoiceCredit' && entry.creditSource === 'reward' ? 'reward' : entry.entryType === 'invoiceCredit' ? 'payment' : undefined,
     cashCycleMonth: entry.entryType === 'invoiceCredit' && /^\d{4}-(0[1-9]|1[0-2])$/.test(entry.cashCycleMonth ?? '') ? entry.cashCycleMonth : undefined,
     originCreditId: entry.entryType === 'invoiceCredit' ? entry.originCreditId : undefined,
+    sourceForecastOccurrenceId: entry.entryType === 'invoiceCredit' ? undefined : entry.sourceForecastOccurrenceId || undefined,
   }
 }
 
