@@ -1,3 +1,5 @@
+> Revisão de produto — 29/09/2026: grupos foram retirados de Futuro, incluindo cadastro, agrupamento e painel de cobertura por grupo. Eventos seguem em lista cronológica, com datas, ajustes e efetivação preservados. Metas concentra a reserva para um objetivo com valor e prazo. Os campos antigos de grupos permanecem apenas para compatibilidade e preservação de backups; não participam da interface. As etapas abaixo registram o plano histórico, anterior a esta simplificação.
+
 # Futuro: eventos esperados e cobertura de compromissos
 
 ## Decisão que a área deve ajudar a tomar

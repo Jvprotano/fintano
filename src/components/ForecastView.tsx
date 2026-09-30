@@ -36,7 +36,7 @@ import { monthKey, monthsBetween } from '../lib/shared'
 import { useFinancasStore } from '../context/financasStore'
 import type { ExpectedEvent, ExpectedEventKind, ExpectedEventRecurrence, GoalSummary } from '../types'
 import { CHART_PALETTE, RECURRENCE_LABELS } from '../types/constants'
-import { ForecastCommitments, ForecastEventOccurrences } from './ForecastCommitments'
+import { ForecastEventOccurrences } from './ForecastCommitments'
 
 // ---------------------------------------------------------------------------
 // Futuro.
@@ -66,19 +66,16 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
   const [date, setDate] = useState(event?.date ?? '')
   const [recurrence, setRecurrence] = useState<ExpectedEventRecurrence>(event?.recurrence ?? 'once')
   const [savedPct, setSavedPct] = useState(event?.savedPct ?? 100)
-  const [groupId, setGroupId] = useState(event?.groupId ?? '')
-  const [newGroup, setNewGroup] = useState('')
   const [cashTreatment, setCashTreatment] = useState(event?.cashTreatment ?? 'extra')
   const [cardDueMonth, setCardDueMonth] = useState(event?.cardDueMonth ?? '')
   const [confirmed, setConfirmed] = useState(event?.confirmed ?? false)
   const [note, setNote] = useState(event?.note ?? '')
 
   const handleAdd = () => {
-    if (!name.trim() || amount <= 0 || (groupId === '__new' && !newGroup.trim()) ||
+    if (!name.trim() || amount <= 0 ||
       (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))) return
-    const selectedGroupId = groupId === '__new' ? forecast.addFund(newGroup) : groupId
     const input = { name, kind, amount, month, date: date || undefined, recurrence,
-      savedPct, groupId: selectedGroupId || undefined, cashTreatment,
+      savedPct, cashTreatment,
       cardDueMonth: cashTreatment === 'card' ? cardDueMonth || undefined : undefined,
       confirmed, note: note || undefined }
     if (event) forecast.updateEvent(event.id, input)
@@ -170,16 +167,6 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        <label className="block"><span className="app-form-label mb-1 block">Grupo</span>
-          <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className={inputClass}>
-            <option value="">Sem grupo</option>
-            {forecast.funds.map((fund) => <option key={fund.id} value={fund.id}>{fund.name}</option>)}
-            <option value="__new">+ Criar grupo</option>
-          </select>
-        </label>
-        {groupId === '__new' && <label className="block"><span className="app-form-label mb-1 block">Nome do grupo</span>
-          <input value={newGroup} onChange={(event) => setNewGroup(event.target.value)} placeholder="Ex.: Viagem 2027" className={inputClass} />
-        </label>}
         {kind === 'expense' && <label className="block"><span className="app-form-label mb-1 block">Como será pago</span>
           <select value={cashTreatment} onChange={(event) => setCashTreatment(event.target.value as typeof cashTreatment)} className={inputClass}>
             <option value="extra">Extraordinário em conta</option>
@@ -234,7 +221,7 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
       </details>
 
       <div className="flex gap-2">
-        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || amount <= 0 || (groupId === '__new' && !newGroup.trim()) || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))}>
+        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || amount <= 0 || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))}>
           <Plus size={15} />
           {event ? 'Salvar alterações' : 'Adicionar'}
         </PrimaryButton>
@@ -306,14 +293,7 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
 }
 
 function ExpectedEventsPanel({ events, currentMonth }: { events: ExpectedEvent[]; currentMonth: string }) {
-  const { forecast } = useFinancasStore()
   const [showForm, setShowForm] = useState(false)
-  const knownGroups = new Set(forecast.funds.map((fund) => fund.id))
-  const sections = [
-    ...forecast.funds.map((fund) => ({ id: fund.id, name: fund.name,
-      items: events.filter((event) => event.groupId === fund.id) })),
-    { id: '', name: 'Sem grupo', items: events.filter((event) => !event.groupId || !knownGroups.has(event.groupId)) },
-  ].filter((section) => section.items.length > 0)
 
   return <Panel>
     <PanelHeader title="Entradas e saídas esperadas" icon={<Sparkles size={16} />}
@@ -323,14 +303,10 @@ function ExpectedEventsPanel({ events, currentMonth }: { events: ExpectedEvent[]
     {events.length === 0 ? <div className="mt-4"><EmptyState icon={<CalendarClock size={24} />} title="Nada previsto ainda"
       action={!showForm && <PrimaryButton onClick={() => setShowForm(true)}><Plus size={15} /> Cadastrar o primeiro</PrimaryButton>}>
       Cadastre uma entrada ou saída com o mês ou dia esperado.
-    </EmptyState></div> : <div className="mt-4 space-y-4">
-      {sections.map((section) => <div key={section.id || 'ungrouped'}>
-        {forecast.funds.length > 0 && <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-dark-text-muted">{section.name}</h4>}
-        <ul className="space-y-1.5">{section.items.map((event) =>
-          <EventRow key={event.id} event={event} currentMonth={currentMonth} />)}</ul>
-      </div>)}
-    </div>}
-    {(events.length > 0 || forecast.funds.length > 0) && <ForecastCommitments />}
+    </EmptyState></div> : <ul className="mt-4 space-y-1.5">
+      {events.map((event) => <EventRow key={event.id} event={event} currentMonth={currentMonth} />)}
+    </ul>}
+    <p className="mt-4 text-xs text-dark-text-muted">Para juntar dinheiro até uma data, crie uma meta com valor e prazo em Metas.</p>
   </Panel>
 }
 

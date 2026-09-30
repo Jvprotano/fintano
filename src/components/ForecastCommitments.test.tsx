@@ -12,8 +12,7 @@ const cardEvent = normalizeExpectedEvent({ id: 'hotel', name: 'Hotel', kind: 'ex
   amount: 2000, month: '2026-09', date: '2026-09-29', recurrence: 'once',
   cashTreatment: 'card', cardDueMonth: '2026-10' })
 const store = {
-  forecast: { events: [cardEvent], funds: [], currentMonth: '2026-09',
-    addFund: vi.fn(), updateFund: vi.fn(), removeFund: vi.fn(), updateOccurrence },
+  forecast: { events: [cardEvent], currentMonth: '2026-09', updateOccurrence },
   actuals: { months: [], addExtraIncome, addExtraExpense: vi.fn(), removeExtraIncome: vi.fn(), removeExtraExpense: vi.fn() },
   nextCycleAllocation: { availableToAllocate: 5000, extraIncome: 0, extraExpense: 0 },
   investments: { goals: [] },
