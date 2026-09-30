@@ -6,6 +6,7 @@ import {
   clearAllFinTanoStorage,
   clearAppStorage,
   inspectBackup,
+  maybeCreateAutoBackup,
   restoreBackup,
 } from './backup'
 import {
@@ -132,6 +133,21 @@ describe('backup v8 seguro', () => {
 
     expect(result.ok).toBe(false)
     expect(target.getItem(REPOSITORY_STORAGE_KEY)).toContain('Anterior')
+  })
+
+  it('não guarda inicialização incompleta e cria cópia quando o documento fica válido', () => {
+    const storage = new MemoryStorage()
+    writeRepositoryDocument({
+      schemaVersion: 7,
+      updatedAt: '2026-09-30T12:00:00.000Z',
+      collections: { activeScenarioId: 'ausente' },
+    }, storage)
+    maybeCreateAutoBackup(storage)
+    expect(storage.getItem(AUTO_BACKUP_KEY)).toBeNull()
+
+    writeRepositoryDocument(repository(), storage)
+    maybeCreateAutoBackup(storage)
+    expect(storage.getItem(AUTO_BACKUP_KEY)).not.toBeNull()
   })
 
   it('distingue limpar dados atuais de apagar também preferências e cópias', () => {

@@ -3,11 +3,12 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { bootstrapRepository } from './data/repository'
+import { RecoveryScreen } from './components/RecoveryScreen'
 
-bootstrapRepository()
+const repository = bootstrapRepository()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {repository.status === 'blocked' ? <RecoveryScreen inspection={repository} /> : <App />}
   </StrictMode>,
 )

@@ -3,7 +3,7 @@ import { writeStorageValue } from '../lib/persistence'
 
 export const REPOSITORY_STORAGE_KEY = 'fintano_data_v7'
 export const REPOSITORY_SCHEMA_VERSION = 7 as const
-const REPOSITORY_CHANGED_EVENT = 'fintano:repository-changed'
+export const REPOSITORY_CHANGED_EVENT = 'fintano:repository-changed'
 
 export const LEGACY_DOMAIN_KEYS = {
   activeCycle: 'uf_active_cycle_v1',
@@ -34,6 +34,31 @@ export interface RepositoryDocument {
   collections: Partial<Record<RepositoryCollection, unknown>>
 }
 
+export type RepositoryInspection =
+  | { status: 'ready'; source: 'document' | 'legacy' | 'empty'; document: RepositoryDocument }
+  | { status: 'blocked'; reason: 'corrupt' | 'unsupported'; message: string; rawEntries: Record<string, string> }
+
+const ARRAY_COLLECTIONS = new Set<RepositoryCollection>([
+  'scenarios', 'actuals', 'assets', 'debts', 'cardAccounts', 'cardEntries',
+  'cardPaidInvoices', 'forecastEvents', 'forecastFunds', 'goals', 'history',
+  'investmentClasses', 'investmentHoldings',
+])
+const OBJECT_COLLECTIONS = new Set<RepositoryCollection>([
+  'cardSettings', 'emergencyFund', 'forecastAssumptions',
+])
+
+function hasValidCollectionShapes(collections: Record<string, unknown>): boolean {
+  return Object.entries(collections).every(([key, value]) => {
+    if (ARRAY_COLLECTIONS.has(key as RepositoryCollection)) return Array.isArray(value)
+    if (OBJECT_COLLECTIONS.has(key as RepositoryCollection)) {
+      return value !== null && typeof value === 'object' && !Array.isArray(value)
+    }
+    if (key === 'activeCycle') return value === null || (typeof value === 'object' && !Array.isArray(value))
+    if (key === 'activeScenarioId') return typeof value === 'string'
+    return false
+  })
+}
+
 function emptyDocument(): RepositoryDocument {
   return {
     schemaVersion: REPOSITORY_SCHEMA_VERSION,
@@ -42,20 +67,22 @@ function emptyDocument(): RepositoryDocument {
   }
 }
 
-function parseDocument(raw: string | null): RepositoryDocument | null {
-  if (!raw) return null
+function parseDocument(raw: string): RepositoryDocument | null {
   try {
     const parsed = JSON.parse(raw) as Partial<RepositoryDocument>
     if (
+      !parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||
       parsed.schemaVersion !== REPOSITORY_SCHEMA_VERSION ||
       !parsed.collections ||
-      typeof parsed.collections !== 'object'
+      typeof parsed.collections !== 'object' || Array.isArray(parsed.collections) ||
+      typeof parsed.updatedAt !== 'string' || !Number.isFinite(Date.parse(parsed.updatedAt)) ||
+      !hasValidCollectionShapes(parsed.collections as Record<string, unknown>)
     ) {
       return null
     }
     return {
       schemaVersion: REPOSITORY_SCHEMA_VERSION,
-      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
+      updatedAt: parsed.updatedAt,
       collections: parsed.collections,
     }
   } catch {
@@ -71,19 +98,54 @@ function readLegacyCollections(storage: Storage): RepositoryDocument {
   ][]) {
     const raw = storage.getItem(storageKey)
     if (raw === null) continue
-    try {
-      document.collections[collection] = JSON.parse(raw) as unknown
-    } catch {
-      // A coleção inválida fica ausente e o hook responsável aplica seu padrão seguro.
-    }
+    document.collections[collection] = JSON.parse(raw) as unknown
   }
   return document
+}
+
+export function inspectRepository(storage: Storage = window.localStorage): RepositoryInspection {
+  const raw = storage.getItem(REPOSITORY_STORAGE_KEY)
+  if (raw !== null) {
+    const document = parseDocument(raw)
+    if (document) return { status: 'ready', source: 'document', document }
+    let version: unknown
+    try { version = (JSON.parse(raw) as { schemaVersion?: unknown })?.schemaVersion } catch { /* JSON incompleto */ }
+    const unsupported = typeof version === 'number' && version !== REPOSITORY_SCHEMA_VERSION
+    return {
+      status: 'blocked',
+      reason: unsupported ? 'unsupported' : 'corrupt',
+      message: unsupported
+        ? `A versão ${version} deste documento não é compatível com esta instalação.`
+        : 'O documento financeiro salvo neste navegador está incompleto ou inválido.',
+      rawEntries: { [REPOSITORY_STORAGE_KEY]: raw },
+    }
+  }
+
+  const rawEntries: Record<string, string> = {}
+  for (const key of Object.values(LEGACY_DOMAIN_KEYS)) {
+    const value = storage.getItem(key)
+    if (value !== null) rawEntries[key] = value
+  }
+  if (Object.keys(rawEntries).length === 0) {
+    return { status: 'ready', source: 'empty', document: emptyDocument() }
+  }
+  try {
+    return { status: 'ready', source: 'legacy', document: readLegacyCollections(storage) }
+  } catch {
+    return {
+      status: 'blocked', reason: 'corrupt',
+      message: 'Um ou mais registros antigos estão inválidos. A migração foi interrompida.',
+      rawEntries,
+    }
+  }
 }
 
 export function readRepositoryDocument(
   storage: Storage = window.localStorage,
 ): RepositoryDocument {
-  return parseDocument(storage.getItem(REPOSITORY_STORAGE_KEY)) ?? readLegacyCollections(storage)
+  const inspection = inspectRepository(storage)
+  if (inspection.status === 'blocked') throw new Error(inspection.message)
+  return inspection.document
 }
 
 export function removeLegacyDomainKeys(storage: Storage = window.localStorage): void {
@@ -121,7 +183,7 @@ export function writeRepositoryDocument(
     return true
   } catch {
     // `writeStorageValue` mantém o mecanismo existente de erro visível na UI.
-    if (storage === window.localStorage) {
+    if (typeof window !== 'undefined' && storage === window.localStorage) {
       return writeStorageValue(REPOSITORY_STORAGE_KEY, JSON.stringify(normalized), storage)
     }
     return false
@@ -129,12 +191,23 @@ export function writeRepositoryDocument(
 }
 
 /** Consolida uma instalação antiga numa gravação única antes do primeiro render. */
-export function bootstrapRepository(storage: Storage = window.localStorage): boolean {
-  if (parseDocument(storage.getItem(REPOSITORY_STORAGE_KEY))) return true
-  const document = readLegacyCollections(storage)
-  if (!writeRepositoryDocument(document, storage)) return false
-  removeLegacyDomainKeys(storage)
-  return true
+export function bootstrapRepository(storage: Storage = window.localStorage): RepositoryInspection {
+  const inspection = inspectRepository(storage)
+  if (inspection.status === 'blocked' || inspection.source === 'document') return inspection
+  if (!writeRepositoryDocument(inspection.document, storage)) {
+    return {
+      status: 'blocked', reason: 'corrupt',
+      message: 'Não foi possível inicializar os dados neste navegador. Verifique o armazenamento e tente novamente.',
+      rawEntries: inspection.source === 'legacy'
+        ? Object.fromEntries(Object.values(LEGACY_DOMAIN_KEYS).flatMap((key) => {
+          const raw = storage.getItem(key)
+          return raw === null ? [] : [[key, raw]]
+        }))
+        : {},
+    }
+  }
+  if (inspection.source === 'legacy') removeLegacyDomainKeys(storage)
+  return inspection
 }
 
 export type RepositorySetter<T> = (value: T | ((previous: T) => T)) => boolean

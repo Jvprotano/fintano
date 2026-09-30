@@ -8,6 +8,7 @@ import type { BackupInspection, FinTanoBackupV7, FinTanoBackupV8 } from '../data
 import {
   LEGACY_DOMAIN_KEYS,
   REPOSITORY_STORAGE_KEY,
+  inspectRepository,
   readRepositoryDocument,
   removeLegacyDomainKeys,
   writeRepositoryDocument,
@@ -105,6 +106,8 @@ export function inspectBackup(payload: unknown): BackupInspection {
 function createAutoBackupNow(storage: Storage): boolean {
   try {
     const current = buildBackupPayload(storage)
+    const inspection = inspectBackup(current)
+    if (inspection.issues.some((issue) => issue.severity === 'error')) return false
     const backups = listAutoBackups(storage)
     const next = [{ createdAt: new Date().toISOString(), backup: current }, ...backups].slice(
       0,
@@ -120,6 +123,7 @@ function createAutoBackupNow(storage: Storage): boolean {
 export function restoreBackup(
   payload: unknown,
   storage: Storage = localStorage,
+  options: { recoverInvalidSource?: boolean } = {},
 ): RestoreResult {
   let inspection: BackupInspection
   try {
@@ -144,7 +148,15 @@ export function restoreBackup(
     const value = storage.getItem(key)
     if (value !== null) previousLegacy[key] = value
   }
-  if ((previousRepository || Object.keys(previousLegacy).length) && !createAutoBackupNow(storage)) {
+  const invalidSource = inspectRepository(storage).status === 'blocked'
+  if (invalidSource && !options.recoverInvalidSource) {
+    return {
+      ok: false,
+      restoredRecords: 0,
+      error: 'O documento atual está inválido. Guarde a cópia bruta na tela de recuperação antes de restaurar.',
+    }
+  }
+  if (!invalidSource && (previousRepository || Object.keys(previousLegacy).length) && !createAutoBackupNow(storage)) {
     return {
       ok: false,
       restoredRecords: 0,
@@ -162,9 +174,21 @@ export function restoreBackup(
     if (restored.schemaVersion !== 7) throw new Error('A restauração ficou incompleta.')
     return { ok: true, restoredRecords: backupRecordCount(inspection) }
   } catch (error) {
-    storage.removeItem(REPOSITORY_STORAGE_KEY)
-    if (previousRepository !== null) storage.setItem(REPOSITORY_STORAGE_KEY, previousRepository)
-    for (const [key, value] of Object.entries(previousLegacy)) storage.setItem(key, value)
+    try {
+      if (storage.getItem(REPOSITORY_STORAGE_KEY) !== previousRepository) {
+        if (previousRepository === null) storage.removeItem(REPOSITORY_STORAGE_KEY)
+        else storage.setItem(REPOSITORY_STORAGE_KEY, previousRepository)
+      }
+      for (const [key, value] of Object.entries(previousLegacy)) {
+        if (storage.getItem(key) !== value) storage.setItem(key, value)
+      }
+    } catch {
+      return {
+        ok: false,
+        restoredRecords: 0,
+        error: 'A gravação falhou e o navegador recusou a reversão. Guarde os dados brutos antes de tentar novamente.',
+      }
+    }
     return {
       ok: false,
       restoredRecords: 0,
@@ -196,7 +220,11 @@ export function maybeCreateAutoBackup(storage: Storage = localStorage): void {
     if (latest) {
       const ageDays =
         (Date.now() - new Date(latest.createdAt).getTime()) / (24 * 60 * 60 * 1000)
-      if (ageDays < AUTO_BACKUP_INTERVAL_DAYS) return
+      let latestValid = false
+      try {
+        latestValid = !inspectBackup(latest.backup).issues.some((issue) => issue.severity === 'error')
+      } catch { /* cópia inválida não impede uma nova cópia */ }
+      if (latestValid && ageDays < AUTO_BACKUP_INTERVAL_DAYS) return
     }
     createAutoBackupNow(storage)
   } catch {
@@ -207,8 +235,9 @@ export function maybeCreateAutoBackup(storage: Storage = localStorage): void {
 export function restoreAutoBackup(
   createdAt: string,
   storage: Storage = localStorage,
+  options: { recoverInvalidSource?: boolean } = {},
 ): RestoreResult {
   const item = listAutoBackups(storage).find((backup) => backup.createdAt === createdAt)
   if (!item) return { ok: false, restoredRecords: 0, error: 'Cópia não encontrada.' }
-  return restoreBackup(item.backup, storage)
+  return restoreBackup(item.backup, storage, options)
 }

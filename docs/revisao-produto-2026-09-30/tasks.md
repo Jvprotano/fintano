@@ -10,7 +10,7 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ### FT-01 — Recuperar documento inválido sem sobrescrever a origem
 
-- [ ] **P0 · M · dependências: nenhuma · achado D01.**
+- [x] **P0 · M · dependências: nenhuma · achado D01.**
 - **Escopo:** distinguir instalação vazia, legado migrável, documento válido, versão desconhecida e documento corrompido. Bloquear apenas gravações que destruiriam o original; oferecer exportação bruta e restauração de uma cópia conhecida. Exibir falha de inicialização em vez de abrir um cenário vazio com aparência de sucesso.
 - **Referências:** `src/data/repository.ts`, `src/main.tsx`, `src/hooks/usePersistenceStatus.ts`, `src/App.tsx`.
 - **Aceite:** abrir JSON truncado ou versão não suportada conserva exatamente os bytes existentes; o usuário consegue guardá-los e recuperar uma cópia. Instalação realmente vazia continua funcionando.
@@ -214,11 +214,11 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ## Registro de execução
 
-Preencher durante a implementação; nenhuma tarefa funcional foi executada nesta revisão.
+Registrar a jornada e seus limites a cada entrega funcional.
 
 | Tarefa | Data / commit | Jornada conferida | Resultado / limite | Próxima ação |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | Começar por FT-01 |
+| FT-01 | 30/09/2026 · árvore de trabalho | Instalação vazia, legado válido e inválido, JSON truncado e versão 99 com armazenamento sintético; no navegador local isolado, corrupção do documento → tela de recuperação → download bruto → restauração de cópia automática válida → Ciclo reaberto. | O arquivo bruto baixado conservou exatamente os 33 caracteres da entrada truncada; gravação recusada deixou a origem intacta. Build, lint e testes focados passaram. Cópias automáticas passam por validação antes de ser gravadas. Não houve teste sobre o perfil pessoal. | FT-02: comando transacional, revisão e consumidores de pagamento/fechamento. |
 
 ## Regra para ampliar o backlog
 

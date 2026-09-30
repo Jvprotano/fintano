@@ -17,6 +17,7 @@ import { calculateAssetsSummary } from '../lib/assets'
 import { occurrencesInMonth, projectNetWorth } from '../lib/forecast'
 import { reconcileOccurrence, upcomingOccurrences } from '../lib/forecastCoverage'
 import { maybeCreateAutoBackup } from '../lib/backup'
+import { REPOSITORY_CHANGED_EVENT } from '../data/repository'
 import { addMonths } from '../lib/shared'
 import type { BudgetArea, CostCategory, ScenarioSummary } from '../types'
 import { BUDGET_AREAS } from '../types/constants'
@@ -65,7 +66,10 @@ export function useFinancas() {
   )
 
   useEffect(() => {
-    maybeCreateAutoBackup()
+    const checkBackup = () => maybeCreateAutoBackup()
+    checkBackup()
+    window.addEventListener(REPOSITORY_CHANGED_EVENT, checkBackup)
+    return () => window.removeEventListener(REPOSITORY_CHANGED_EVENT, checkBackup)
   }, [])
 
   const { emergencyFund } = investments
