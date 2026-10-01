@@ -528,9 +528,12 @@ function AppShell() {
             <span className="flex items-start gap-2">
               <AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-300" />
               <span>
-                <strong className="block text-rose-200">A última alteração não foi salva</strong>
+                <strong className="block text-rose-200">
+                  {persistence.isConflict ? 'Dados alterados em outra aba' : 'A última alteração não foi salva'}
+                </strong>
                 <span className="mt-0.5 block text-xs leading-relaxed text-rose-100/80">
-                  {persistence.message} Libere espaço ou verifique as permissões e tente novamente.
+                  {persistence.message}
+                  {!persistence.isConflict && ' Libere espaço ou verifique as permissões e tente novamente.'}
                 </span>
               </span>
             </span>
@@ -539,7 +542,7 @@ function AppShell() {
               onClick={persistence.retry}
               className="shrink-0 rounded-lg border border-rose-400/30 px-3 py-2 text-xs font-semibold text-rose-100 transition-colors hover:bg-rose-500/10"
             >
-              Testar novamente
+              {persistence.isConflict ? 'Recarregar para revisar' : 'Testar novamente'}
             </button>
           </div>
         )}

@@ -3,6 +3,7 @@ export const PERSISTENCE_ERROR_EVENT = 'fintano:persistence-error'
 export interface PersistenceErrorDetail {
   key: string
   message: string
+  kind?: 'storage' | 'conflict'
 }
 
 let currentError: PersistenceErrorDetail | null = null
@@ -16,7 +17,22 @@ function errorMessage(error: unknown): string {
 
 export function reportPersistenceError(key: string, error: unknown): void {
   if (typeof window === 'undefined') return
-  currentError = { key, message: errorMessage(error) }
+  if (currentError?.kind === 'conflict') return
+  currentError = { key, message: errorMessage(error), kind: 'storage' }
+  window.dispatchEvent(
+    new CustomEvent<PersistenceErrorDetail>(PERSISTENCE_ERROR_EVENT, {
+      detail: currentError,
+    }),
+  )
+}
+
+export function reportPersistenceConflict(key: string): void {
+  if (typeof window === 'undefined') return
+  currentError = {
+    key,
+    kind: 'conflict',
+    message: 'Os dados mudaram em outra aba. Recarregue esta aba para revisar a versão atual antes de editar.',
+  }
   window.dispatchEvent(
     new CustomEvent<PersistenceErrorDetail>(PERSISTENCE_ERROR_EVENT, {
       detail: currentError,

@@ -1,9 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { writeStorageValue } from '../lib/persistence'
+import { reportPersistenceConflict, writeStorageValue } from '../lib/persistence'
 
 export const REPOSITORY_STORAGE_KEY = 'fintano_data_v7'
 export const REPOSITORY_SCHEMA_VERSION = 7 as const
 export const REPOSITORY_CHANGED_EVENT = 'fintano:repository-changed'
+
+let externalChangePending = false
+let crossTabGuardInstalled = false
+
+function enableCrossTabGuard(): void {
+  if (crossTabGuardInstalled || typeof window === 'undefined') return
+  crossTabGuardInstalled = true
+  window.addEventListener('storage', (event) => {
+    if (event.key !== REPOSITORY_STORAGE_KEY) return
+    externalChangePending = true
+    reportPersistenceConflict(REPOSITORY_STORAGE_KEY)
+  })
+}
 
 export const LEGACY_DOMAIN_KEYS = {
   activeCycle: 'uf_active_cycle_v1',
@@ -178,6 +191,10 @@ export function writeRepositoryDocument(
   document: RepositoryDocument,
   storage: Storage = window.localStorage,
 ): boolean {
+  if (typeof window !== 'undefined' && storage === window.localStorage && externalChangePending) {
+    reportPersistenceConflict(REPOSITORY_STORAGE_KEY)
+    return false
+  }
   const normalized: RepositoryDocument = {
     schemaVersion: REPOSITORY_SCHEMA_VERSION,
     updatedAt: new Date().toISOString(),
@@ -199,7 +216,11 @@ export function writeRepositoryDocument(
 /** Consolida uma instalação antiga numa gravação única antes do primeiro render. */
 export function bootstrapRepository(storage: Storage = window.localStorage): RepositoryInspection {
   const inspection = inspectRepository(storage)
-  if (inspection.status === 'blocked' || inspection.source === 'document') return inspection
+  if (inspection.status === 'blocked') return inspection
+  if (inspection.source === 'document') {
+    if (typeof window !== 'undefined' && storage === window.localStorage) enableCrossTabGuard()
+    return inspection
+  }
   if (!writeRepositoryDocument(inspection.document, storage)) {
     return {
       status: 'blocked', reason: 'corrupt',
@@ -213,6 +234,7 @@ export function bootstrapRepository(storage: Storage = window.localStorage): Rep
     }
   }
   if (inspection.source === 'legacy') removeLegacyDomainKeys(storage)
+  if (typeof window !== 'undefined' && storage === window.localStorage) enableCrossTabGuard()
   return inspection
 }
 
@@ -234,6 +256,7 @@ export function useRepositoryState<T>(
 
   const setValue = useCallback<RepositorySetter<T>>(
     (valueOrUpdater) => {
+      const before = window.localStorage.getItem(REPOSITORY_STORAGE_KEY)
       const document = readRepositoryDocument()
       const persisted = document.collections[collection]
       const previous = persisted === undefined ? valueRef.current : (persisted as T)
@@ -241,6 +264,10 @@ export function useRepositoryState<T>(
       const nextDocument: RepositoryDocument = {
         ...document,
         collections: { ...document.collections, [collection]: next },
+      }
+      if (window.localStorage.getItem(REPOSITORY_STORAGE_KEY) !== before) {
+        reportPersistenceConflict(REPOSITORY_STORAGE_KEY)
+        return false
       }
       if (!writeRepositoryDocument(nextDocument)) return false
       removeLegacyDomainKeys()
