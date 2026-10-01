@@ -54,7 +54,7 @@ export function InvestmentPlan() {
     const color =
       DIVERSIFICATION_PRESET_COLORS.find((c) => !usedColors.has(c)) ||
       DIVERSIFICATION_PRESET_COLORS[0]
-    addDiversificationSlice(name.trim(), 0, color)
+    if (!addDiversificationSlice(name.trim(), 0, color)) return
     setNewName('')
   }
 

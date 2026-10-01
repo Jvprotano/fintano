@@ -31,8 +31,8 @@ export function useForecast(cycleMonth = monthKey()) {
 
   const addEvent = useCallback(
     (input: Omit<ExpectedEvent, 'id' | 'createdAt'>) => {
-      if (!input.name.trim() || input.amount <= 0) return
-      setEvents((prev) => [
+      if (!input.name.trim() || input.amount <= 0) return false
+      return setEvents((prev) => [
         ...(Array.isArray(prev) ? prev : []),
         normalizeExpectedEvent({ ...input, id: uid(), createdAt: new Date().toISOString() }),
       ])
@@ -42,7 +42,7 @@ export function useForecast(cycleMonth = monthKey()) {
 
   const updateEvent = useCallback(
     (id: string, patch: Partial<Omit<ExpectedEvent, 'id' | 'createdAt'>>) => {
-      setEvents((prev) =>
+      return setEvents((prev) =>
         prev.map((event) =>
           event.id === id ? normalizeExpectedEvent({ ...event, ...patch }) : event,
         ),

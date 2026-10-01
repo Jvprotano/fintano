@@ -41,6 +41,7 @@ import {
 import { useCardsStore, useFinancasStore, useMetrics } from '../context/financasStore'
 import type { CreditCardCycle, CreditCardEntry } from '../types'
 import { BUDGET_AREA_COLORS } from '../types/constants'
+import { repositoryRevision } from '../data/repositoryCommand'
 
 type View = CreditCardCycle | 'import'
 type SortKey = 'description' | 'purchaseDate' | 'cardName' | 'amount'
@@ -96,12 +97,15 @@ export function CreditCardManager() {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortState | null>(null)
   const [importText, setImportText] = useState('')
+  const [importError, setImportError] = useState('')
   const [importCycle, setImportCycle] = useState<CreditCardCycle>('current')
   const [replaceOnImport, setReplaceOnImport] = useState(true)
 
   const [anticipateId, setAnticipateId] = useState<string | null>(null)
   const [anticipateCount, setAnticipateCount] = useState(1)
   const [showPaySummary, setShowPaySummary] = useState(false)
+  const [paymentReviewRevision, setPaymentReviewRevision] = useState<string | null>(null)
+  const [paymentError, setPaymentError] = useState('')
   const [showCreditForm, setShowCreditForm] = useState(false)
 
   // Exclusão com desfazer: guarda o último lançamento removido por alguns segundos.
@@ -155,7 +159,7 @@ export function CreditCardManager() {
     })
 
   const handleDelete = (entry: CreditCardEntry) => {
-    removeEntry(entry.id)
+    if (!removeEntry(entry.id)) return
     setPendingUndo(entry)
     if (undoTimer.current) clearTimeout(undoTimer.current)
     undoTimer.current = setTimeout(() => setPendingUndo(null), 6000)
@@ -165,7 +169,7 @@ export function CreditCardManager() {
     if (!pendingUndo) return
     const { id: _id, ...rest } = pendingUndo
     void _id
-    addEntry(rest)
+    if (!addEntry(rest)) return
     setPendingUndo(null)
     if (undoTimer.current) clearTimeout(undoTimer.current)
   }
@@ -198,8 +202,11 @@ export function CreditCardManager() {
 
   const handleImport = () => {
     if (!parsedImport.length) return
-    if (replaceOnImport) replaceEntries(importCycle, parsedImport)
-    else appendEntries(importCycle, parsedImport)
+    const saved = replaceOnImport
+      ? replaceEntries(importCycle, parsedImport)
+      : appendEntries(importCycle, parsedImport)
+    if (!saved) { setImportError('Não foi possível salvar a importação. Confira o armazenamento e tente novamente.'); return }
+    setImportError('')
     setImportText('')
     setView(importCycle)
   }
@@ -221,13 +228,18 @@ export function CreditCardManager() {
 
   const handleAnticipate = () => {
     if (!anticipatingEntry || anticipateMax < 1) return
-    anticipateInstallments(anticipatingEntry.id, Math.min(Math.max(1, anticipateCount), anticipateMax))
+    if (!anticipateInstallments(anticipatingEntry.id, Math.min(Math.max(1, anticipateCount), anticipateMax))) return
     setAnticipateId(null)
     setAnticipateCount(1)
   }
 
   const handlePayInvoice = () => {
-    payInvoice()
+    const result = payInvoice(paymentReviewRevision)
+    if (!result.ok) {
+      setPaymentError(result.message)
+      return
+    }
+    setPaymentError('')
     setShowPaySummary(false)
   }
 
@@ -371,7 +383,7 @@ export function CreditCardManager() {
               <HandCoins size={14} /> Abatimento avulso
             </button>
             {view === 'current' && (
-              <PrimaryButton onClick={() => setShowPaySummary(true)}>
+              <PrimaryButton onClick={() => { setPaymentReviewRevision(repositoryRevision()); setPaymentError(''); setShowPaySummary(true) }}>
                 <CheckCircle2 size={15} />
                 Pagar fatura de {formatMonthLong(currentDueMonth)}
               </PrimaryButton>
@@ -387,6 +399,7 @@ export function CreditCardManager() {
       </div>
 
       {showPaySummary && view === 'current' && (
+        <div>
         <InvoicePaymentReview
           summary={summary}
           currentDueMonth={currentDueMonth}
@@ -395,6 +408,8 @@ export function CreditCardManager() {
           onConfirm={handlePayInvoice}
           onCancel={() => setShowPaySummary(false)}
         />
+        {paymentError && <p role="alert" className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{paymentError}</p>}
+        </div>
       )}
 
       {view !== 'import' ? (
@@ -815,6 +830,7 @@ export function CreditCardManager() {
           </div>
         </Panel>
       ) : (
+        <div className="space-y-2">
         <CardImportPanel
           text={importText}
           onTextChange={setImportText}
@@ -827,6 +843,8 @@ export function CreditCardManager() {
           nextDueMonth={nextDueMonth}
           onImport={handleImport}
         />
+        {importError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{importError}</p>}
+        </div>
       )}
 
       <CardSummaryPanels

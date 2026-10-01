@@ -37,6 +37,7 @@ function Harness({ withExpected = false }: { withExpected?: boolean }) {
       if (sourceEventId && current.some((entry) => entry.sourceEventId === sourceEventId)) return current
       return [...current, { id: `entry-${current.length}`, name, amount, sourceEventId }]
     })
+    return true
   }
 
   return (

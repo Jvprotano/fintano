@@ -65,7 +65,7 @@ export function WantsManager() {
 
   const handleAdd = () => {
     if (!newName.trim()) return
-    addWant(newName.trim(), newAmount)
+    if (!addWant(newName.trim(), newAmount)) return
     setNewName('')
     setNewAmount(0)
   }

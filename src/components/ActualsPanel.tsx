@@ -35,7 +35,7 @@ export function CostAdjustmentControl({
   onAdjust,
 }: {
   costName: string
-  onAdjust: (delta: number) => void
+  onAdjust: (delta: number) => boolean
 }) {
   const [mode, setMode] = useState<AdjustmentMode | null>(null)
   const [amount, setAmount] = useState(0)
@@ -48,7 +48,7 @@ export function CostAdjustmentControl({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!mode || amount <= 0) return
-    onAdjust(mode === 'add' ? amount : -amount)
+    if (!onAdjust(mode === 'add' ? amount : -amount)) return
     setAmount(0)
     setMode(null)
   }

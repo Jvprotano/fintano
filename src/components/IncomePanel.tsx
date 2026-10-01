@@ -36,13 +36,13 @@ export function IncomePanel() {
 
   const handleAdd = () => {
     if (!name.trim() || value <= 0) return
-    addDeduction(
+    if (!addDeduction(
       name.trim(),
       value,
       type,
       isInvestment ? employerContribution : 0,
       isInvestment && linkedHoldingId ? linkedHoldingId : undefined,
-    )
+    )) return
     setName('')
     setValue(0)
     setEmployerContribution(0)

@@ -54,7 +54,7 @@ export function LedgerMoveForm({
   invert = false,
   cycleMonth,
 }: {
-  onMove: (amount: number, note?: string, cycleMonth?: string) => void
+  onMove: (amount: number, note?: string, cycleMonth?: string) => boolean
   outLabel?: string
   inLabel?: string
   disableOut?: boolean
@@ -81,7 +81,7 @@ export function LedgerMoveForm({
   const commit = (button: 'primary' | 'secondary') => {
     if (amount <= 0) return
     const positive = invert ? button === 'secondary' : button === 'primary'
-    onMove((positive ? 1 : -1) * amount, note, selectedCycleMonth || cycleMonth)
+    if (!onMove((positive ? 1 : -1) * amount, note, selectedCycleMonth || cycleMonth)) return
     setAmount(0)
     setNote('')
   }

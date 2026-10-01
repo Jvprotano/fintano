@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
-import { useRepositoryState } from '../data/repository'
+import { readRepositoryDocument, useRepositoryState } from '../data/repository'
+import { runRepositoryCommand } from '../data/repositoryCommand'
 import type {
   CostCategory,
   CostItem,
@@ -37,17 +38,30 @@ export function useScenarios() {
   )
 
   useEffect(() => {
-    if (scenarios.length === 0) {
-      const scenario = createDefaultScenario('Atual')
-      setScenarios([scenario])
-      setActiveScenarioId(scenario.id)
+    const persisted = readRepositoryDocument().collections.scenarios
+    if (!Array.isArray(persisted) || persisted.length === 0) {
+      const scenario = scenarios[0] ?? createDefaultScenario('Atual')
+      runRepositoryCommand({
+        id: uid(),
+        apply: (document) => {
+          if (Array.isArray(document.collections.scenarios) && document.collections.scenarios.length > 0) return null
+          return {
+            ...document,
+            collections: {
+              ...document.collections,
+              scenarios: [scenario],
+              activeScenarioId: scenario.id,
+            },
+          }
+        },
+      })
       return
     }
 
     if (!scenarios.some((scenario) => scenario.id === activeScenarioId)) {
       setActiveScenarioId(scenarios[0].id)
     }
-  }, [activeScenarioId, scenarios, setActiveScenarioId, setScenarios])
+  }, [activeScenarioId, scenarios, setActiveScenarioId])
 
   const activeScenario =
     scenarios.find((scenario) => scenario.id === activeScenarioId) ??
@@ -57,7 +71,7 @@ export function useScenarios() {
 
   const updateActiveScenario = useCallback(
     (updater: (scenario: FinanceScenario) => FinanceScenario) => {
-      setScenarios((prev) =>
+      return setScenarios((prev) =>
         prev.map((scenario) =>
           scenario.id === activeId
             ? { ...updater(normalizeScenario(scenario)), updatedAt: nowIso() }
@@ -70,7 +84,7 @@ export function useScenarios() {
 
   const setScenarioField = useCallback(
     <K extends keyof FinanceScenarioData>(field: K, value: FinanceScenarioData[K]) => {
-      updateActiveScenario((scenario) => ({ ...scenario, [field]: value }))
+      return updateActiveScenario((scenario) => ({ ...scenario, [field]: value }))
     },
     [updateActiveScenario],
   )
@@ -80,28 +94,50 @@ export function useScenarios() {
   const createScenario = useCallback(
     (name = `Cenário ${scenarios.length + 1}`) => {
       const scenario = createDefaultScenario(name)
-      setScenarios((prev) => [...prev, scenario])
-      setActiveScenarioId(scenario.id)
+      return runRepositoryCommand({
+        id: uid(),
+        apply: (document) => ({
+          ...document,
+          collections: {
+            ...document.collections,
+            scenarios: [...(Array.isArray(document.collections.scenarios) ? document.collections.scenarios : []), scenario],
+            activeScenarioId: scenario.id,
+          },
+        }),
+      }).ok
     },
-    [scenarios.length, setActiveScenarioId, setScenarios],
+    [scenarios.length],
   )
 
   const duplicateScenario = useCallback(
     (sourceId = activeId) => {
-      const source = scenarios.find((scenario) => scenario.id === sourceId) ?? activeScenario
-      if (!source) return
-      const scenario = cloneScenario(source, `${source.name} (cópia)`)
-      setScenarios((prev) => [...prev, scenario])
-      setActiveScenarioId(scenario.id)
+      return runRepositoryCommand({
+        id: uid(),
+        apply: (document) => {
+          const current = Array.isArray(document.collections.scenarios)
+            ? document.collections.scenarios as FinanceScenario[] : []
+          const source = current.find((item) => item.id === sourceId)
+          if (!source) return null
+          const scenario = cloneScenario(source, `${source.name} (cópia)`)
+          return {
+            ...document,
+            collections: {
+              ...document.collections,
+              scenarios: [...current, scenario],
+              activeScenarioId: scenario.id,
+            },
+          }
+        },
+      }).ok
     },
-    [activeId, activeScenario, scenarios, setActiveScenarioId, setScenarios],
+    [activeId],
   )
 
   const renameScenario = useCallback(
     (id: string, name: string) => {
       const trimmed = name.trim()
-      if (!trimmed) return
-      setScenarios((prev) =>
+      if (!trimmed) return false
+      return setScenarios((prev) =>
         prev.map((scenario) =>
           scenario.id === id ? { ...scenario, name: trimmed, updatedAt: nowIso() } : scenario,
         ),
@@ -112,12 +148,26 @@ export function useScenarios() {
 
   const removeScenario = useCallback(
     (id: string) => {
-      if (scenarios.length <= 1) return
-      const remaining = scenarios.filter((scenario) => scenario.id !== id)
-      setScenarios(remaining)
-      if (id === activeId) setActiveScenarioId(remaining[0]?.id ?? '')
+      return runRepositoryCommand({
+        id: uid(),
+        apply: (document) => {
+          const current = Array.isArray(document.collections.scenarios)
+            ? document.collections.scenarios as FinanceScenario[] : []
+          if (current.length <= 1 || !current.some((scenario) => scenario.id === id)) return null
+          const remaining = current.filter((scenario) => scenario.id !== id)
+          return {
+            ...document,
+            collections: {
+              ...document.collections,
+              scenarios: remaining,
+              activeScenarioId: document.collections.activeScenarioId === id
+                ? remaining[0].id : document.collections.activeScenarioId,
+            },
+          }
+        },
+      }).ok
     },
-    [activeId, scenarios, setActiveScenarioId, setScenarios],
+    [],
   )
 
   // Custos -------------------------------------------------------------------
@@ -131,7 +181,7 @@ export function useScenarios() {
       sharedWith?: string
       paidWith?: PaymentMethod
     }) => {
-      updateActiveScenario((scenario) => ({
+      return updateActiveScenario((scenario) => ({
         ...scenario,
         costs: [
           ...scenario.costs,
@@ -174,7 +224,7 @@ export function useScenarios() {
 
   const addWant = useCallback(
     (name: string, plannedAmount = 0, paidWith: PaymentMethod = 'card') => {
-      updateActiveScenario((scenario) => ({
+      return updateActiveScenario((scenario) => ({
         ...scenario,
         wants: [
           ...scenario.wants,
@@ -273,7 +323,7 @@ export function useScenarios() {
       employerContribution = 0,
       linkedHoldingId?: string,
     ) => {
-      updateActiveScenario((scenario) => ({
+      return updateActiveScenario((scenario) => ({
         ...scenario,
         deductions: [
           ...scenario.deductions,
@@ -327,7 +377,7 @@ export function useScenarios() {
 
   const addDiversificationSlice = useCallback(
     (name: string, percentage: number, color: string) => {
-      updateActiveScenario((scenario) => ({
+      return updateActiveScenario((scenario) => ({
         ...scenario,
         diversification: [...scenario.diversification, { id: uid(), name, percentage, color }],
       }))

@@ -35,7 +35,7 @@ export function ScenarioSwitcher() {
   }, [open])
 
   const finishEditing = () => {
-    if (editingId && draftName.trim()) renameScenario(editingId, draftName)
+    if (editingId && draftName.trim() && !renameScenario(editingId, draftName)) return
     setEditingId(null)
     setDraftName('')
   }
@@ -107,8 +107,7 @@ export function ScenarioSwitcher() {
                   <button
                     type="button"
                     onClick={() => {
-                      setActiveScenarioId(scenario.id)
-                      setOpen(false)
+                      if (setActiveScenarioId(scenario.id)) setOpen(false)
                     }}
                     className="min-w-0 flex-1 text-left"
                   >
@@ -162,8 +161,7 @@ export function ScenarioSwitcher() {
             <button
               type="button"
               onClick={() => {
-                createScenario()
-                setOpen(false)
+                if (createScenario()) setOpen(false)
               }}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-dark-text-secondary transition-colors hover:bg-dark-hover hover:text-dark-text"
             >
@@ -173,8 +171,7 @@ export function ScenarioSwitcher() {
             <button
               type="button"
               onClick={() => {
-                duplicateScenario(activeScenarioId)
-                setOpen(false)
+                if (duplicateScenario(activeScenarioId)) setOpen(false)
               }}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-dark-text-secondary transition-colors hover:bg-dark-hover hover:text-dark-text"
             >

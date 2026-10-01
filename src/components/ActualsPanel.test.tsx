@@ -7,7 +7,7 @@ import { CostAdjustmentControl } from './ActualsPanel'
 describe('CostAdjustmentControl', () => {
   it('adiciona um valor e confirma pelo botão compacto', async () => {
     const user = userEvent.setup()
-    const onAdjust = vi.fn()
+    const onAdjust = vi.fn().mockReturnValue(true)
     render(<CostAdjustmentControl costName="Supermercado" onAdjust={onAdjust} />)
 
     await user.click(screen.getByRole('button', { name: 'Adicionar valor a Supermercado' }))
@@ -22,7 +22,7 @@ describe('CostAdjustmentControl', () => {
 
   it('subtrai um valor e confirma com Enter', async () => {
     const user = userEvent.setup()
-    const onAdjust = vi.fn()
+    const onAdjust = vi.fn().mockReturnValue(true)
     render(<CostAdjustmentControl costName="Farmácia" onAdjust={onAdjust} />)
 
     await user.click(screen.getByRole('button', { name: 'Diminuir valor de Farmácia' }))

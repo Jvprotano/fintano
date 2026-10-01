@@ -76,14 +76,14 @@ export function CostManager() {
 
   const handleAdd = () => {
     if (!name.trim() || value <= 0) return
-    addCost({
+    if (!addCost({
       name: name.trim(),
       value,
       category,
       sharedAmount: splitting ? Math.min(sharedAmount, value) : 0,
       sharedWith: splitting ? sharedWith : '',
       paidWith,
-    })
+    })) return
     setName('')
     setValue(0)
     setSharedAmount(0)

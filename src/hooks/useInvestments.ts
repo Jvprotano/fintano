@@ -176,7 +176,7 @@ export function useInvestments(
     }) => {
       const now = nowIso()
       const initial = Math.max(0, finiteNumber(input.initialAmount))
-      setHoldings((prev) => [
+      return setHoldings((prev) => [
         ...(Array.isArray(prev) ? prev : []),
         normalizeHolding({
           id: uid(),
@@ -273,7 +273,7 @@ export function useInvestments(
   const addHoldingTransaction = useCallback(
     (holdingId: string, amount: number, note?: string, cycleMonth = activeCycleMonth) => {
       const competence = validCycleMonth(cycleMonth, activeCycleMonth)
-      setHoldings((prev) =>
+      return setHoldings((prev) =>
         (Array.isArray(prev) ? prev : []).map((raw) => {
           const holding = normalizeHolding(raw)
           if (holding.id !== holdingId) return holding
@@ -400,10 +400,9 @@ export function useInvestments(
       const competence = validCycleMonth(cycleMonth, activeCycleMonth)
       const firstReserve = reserveHoldings[0]
       if (firstReserve) {
-        addHoldingTransaction(firstReserve.id, amount, note, competence)
-        return
+        return addHoldingTransaction(firstReserve.id, amount, note, competence)
       }
-      setStoredFund((prev) => {
+      return setStoredFund((prev) => {
         const fund = normalizeEmergencyFund(prev)
         const transactions = applyLedgerMove(fund.transactions, amount, note, competence)
         if (!transactions) return fund
@@ -461,8 +460,8 @@ export function useInvestments(
   const addClass = useCallback(
     (name: string, color: string) => {
       const trimmed = name.trim()
-      if (!trimmed) return
-      setClasses((prev) => {
+      if (!trimmed) return false
+      return setClasses((prev) => {
         const list = Array.isArray(prev) && prev.length ? prev : DEFAULT_INVESTMENT_CLASSES
         return [...list, { id: uid(), name: trimmed, color }]
       })
@@ -507,9 +506,9 @@ export function useInvestments(
       includes?: GoalInclusion[]
     }) => {
       const trimmed = input.name.trim()
-      if (!trimmed) return
+      if (!trimmed) return false
       const initial = Math.max(0, finiteNumber(input.initialAmount))
-      setGoals((prev) => [
+      return setGoals((prev) => [
         ...prev,
         normalizeGoal(
           {
@@ -616,7 +615,7 @@ export function useInvestments(
   const addGoalTransaction = useCallback(
     (goalId: string, amount: number, note?: string, cycleMonth = activeCycleMonth) => {
       const competence = validCycleMonth(cycleMonth, activeCycleMonth)
-      setGoals((prev) =>
+      return setGoals((prev) =>
         prev.map((goal) => {
           if (goal.id !== goalId) return goal
           const transactions = applyLedgerMove(goal.transactions, amount, note, competence)

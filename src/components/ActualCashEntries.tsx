@@ -16,9 +16,10 @@ function ExpectedRow({ occurrence, income, currentMonth, onAdd }: {
   occurrence: ReconciledOccurrence
   income: boolean
   currentMonth: string
-  onAdd: (name: string, amount: number, sourceEventId?: string, targetMonth?: string, sourceOccurrenceId?: string, occurredAt?: string) => void
+  onAdd: (name: string, amount: number, sourceEventId?: string, targetMonth?: string, sourceOccurrenceId?: string, occurredAt?: string) => boolean
 }) {
   const [amount, setAmount] = useState(occurrence.remainingAmount)
+  const [saveError, setSaveError] = useState(false)
   const [date, setDate] = useState(todayKey)
   const [cycle, setCycle] = useState(currentMonth)
   const label = income ? 'recebida' : 'paga'
@@ -48,10 +49,12 @@ function ExpectedRow({ occurrence, income, currentMonth, onAdd }: {
           <input type="month" value={cycle} onChange={(event) => setCycle(event.target.value)} className={inputClass} />
         </label>
         <SecondaryButton className="sm:w-full" disabled={amount <= 0 || !date || !cycle} onClick={() => {
-          onAdd(occurrence.event.name, amount, occurrence.event.id, cycle, occurrence.id, date)
+          if (!onAdd(occurrence.event.name, amount, occurrence.event.id, cycle, occurrence.id, date)) { setSaveError(true); return }
+          setSaveError(false)
           setAmount(Math.max(0, occurrence.remainingAmount - amount))
         }}>Marcar como {label}</SecondaryButton>
       </div>
+      {saveError && <p role="alert" className="mt-2 text-xs text-rose-200">Não foi possível salvar. Confira o armazenamento e tente novamente.</p>}
     </li>
   )
 }
@@ -117,7 +120,7 @@ export function ActualCashEntries({
   entries: ExtraIncomeEntry[]
   expected: ReconciledOccurrence[]
   currentMonth?: string
-  onAdd: (name: string, amount: number, sourceEventId?: string, targetMonth?: string, sourceOccurrenceId?: string, occurredAt?: string) => void
+  onAdd: (name: string, amount: number, sourceEventId?: string, targetMonth?: string, sourceOccurrenceId?: string, occurredAt?: string) => boolean
   onUpdate: (id: string, amount: number) => void
   onRemove: (id: string) => void
 }) {
@@ -125,12 +128,14 @@ export function ActualCashEntries({
   const [amount, setAmount] = useState(0)
   const [date, setDate] = useState(todayKey)
   const [cycle, setCycle] = useState(currentMonth)
+  const [saveError, setSaveError] = useState(false)
   const total = entries.reduce((sum, entry) => sum + entry.amount, 0)
   const income = tone === 'income'
 
   const add = () => {
     if (!name.trim() || amount <= 0) return
-    onAdd(name, amount, undefined, cycle, undefined, date)
+    if (!onAdd(name, amount, undefined, cycle, undefined, date)) { setSaveError(true); return }
+    setSaveError(false)
     setName('')
     setAmount(0)
   }
@@ -201,6 +206,7 @@ export function ActualCashEntries({
           Adicionar
         </PrimaryButton>
       </div>
+      {saveError && <p role="alert" className="mt-2 text-xs text-rose-200">Não foi possível salvar. Confira o armazenamento e tente novamente.</p>}
     </section>
   )
 }

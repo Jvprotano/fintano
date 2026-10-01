@@ -18,8 +18,10 @@ import { occurrencesInMonth, projectNetWorth } from '../lib/forecast'
 import { reconcileOccurrence, upcomingOccurrences } from '../lib/forecastCoverage'
 import { maybeCreateAutoBackup } from '../lib/backup'
 import { REPOSITORY_CHANGED_EVENT } from '../data/repository'
-import { addMonths } from '../lib/shared'
-import type { BudgetArea, CostCategory, ScenarioSummary } from '../types'
+import { addMonths, uid } from '../lib/shared'
+import { runRepositoryCommand, type CommandResult } from '../data/repositoryCommand'
+import { closeCycleInDocument } from '../data/closingCommand'
+import type { BudgetArea, CostCategory, MonthlySnapshot, ScenarioSummary } from '../types'
 import { BUDGET_AREAS } from '../types/constants'
 
 export type { ScenarioMetrics } from '../lib/scenario'
@@ -357,10 +359,7 @@ export function useFinancas() {
    * existindo separadamente para comparação.
    */
   const closeCurrentMonth = useCallback(
-    (month = activeCycle.month, note?: string) => {
-      const shouldAdvance =
-        month === activeCycle.month &&
-        !history.snapshots.some((snapshot) => snapshot.month === month)
+    (month = activeCycle.month, note?: string, options?: { payInvoice?: boolean; expectedRevision?: string | null; operationId?: string }): CommandResult => {
 
       const costsByCategory: Partial<Record<CostCategory, number>> = {}
       actuals.summary.byCategory.forEach((value, category) => {
@@ -381,7 +380,7 @@ export function useFinancas() {
         actuals.summary.effectiveWants -
         investmentActuals.directNet
 
-      const saved = history.closeMonth({
+      const snapshot: Omit<MonthlySnapshot, 'id' | 'closedAt'> = {
         month,
         scenarioId: activeScenario.id,
         scenarioName: activeScenario.name,
@@ -428,25 +427,30 @@ export function useFinancas() {
         cardByArea,
         cashLeftover: currentCycleFacts.cash.leftover,
         note,
-      })
-
-      if (!saved) return false
-
-      if (shouldAdvance) {
-        return activeCycle.advanceCycle()
       }
-      return true
+      return runRepositoryCommand({
+        id: options?.operationId ?? `close-cycle:${month}:${uid()}`,
+        expectedRevision: options?.expectedRevision,
+        apply: (document) => closeCycleInDocument(document, {
+          month,
+          snapshot,
+          costRows: actuals.summary.rows.map((row) => ({ id: row.cost.id, planned: row.planned })),
+          wantRows: actuals.summary.wantRows.map((row) => ({ id: row.want.id, planned: row.planned })),
+          payInvoiceDueMonth: options?.payInvoice
+            ? cardCycleAccounting.invoiceFormedByCycle.dueMonth : undefined,
+        }),
+      })
     },
     [
       activeCycle,
       activeScenario.id,
       activeScenario.name,
       actuals.summary,
+      cardCycleAccounting.invoiceFormedByCycle.dueMonth,
       cardCycleAccounting.invoiceFormedByCycle.personalTotal,
       cardCycleAccounting.spendingThisCycle.personalByArea,
       currentCycleFacts.cash.leftover,
       emergencyFund,
-      history,
       investmentActuals,
       investments.summary,
       metrics,

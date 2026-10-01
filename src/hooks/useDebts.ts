@@ -30,8 +30,8 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
       linkedAssetId?: string
     }) => {
       const trimmed = input.name.trim()
-      if (!trimmed) return
-      setStored((prev) => [
+      if (!trimmed) return false
+      return setStored((prev) => [
         ...(Array.isArray(prev) ? prev : []),
         normalizeDebt({ ...input, name: trimmed, id: uid(), createdAt: nowIso(), transactions: [] }),
       ])
@@ -75,7 +75,7 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
    */
   const addDebtTransaction = useCallback(
     (id: string, amount: number, note?: string) => {
-      setStored((prev) =>
+      return setStored((prev) =>
         prev.map((debt) => {
           if (debt.id !== id) return debt
           const delta = amount < 0 ? -Math.min(-amount, debt.balance) : amount

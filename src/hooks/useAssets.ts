@@ -25,8 +25,8 @@ export function useAssets() {
       note?: string
     }) => {
       const trimmed = input.name.trim()
-      if (!trimmed) return
-      setStored((prev) => [
+      if (!trimmed) return false
+      return setStored((prev) => [
         ...(Array.isArray(prev) ? prev : []),
         normalizeAsset({
           ...input,

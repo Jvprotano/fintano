@@ -18,6 +18,8 @@ import { formatCurrency, formatMonthLong, inputClass } from '../lib/format'
 import { useFinancasStore } from '../context/financasStore'
 import { cycleSalaryMonth } from '../lib/activeCycle'
 import { usePersistenceStatus } from '../hooks/usePersistenceStatus'
+import { repositoryRevision } from '../data/repositoryCommand'
+import { uid } from '../lib/shared'
 import { occurrencesInMonth } from '../lib/forecast'
 import { reconcileOccurrence } from '../lib/forecastCoverage'
 import {
@@ -88,6 +90,9 @@ export function ClosingView({
   const { currentMonth, isCurrentMonthClosed } = history
   const [note, setNote] = useState('')
   const [showCloseReview, setShowCloseReview] = useState(false)
+  const [closeReviewRevision, setCloseReviewRevision] = useState<string | null>(null)
+  const [closeOperationId, setCloseOperationId] = useState('')
+  const [closeError, setCloseError] = useState('')
   const persistence = usePersistenceStatus()
 
   const missingActualRows = actuals.summary.rows.filter((row) => row.actual === null)
@@ -109,18 +114,25 @@ export function ClosingView({
 
   const finishClose = (payInvoice: boolean) => {
     if (persistence.hasError) return
-    if (!actuals.fillFromPlan(currentMonth)) return
-    if (!closeCurrentMonth(currentMonth, note)) return
-    if (payInvoice && canPayClosingInvoiceTogether) cards.payInvoice()
+    const result = closeCurrentMonth(currentMonth, note, {
+      payInvoice: payInvoice && canPayClosingInvoiceTogether,
+      expectedRevision: closeReviewRevision,
+      operationId: closeOperationId,
+    })
+    if (!result.ok) { setCloseError(result.message); return }
     setNote('')
+    setCloseError('')
     setShowCloseReview(false)
   }
 
   const handleReclose = () => {
     if (persistence.hasError) return
-    if (!actuals.fillFromPlan(currentMonth)) return
-    if (!closeCurrentMonth(currentMonth, note)) return
+    const result = closeCurrentMonth(currentMonth, note, {
+      expectedRevision: repositoryRevision(), operationId: uid(),
+    })
+    if (!result.ok) { setCloseError(result.message); return }
     setNote('')
+    setCloseError('')
   }
 
   if (metrics.availableForBudget <= 0) {
@@ -319,7 +331,7 @@ export function ClosingView({
               </ConfirmButton>
             ) : (
               <PrimaryButton
-                onClick={() => setShowCloseReview(true)}
+                onClick={() => { setCloseReviewRevision(repositoryRevision()); setCloseOperationId(uid()); setCloseError(''); setShowCloseReview(true) }}
                 disabled={persistence.hasError}
               >
                 <CalendarCheck size={15} />
@@ -328,6 +340,7 @@ export function ClosingView({
             )
           }
         />
+        {closeError && isCurrentMonthClosed && <p role="alert" className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{closeError}</p>}
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           <StatTile
@@ -536,6 +549,7 @@ export function ClosingView({
                 Cancelar
               </button>
             </div>
+            {closeError && <p role="alert" className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{closeError}</p>}
           </div>
         )}
 

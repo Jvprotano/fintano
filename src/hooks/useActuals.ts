@@ -67,7 +67,7 @@ export function useActuals(
   /** Informa o valor pago de um custo. `null` volta a usar o planejado. */
   const setActual = useCallback(
     (costId: string, amount: number | null, targetMonth = month) => {
-      updateMonth(targetMonth, (current) => {
+      return updateMonth(targetMonth, (current) => {
         const nextCosts = { ...current.costs }
         if (amount === null) delete nextCosts[costId]
         else nextCosts[costId] = Math.max(0, amount)
@@ -80,7 +80,7 @@ export function useActuals(
   /** Informa quanto foi efetivamente destinado a um item de Desejos. */
   const setWantActual = useCallback(
     (wantId: string, amount: number | null, targetMonth = month) => {
-      updateMonth(targetMonth, (current) => {
+      return updateMonth(targetMonth, (current) => {
         const nextWants = Object.fromEntries(
           Object.entries(current.wants).filter(([id]) => nonCardWantIds.has(id)),
         )
@@ -133,8 +133,8 @@ export function useActuals(
       occurredAt?: string,
     ) => {
       const cleanName = name.trim()
-      if (!cleanName || amount <= 0) return
-      updateMonth(targetMonth, (current) => {
+      if (!cleanName || amount <= 0) return false
+      return updateMonth(targetMonth, (current) => {
         const entry: ExtraIncomeEntry = {
           id: uid(),
           name: cleanName,
@@ -156,7 +156,7 @@ export function useActuals(
       patch: Partial<Pick<ExtraIncomeEntry, 'name' | 'amount'>>,
       targetMonth = month,
     ) => {
-      updateMonth(targetMonth, (current) => ({
+      return updateMonth(targetMonth, (current) => ({
         ...current,
         [field]: current[field]
           .map((entry) =>
@@ -176,7 +176,7 @@ export function useActuals(
 
   const removeCashEntry = useCallback(
     (field: CashEntryField, id: string, targetMonth = month) => {
-      updateMonth(targetMonth, (current) => ({
+      return updateMonth(targetMonth, (current) => ({
         ...current,
         [field]: current[field].filter((entry) => entry.id !== id),
       }))

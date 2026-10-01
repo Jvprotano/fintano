@@ -202,7 +202,7 @@ export function GoalsSection() {
   }
   const handleAdd = () => {
     if (!name.trim()) return
-    addGoal({ name, targetAmount, targetMonth: targetMonth || undefined, kind, includes })
+    if (!addGoal({ name, targetAmount, targetMonth: targetMonth || undefined, kind, includes })) return
     setName(''); setTargetAmount(0); setTargetMonth(''); setIncludes([]); setKind('funding'); setOpen(false)
   }
   const allocated = goals.filter((goal) => goal.kind === 'funding').reduce((sum, goal) => sum + goal.current, 0)

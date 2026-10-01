@@ -436,7 +436,7 @@ function NewDebtForm({ onClose }: { onClose: () => void }) {
 
   const handleAdd = () => {
     if (!name.trim() || balance <= 0) return
-    debts.addDebt({
+    if (debts.addDebt({
       name,
       kind,
       balance,
@@ -445,8 +445,7 @@ function NewDebtForm({ onClose }: { onClose: () => void }) {
       remainingInstallments,
       linkedCostId: linkedCostId || undefined,
       linkedAssetId: linkedAssetId || undefined,
-    })
-    onClose()
+    })) onClose()
   }
 
   const selectedKind = DEBT_KINDS.find((item) => item.key === kind)

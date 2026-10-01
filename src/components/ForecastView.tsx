@@ -78,8 +78,8 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
       savedPct, cashTreatment,
       cardDueMonth: cashTreatment === 'card' ? cardDueMonth || undefined : undefined,
       confirmed, note: note || undefined }
-    if (event) forecast.updateEvent(event.id, input)
-    else forecast.addEvent(input)
+    const saved = event ? forecast.updateEvent(event.id, input) : forecast.addEvent(input)
+    if (!saved) return
     setName('')
     setAmount(0)
     onClose()

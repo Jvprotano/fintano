@@ -13,7 +13,7 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
   cycle: CreditCardCycle
   cashCycleMonth: string
   knownCards: string[]
-  onAdd: (entry: Omit<CreditCardEntry, 'id'>) => void
+  onAdd: (entry: Omit<CreditCardEntry, 'id'>) => boolean
   onCancel: () => void
 }) {
   const [creditSource, setCreditSource] = useState<'payment' | 'reward'>('payment')
@@ -21,6 +21,7 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
   const [cardName, setCardName] = useState(knownCards[0] ?? '')
   const [purchaseDate, setPurchaseDate] = useState(todayShort)
   const [amount, setAmount] = useState(0)
+  const [saveError, setSaveError] = useState('')
   const valid = description.trim().length > 0 && cardName.trim().length > 0 && Number.isFinite(amount) && amount > 0
 
   return (
@@ -28,7 +29,7 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
       onSubmit={(event) => {
         event.preventDefault()
         if (!valid) return
-        onAdd({
+        const saved = onAdd({
           cycle,
           entryType: 'invoiceCredit',
           creditSource,
@@ -40,10 +41,16 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
           personalAmount: amount,
           remainingAmount: 0,
         })
+        if (!saved) {
+          setSaveError('Não foi possível salvar o abatimento. Confira o armazenamento e tente novamente.')
+          return
+        }
+        setSaveError('')
         onCancel()
       }}
       className="grid gap-3 border-b border-dark-border-subtle bg-dark-surface/50 p-4 sm:grid-cols-2 xl:grid-cols-[1fr_1.5fr_1fr_0.8fr_1fr_auto] xl:items-end"
     >
+      {saveError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-200 sm:col-span-2 xl:col-span-full">{saveError}</p>}
       <label className="block min-w-0 text-xs font-medium text-dark-text-secondary">
         Tipo de abatimento
         <select value={creditSource} onChange={(event) => setCreditSource(event.target.value as 'payment' | 'reward')} className="mt-1.5 w-full rounded-md border border-dark-border bg-dark-input px-2.5 py-2 text-sm text-dark-text">

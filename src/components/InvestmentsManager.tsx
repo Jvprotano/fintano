@@ -159,13 +159,13 @@ function NewPositionForm({ onClose }: { onClose: () => void }) {
 
   const handleAdd = () => {
     if (!name.trim() || !selectedClassId) return
-    addHolding({ name, assetClassId: selectedClassId, institution, purpose, initialAmount })
+    if (!addHolding({ name, assetClassId: selectedClassId, institution, purpose, initialAmount })) return
     onClose()
   }
   const handleAddClass = () => {
     const trimmed = newClassName.trim()
     if (!trimmed) return
-    addClass(trimmed, INVESTMENT_CLASS_PRESET_COLORS[investmentClasses.length % INVESTMENT_CLASS_PRESET_COLORS.length])
+    if (!addClass(trimmed, INVESTMENT_CLASS_PRESET_COLORS[investmentClasses.length % INVESTMENT_CLASS_PRESET_COLORS.length])) return
     setNewClassName(''); setShowNewClass(false)
   }
 

@@ -32,6 +32,7 @@ export interface RepositoryDocument {
   schemaVersion: typeof REPOSITORY_SCHEMA_VERSION
   updatedAt: string
   collections: Partial<Record<RepositoryCollection, unknown>>
+  appliedOperations?: string[]
 }
 
 export type RepositoryInspection =
@@ -76,7 +77,10 @@ function parseDocument(raw: string): RepositoryDocument | null {
       !parsed.collections ||
       typeof parsed.collections !== 'object' || Array.isArray(parsed.collections) ||
       typeof parsed.updatedAt !== 'string' || !Number.isFinite(Date.parse(parsed.updatedAt)) ||
-      !hasValidCollectionShapes(parsed.collections as Record<string, unknown>)
+      !hasValidCollectionShapes(parsed.collections as Record<string, unknown>) ||
+      (parsed.appliedOperations !== undefined &&
+        (!Array.isArray(parsed.appliedOperations) ||
+          parsed.appliedOperations.some((id) => typeof id !== 'string')))
     ) {
       return null
     }
@@ -84,6 +88,7 @@ function parseDocument(raw: string): RepositoryDocument | null {
       schemaVersion: REPOSITORY_SCHEMA_VERSION,
       updatedAt: parsed.updatedAt,
       collections: parsed.collections,
+      appliedOperations: parsed.appliedOperations,
     }
   } catch {
     return null
@@ -177,6 +182,7 @@ export function writeRepositoryDocument(
     schemaVersion: REPOSITORY_SCHEMA_VERSION,
     updatedAt: new Date().toISOString(),
     collections: document.collections,
+    appliedOperations: document.appliedOperations,
   }
   try {
     storage.setItem(REPOSITORY_STORAGE_KEY, JSON.stringify(normalized))

@@ -289,14 +289,13 @@ function NewAssetForm({ onClose }: { onClose: () => void }) {
 
   const handleAdd = () => {
     if (!name.trim() || value <= 0) return
-    assets.addAsset({
+    if (assets.addAsset({
       name,
       kind,
       value,
       annualAppreciationPct: appreciation,
       rentEquivalent: rentEquivalent || undefined,
-    })
-    onClose()
+    })) onClose()
   }
 
   const selected = ASSET_KINDS.find((item) => item.key === kind)
