@@ -52,7 +52,7 @@ import {
   normalizeScenario,
   type LegacyScenario,
 } from '../lib/scenario'
-import { addMonths, finiteNumber, normalizeText } from '../lib/shared'
+import { addMonths, classifyLegacyLedgerEntry, finiteNumber, isLedgerEntryKind, normalizeText } from '../lib/shared'
 import {
   LEGACY_DOMAIN_KEYS,
   REPOSITORY_SCHEMA_VERSION,
@@ -67,7 +67,6 @@ import type {
   DomainLedgerEntryV7,
   FinTanoBackupV7,
   FinTanoBackupV8,
-  LedgerEntryKind,
   LedgerOwnerType,
   MoneyCents,
   MonthKey,
@@ -128,16 +127,6 @@ function areaMapFromCents(source: Partial<Record<BudgetArea, MoneyCents>> | unde
   ) as Record<BudgetArea, number>
 }
 
-function inferLedgerKind(
-  ownerType: LedgerOwnerType,
-  entry: LedgerEntry,
-): LedgerEntryKind {
-  const note = normalizeText(entry.note ?? '')
-  if (note.includes('saldo inicial') || note.includes('aporte inicial')) return 'opening_balance'
-  if (ownerType === 'debt') return entry.amount < 0 ? 'amortization' : 'balance_increase'
-  return entry.amount < 0 ? 'withdrawal' : 'contribution'
-}
-
 function ledgerToV7(
   ownerType: LedgerOwnerType,
   ownerId: string,
@@ -146,17 +135,20 @@ function ledgerToV7(
 ): DomainLedgerEntryV7[] {
   return entries.map((entry) => {
     const occurredAt = normalizePersistedInstant(entry.date)
+    const legacy = entry.kind ? undefined : classifyLegacyLedgerEntry(entry, ownerType)
     return {
       id: entry.id,
       ownerType,
       ownerId,
-      kind: inferLedgerKind(ownerType, entry),
+      kind: entry.kind ?? legacy!.kind,
+      kindSource: entry.kindSource ?? legacy?.kindSource,
       amountCents: toCents(entry.amount),
       competenceMonth: validMonth(
         entry.cycleMonth,
         monthFromInstant(entry.date, fallbackMonth),
       ),
       occurredAt,
+      recordedAt: entry.recordedAt,
       note: entry.note?.trim() || undefined,
     }
   })
@@ -170,6 +162,10 @@ function ledgerFromV7(entries: DomainLedgerEntryV7[], ownerType: LedgerOwnerType
       amount: fromCents(entry.amountCents),
       cycleMonth: entry.competenceMonth,
       date: entry.occurredAt,
+      recordedAt: entry.recordedAt,
+      kind: entry.kind,
+      kindSource: entry.kindSource ?? (entry.kind === 'opening_balance' && entry.amountCents > 0
+        ? 'legacy_ambiguous' : undefined),
       note:
         entry.note ||
         (entry.kind === 'opening_balance' ? 'Saldo inicial' : undefined),
@@ -387,9 +383,20 @@ export function repositoryToBackupV7(
       transactions: [],
     }),
   )
-  const holdings = collection<FinancialHolding[]>(document, 'investmentHoldings', []).map(
+  const storedHoldings = collection<FinancialHolding[]>(document, 'investmentHoldings', []).map(
     normalizeHolding,
   )
+  let legacyReserveId = 'legacy-reserve'
+  while (storedHoldings.some((holding) => holding.id === legacyReserveId)) legacyReserveId += '-copy'
+  // Instalações antigas ainda podem ter a reserva no bucket anterior ao primeiro render.
+  // A exportação também precisa preservá-la antes que o effect de migração execute.
+  const holdings = emergency.current > 0 && !storedHoldings.some((holding) => holdingPurpose(holding) === 'emergency_fund')
+    ? [...storedHoldings, normalizeHolding({
+      id: legacyReserveId,
+      name: 'Reserva migrada', assetClassId: 'renda-fixa', purpose: 'emergency_fund',
+      marketValue: emergency.current, transactions: emergency.transactions,
+    })]
+    : storedHoldings
   const goals = collection<FinancialGoal[]>(document, 'goals', []).map((goal, index) =>
     normalizeGoal(goal, index),
   )
@@ -1216,6 +1223,12 @@ function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null):
     }
   }
   for (const entry of backup.investments.ledgerEntries) {
+    if (!isLedgerEntryKind(entry.kind)) {
+      add('error', 'ledger_kind_invalid', 'Movimento possui tipo inválido.', entry.id)
+    }
+    if (entry.recordedAt && !Number.isFinite(Date.parse(entry.recordedAt))) {
+      add('error', 'ledger_recorded_at_invalid', 'Movimento possui instante de registro inválido.', entry.id)
+    }
     const ownerExists =
       (entry.ownerType === 'holding' && holdingIds.has(entry.ownerId)) ||
       (entry.ownerType === 'goal' && goalIds.has(entry.ownerId)) ||

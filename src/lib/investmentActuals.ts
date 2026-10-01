@@ -4,7 +4,7 @@ import type {
   LedgerEntry,
 } from '../types'
 import { holdingPurpose, type FinancialHolding } from './investments'
-import { ledgerEntryCycleMonth, normalizeText } from './shared'
+import { ledgerEntryCycleMonth } from './shared'
 
 export interface MonthlyInvestmentActuals {
   month: string
@@ -28,8 +28,7 @@ export interface InvestmentLedgerSource {
  * Elas servem apenas para abrir o livro-razão no saldo correto.
  */
 export function isOpeningBalance(entry: LedgerEntry) {
-  const note = normalizeText(entry.note ?? '')
-  return note === 'saldo inicial' || note === 'aporte inicial'
+  return entry.kind === 'opening_balance'
 }
 
 function monthlyLedgerNet(entries: LedgerEntry[], month: string) {

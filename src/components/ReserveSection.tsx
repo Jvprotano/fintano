@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Archive, Building2, ChevronDown, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
+import { localDateKey } from '../lib/shared'
 import { LedgerList, LedgerMoveForm } from './Ledger'
 import {
   EmptyState,
@@ -28,6 +29,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
     removeHolding,
     restoreHolding,
     deleteEmptyHolding,
+    resolveHoldingKind,
     addHoldingTransaction,
     removeHoldingTransaction,
     setHoldingTransactionCycle,
@@ -100,8 +102,8 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
           </div>
 
           <LedgerMoveForm
-            onMove={(amount, note, cycleMonth) =>
-              addHoldingTransaction(holding.id, amount, note, cycleMonth)
+            onMove={(amount, note, cycleMonth, occurredOn) =>
+              addHoldingTransaction(holding.id, amount, note, cycleMonth, occurredOn)
             }
             inLabel="Aportar"
             outLabel="Resgatar"
@@ -177,6 +179,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
             onCycleMonthChange={(id, cycleMonth) =>
               setHoldingTransactionCycle(holding.id, id, cycleMonth)
             }
+            onKindChange={(id, kind) => resolveHoldingKind(holding.id, id, kind)}
             inLabel="Aporte"
             outLabel="Resgate"
           />
@@ -203,6 +206,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
 
 function NewReservePositionForm({ onClose }: { onClose: () => void }) {
   const { investmentClasses, addHolding } = useInvestmentsStore()
+  const { activeCycle } = useFinancasStore()
   const fixedIncome = investmentClasses.find((item) => item.id === 'renda-fixa')
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
@@ -212,18 +216,24 @@ function NewReservePositionForm({ onClose }: { onClose: () => void }) {
     fixedIncome?.id ?? investmentClasses[0]?.id ?? '',
   )
   const [initialAmount, setInitialAmount] = useState(0)
+  const [initialKind, setInitialKind] = useState<'opening_balance' | 'contribution'>('opening_balance')
+  const [initialCycleMonth, setInitialCycleMonth] = useState(activeCycle.month)
+  const [occurredOn, setOccurredOn] = useState(localDateKey)
 
   const handleAdd = () => {
-    if (!name.trim() || !assetClassId) return
-    addHolding({
+    if (!name.trim() || !assetClassId || (initialAmount > 0 && (!occurredOn || (initialKind === 'contribution' && !initialCycleMonth)))) return
+    if (!addHolding({
       name,
       institution,
       benchmark,
       liquidity,
       assetClassId,
       initialAmount,
+      initialKind,
+      initialCycleMonth,
+      occurredOn,
       purpose: 'emergency_fund',
-    })
+    })) return
     onClose()
   }
 
@@ -275,16 +285,21 @@ function NewReservePositionForm({ onClose }: { onClose: () => void }) {
             ))}
           </select>
         </label>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">
-            Valor aplicado hoje
-          </span>
-          <CurrencyInput value={initialAmount} onChange={setInitialAmount} />
-        </label>
+      </div>
+
+      <div className="space-y-2">
+        <span className="block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Origem do valor inicial</span>
+        <SegmentedControl options={[{ value: 'opening_balance' as const, label: 'Saldo que já existia' }, { value: 'contribution' as const, label: 'Aporte deste ciclo' }]} value={initialKind} onChange={setInitialKind} />
+        <p className="text-xs text-dark-text-muted">{initialKind === 'opening_balance' ? 'Compõe a reserva, sem consumir a verba do ciclo.' : 'Conta como investimento realizado na competência escolhida.'}</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Valor inicial</span><CurrencyInput value={initialAmount} onChange={setInitialAmount} /></label>
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Data real</span><input type="date" required={initialAmount > 0} value={occurredOn} onChange={(event) => setOccurredOn(event.target.value)} className={inputClass} /></label>
+        {initialKind === 'contribution' && <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Competência do aporte</span><input type="month" value={initialCycleMonth} onChange={(event) => setInitialCycleMonth(event.target.value)} className={inputClass} /></label>}
       </div>
 
       <div className="flex gap-2">
-        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || !assetClassId}>
+        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || !assetClassId || (initialAmount > 0 && (!occurredOn || (initialKind === 'contribution' && !initialCycleMonth)))}>
           <Plus size={15} />
           Adicionar à reserva
         </PrimaryButton>

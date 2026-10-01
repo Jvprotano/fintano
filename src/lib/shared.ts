@@ -1,4 +1,27 @@
-import type { ExtraIncomeEntry, LedgerEntry } from '../types'
+import type { ExtraIncomeEntry, LedgerEntry, LedgerEntryKind, LedgerKindSource } from '../types'
+
+export type LedgerOwner = 'holding' | 'goal' | 'debt'
+const LEDGER_KINDS: LedgerEntryKind[] = [
+  'opening_balance', 'contribution', 'withdrawal', 'transfer_in', 'transfer_out',
+  'balance_increase', 'amortization', 'adjustment',
+]
+export const isLedgerEntryKind = (value: unknown): value is LedgerEntryKind =>
+  LEDGER_KINDS.includes(value as LedgerEntryKind)
+
+/** Classificação conservadora aplicada apenas a entradas sem tipo legado. */
+export function classifyLegacyLedgerEntry(
+  entry: Pick<LedgerEntry, 'amount' | 'note'>,
+  owner: LedgerOwner,
+): { kind: LedgerEntryKind; kindSource: LedgerKindSource } {
+  const note = normalizeText(entry.note ?? '')
+  if (entry.amount > 0 && (note === 'saldo inicial' || note === 'aporte inicial')) {
+    return { kind: 'opening_balance', kindSource: 'legacy_ambiguous' }
+  }
+  if (owner === 'debt') {
+    return { kind: entry.amount < 0 ? 'amortization' : 'balance_increase', kindSource: 'legacy_inferred' }
+  }
+  return { kind: entry.amount < 0 ? 'withdrawal' : 'contribution', kindSource: 'legacy_inferred' }
+}
 
 export function uid(): string {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
@@ -11,6 +34,16 @@ export function uid(): string {
 
 export function nowIso(): string {
   return new Date().toISOString()
+}
+
+/** A data real é escolhida no calendário local; meio-dia evita troca de dia por fuso. */
+export function ledgerOperationDates(occurredOn?: string) {
+  const recordedAt = nowIso()
+  const candidate = occurredOn ? new Date(`${occurredOn}T12:00:00.000Z`) : null
+  const validDay = occurredOn && /^\d{4}-\d{2}-\d{2}$/.test(occurredOn) &&
+    candidate && !Number.isNaN(candidate.getTime()) && candidate.toISOString().slice(0, 10) === occurredOn
+  const date = validDay ? candidate.toISOString() : recordedAt
+  return { date, recordedAt }
 }
 
 export function finiteNumber(value: unknown, fallback = 0): number {
@@ -44,6 +77,10 @@ export function monthKey(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
+export function localDateKey(date: Date = new Date()): string {
+  return `${monthKey(date)}-${String(date.getDate()).padStart(2, '0')}`
+}
+
 /** AAAA-MM deslocado em `count` meses. */
 export function addMonths(month: string, count: number): string {
   const [year, index] = month.split('-').map(Number)
@@ -60,7 +97,7 @@ export function monthsBetween(from: string, to: string): number {
   return (ty - fy) * 12 + (tm - fm)
 }
 
-export function normalizeLedger(raw: unknown, fallbackDate = nowIso()): LedgerEntry[] {
+export function normalizeLedger(raw: unknown, fallbackDate = nowIso(), owner: LedgerOwner = 'holding'): LedgerEntry[] {
   if (!Array.isArray(raw)) return []
   return raw
     .map((tx: Partial<LedgerEntry> | undefined) => {
@@ -68,10 +105,16 @@ export function normalizeLedger(raw: unknown, fallbackDate = nowIso()): LedgerEn
         typeof tx?.cycleMonth === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(tx.cycleMonth)
           ? tx.cycleMonth
           : undefined
+      const classification = isLedgerEntryKind(tx?.kind)
+        ? { kind: tx!.kind, kindSource: tx?.kindSource }
+        : classifyLegacyLedgerEntry({ amount: finiteNumber(tx?.amount), note: tx?.note }, owner)
       return {
         id: tx?.id || uid(),
         amount: finiteNumber(tx?.amount),
+        kind: classification.kind,
+        kindSource: classification.kindSource,
         date: tx?.date || fallbackDate,
+        recordedAt: tx?.recordedAt && Number.isFinite(Date.parse(tx.recordedAt)) ? tx.recordedAt : undefined,
         note: tx?.note?.trim() || undefined,
         cycleMonth,
       }

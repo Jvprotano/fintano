@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
+import { localDateKey } from '../lib/shared'
 import { LedgerList, LedgerMoveForm } from './Ledger'
 import { ReserveSection } from './ReserveSection'
 import { GoalsSection } from './GoalsSection'
@@ -60,6 +61,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
     removeHolding,
     restoreHolding,
     deleteEmptyHolding,
+    resolveHoldingKind,
     addHoldingTransaction,
     removeHoldingTransaction,
     setHoldingTransactionCycle,
@@ -113,8 +115,8 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
       </div>
 
       <LedgerMoveForm
-        onMove={(amount, note, cycleMonth) =>
-          addHoldingTransaction(holding.id, amount, note, cycleMonth)
+        onMove={(amount, note, cycleMonth, occurredOn) =>
+          addHoldingTransaction(holding.id, amount, note, cycleMonth, occurredOn)
         }
         inLabel="Aportar"
         outLabel="Resgatar"
@@ -143,6 +145,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         onCycleMonthChange={(id, cycleMonth) =>
           setHoldingTransactionCycle(holding.id, id, cycleMonth)
         }
+        onKindChange={(id, kind) => resolveHoldingKind(holding.id, id, kind)}
         inLabel="Aporte"
         outLabel="Resgate"
       />
@@ -159,18 +162,23 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
 
 function NewPositionForm({ onClose }: { onClose: () => void }) {
   const { investmentClasses, addHolding, addClass, removeClass, holdings, goals } = useInvestmentsStore()
+  const { activeCycle } = useFinancasStore()
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
   const [assetClassId, setAssetClassId] = useState(investmentClasses[0]?.id ?? '')
   const [purpose, setPurpose] = useState<InvestmentPurpose>('portfolio')
   const [initialAmount, setInitialAmount] = useState(0)
+  const [initialKind, setInitialKind] = useState<'opening_balance' | 'contribution'>('opening_balance')
+  const [initialCycleMonth, setInitialCycleMonth] = useState(activeCycle.month)
+  const [occurredOn, setOccurredOn] = useState(localDateKey)
   const [newClassName, setNewClassName] = useState('')
   const [showNewClass, setShowNewClass] = useState(false)
   const selectedClassId = investmentClasses.some((item) => item.id === assetClassId) ? assetClassId : investmentClasses[0]?.id ?? ''
 
   const handleAdd = () => {
-    if (!name.trim() || !selectedClassId) return
-    if (!addHolding({ name, assetClassId: selectedClassId, institution, purpose, initialAmount })) return
+    if (!name.trim() || !selectedClassId || (initialAmount > 0 && (!occurredOn || (initialKind === 'contribution' && !initialCycleMonth)))) return
+    if (!addHolding({ name, assetClassId: selectedClassId, institution, purpose, initialAmount,
+      initialKind, initialCycleMonth, occurredOn })) return
     onClose()
   }
   const handleAddClass = () => {
@@ -203,9 +211,18 @@ function NewPositionForm({ onClose }: { onClose: () => void }) {
         {showNewClass ? <span className="inline-flex items-center gap-1 rounded-lg border border-primary-500/40 bg-dark-input px-2 py-1"><input autoFocus value={newClassName} onChange={(event) => setNewClassName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && handleAddClass()} placeholder="Nova classe" className="w-28 bg-transparent text-xs text-dark-text outline-none" /><button type="button" onClick={handleAddClass} className="text-primary-300"><Plus size={13} /></button></span> : <button type="button" onClick={() => setShowNewClass(true)} className="inline-flex items-center gap-1 rounded-lg border border-dashed border-dark-border px-3 py-1.5 text-xs text-dark-text-muted"><Plus size={12} /> Nova classe</button>}
       </div>
     </div>
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-      <label className="block sm:flex-1"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Valor aplicado hoje</span><CurrencyInput value={initialAmount} onChange={setInitialAmount} /></label>
-      <div className="flex gap-2"><PrimaryButton onClick={handleAdd} disabled={!name.trim() || !selectedClassId}><Plus size={15} /> Adicionar posição</PrimaryButton><SecondaryButton onClick={onClose}>Cancelar</SecondaryButton></div>
+    <div className="space-y-2">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Origem do valor inicial</span>
+      <SegmentedControl options={[{ value: 'opening_balance' as const, label: 'Saldo que já existia' }, { value: 'contribution' as const, label: 'Aporte deste ciclo' }]} value={initialKind} onChange={setInitialKind} />
+      <p className="text-xs text-dark-text-muted">{initialKind === 'opening_balance' ? 'Compõe o patrimônio, sem consumir a verba do ciclo.' : 'Conta como investimento realizado na competência escolhida.'}</p>
+    </div>
+    <div className="grid gap-2 sm:grid-cols-3">
+      <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Valor inicial</span><CurrencyInput value={initialAmount} onChange={setInitialAmount} /></label>
+      <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Data real</span><input type="date" required={initialAmount > 0} value={occurredOn} onChange={(event) => setOccurredOn(event.target.value)} className={inputClass} /></label>
+      {initialKind === 'contribution' && <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Competência do aporte</span><input type="month" value={initialCycleMonth} onChange={(event) => setInitialCycleMonth(event.target.value)} className={inputClass} /></label>}
+    </div>
+    <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2"><PrimaryButton onClick={handleAdd} disabled={!name.trim() || !selectedClassId || (initialAmount > 0 && (!occurredOn || (initialKind === 'contribution' && !initialCycleMonth)))}><Plus size={15} /> Adicionar posição</PrimaryButton><SecondaryButton onClick={onClose}>Cancelar</SecondaryButton></div>
     </div>
   </div>
 }

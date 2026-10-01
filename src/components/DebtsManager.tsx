@@ -148,7 +148,7 @@ function PayoffComparison({ debt }: { debt: DebtSummary }) {
 }
 
 function DebtRow({ debt }: { debt: DebtSummary }) {
-  const { debts, scenarios, assets } = useFinancasStore()
+  const { debts, scenarios, assets, activeCycle } = useFinancasStore()
   const [expanded, setExpanded] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
@@ -398,17 +398,20 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
           )}
 
           <LedgerMoveForm
-            onMove={(amount, note) => debts.addDebtTransaction(debt.id, amount, note)}
+            onMove={(amount, note, cycleMonth, occurredOn) => debts.addDebtTransaction(debt.id, amount, note, cycleMonth, occurredOn)}
             inLabel="Amortizar"
             outLabel="Aumentar saldo"
             invert
             disableOut={false}
             notePlaceholder="Nota (opcional) — ex.: amortização com o 13º"
+            cycleMonth={activeCycle.month}
           />
 
           <LedgerList
             transactions={debt.transactions}
             onRemove={(id) => debts.removeDebtTransaction(debt.id, id)}
+            onCycleMonthChange={(id, month) => debts.setDebtTransactionCycle(debt.id, id, month)}
+            onKindChange={(id, kind) => debts.resolveDebtKind(debt.id, id, kind)}
             inLabel="Saldo aumentou"
             outLabel="Amortizado"
             invert

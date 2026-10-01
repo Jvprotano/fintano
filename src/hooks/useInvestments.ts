@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
 import { deleteUnusedCatalog } from '../data/catalogDeletion'
+import { resolveLegacyLedgerKind } from '../data/ledgerClassification'
 import type {
   EmergencyFundState,
   FinancialGoal,
@@ -8,6 +9,7 @@ import type {
   GoalKind,
   InvestmentAssetClass,
   LedgerEntry,
+  LedgerEntryKind,
 } from '../types'
 import { DEFAULT_INVESTMENT_CLASSES, GOAL_PRESET_COLORS } from '../types/constants'
 import {
@@ -20,7 +22,7 @@ import {
   type InvestmentPurpose,
 } from '../lib/investments'
 import { normalizeGoal, summarizeGoals, type GoalContext } from '../lib/goals'
-import { finiteNumber, ledgerBalance, monthKey, nowIso, uid } from '../lib/shared'
+import { finiteNumber, ledgerBalance, ledgerOperationDates, monthKey, nowIso, uid } from '../lib/shared'
 const DEFAULT_EMERGENCY_FUND: EmergencyFundState = {
   current: 0,
   targetMonths: 6,
@@ -41,6 +43,7 @@ function applyLedgerMove(
   amount: number,
   note: string | undefined,
   cycleMonth: string,
+  occurredOn?: string,
 ) {
   const balance = ledgerBalance(transactions)
   const delta = amount < 0 ? -Math.min(-amount, balance) : amount
@@ -50,8 +53,10 @@ function applyLedgerMove(
     {
       id: uid(),
       amount: delta,
+      kind: delta > 0 ? 'contribution' as const : 'withdrawal' as const,
+      kindSource: 'user' as const,
       cycleMonth,
-      date: nowIso(),
+      ...ledgerOperationDates(occurredOn),
       note: note?.trim() || undefined,
     },
   ]
@@ -170,12 +175,14 @@ export function useInvestments(
       assetClassId: string
       institution?: string
       initialAmount?: number
+      initialKind?: 'opening_balance' | 'contribution'
+      initialCycleMonth?: string
+      occurredOn?: string
       note?: string
       purpose?: InvestmentPurpose
       benchmark?: string
       liquidity?: string
     }) => {
-      const now = nowIso()
       const initial = Math.max(0, finiteNumber(input.initialAmount))
       return setHoldings((prev) => [
         ...(Array.isArray(prev) ? prev : []),
@@ -194,15 +201,18 @@ export function useInvestments(
                   {
                     id: uid(),
                     amount: initial,
-                    date: now,
-                    note: input.note?.trim() || 'Aporte inicial',
+                    ...ledgerOperationDates(input.occurredOn),
+                    kind: input.initialKind ?? 'opening_balance',
+                    kindSource: 'user',
+                    cycleMonth: validCycleMonth(input.initialCycleMonth ?? activeCycleMonth, activeCycleMonth),
+                    note: input.note?.trim() || undefined,
                   },
                 ]
               : [],
         }),
       ])
     },
-    [setHoldings],
+    [activeCycleMonth, setHoldings],
   )
 
   const updateHolding = useCallback(
@@ -250,10 +260,12 @@ export function useInvestments(
     [setHoldings],
   )
   const deleteEmptyHolding = useCallback((id: string) => deleteUnusedCatalog('holding', id), [])
+  const resolveHoldingKind = useCallback((holdingId: string, entryId: string, kind: LedgerEntryKind) =>
+    resolveLegacyLedgerKind('holding', holdingId, entryId, kind), [])
 
   // Aporte/retirada: ajusta também o valor de mercado (retirada limitada a ele).
   const addHoldingTransaction = useCallback(
-    (holdingId: string, amount: number, note?: string, cycleMonth = activeCycleMonth) => {
+    (holdingId: string, amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) => {
       const competence = validCycleMonth(cycleMonth, activeCycleMonth)
       return setHoldings((prev) =>
         (Array.isArray(prev) ? prev : []).map((raw) => {
@@ -268,8 +280,10 @@ export function useInvestments(
               {
                 id: uid(),
                 amount: delta,
+                kind: delta > 0 ? 'contribution' : 'withdrawal',
+                kindSource: 'user',
                 cycleMonth: competence,
-                date: nowIso(),
+                ...ledgerOperationDates(occurredOn),
                 note: note?.trim() || undefined,
               },
             ],
@@ -378,15 +392,15 @@ export function useInvestments(
    * continua no bucket legado e será migrada logo depois.
    */
   const addEmergencyFundTransaction = useCallback(
-    (amount: number, note?: string, cycleMonth = activeCycleMonth) => {
+    (amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) => {
       const competence = validCycleMonth(cycleMonth, activeCycleMonth)
       const firstReserve = reserveHoldings[0]
       if (firstReserve) {
-        return addHoldingTransaction(firstReserve.id, amount, note, competence)
+        return addHoldingTransaction(firstReserve.id, amount, note, competence, occurredOn)
       }
       return setStoredFund((prev) => {
         const fund = normalizeEmergencyFund(prev)
-        const transactions = applyLedgerMove(fund.transactions, amount, note, competence)
+        const transactions = applyLedgerMove(fund.transactions, amount, note, competence, occurredOn)
         if (!transactions) return fund
         return { ...fund, transactions, current: ledgerBalance(transactions) }
       })
@@ -504,7 +518,8 @@ export function useInvestments(
             kind: input.kind,
             transactions:
               initial > 0
-                ? [{ id: uid(), amount: initial, date: nowIso(), note: 'Saldo inicial' }]
+                ? [{ id: uid(), amount: initial, ...ledgerOperationDates(),
+                  kind: 'opening_balance', kindSource: 'user', cycleMonth: activeCycleMonth }]
                 : [],
             includes: input.includes,
           },
@@ -512,7 +527,7 @@ export function useInvestments(
         ),
       ])
     },
-    [setGoals],
+    [activeCycleMonth, setGoals],
   )
 
   const toggleGoalInclusion = useCallback(
@@ -605,12 +620,12 @@ export function useInvestments(
   )
 
   const addGoalTransaction = useCallback(
-    (goalId: string, amount: number, note?: string, cycleMonth = activeCycleMonth) => {
+    (goalId: string, amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) => {
       const competence = validCycleMonth(cycleMonth, activeCycleMonth)
       return setGoals((prev) =>
         prev.map((goal) => {
           if (goal.id !== goalId) return goal
-          const transactions = applyLedgerMove(goal.transactions, amount, note, competence)
+          const transactions = applyLedgerMove(goal.transactions, amount, note, competence, occurredOn)
           if (!transactions) return goal
           const balance = ledgerBalance(transactions)
           return {
@@ -627,6 +642,8 @@ export function useInvestments(
     [activeCycleMonth, setGoals],
   )
   const deleteEmptyGoal = useCallback((id: string) => deleteUnusedCatalog('goal', id), [])
+  const resolveGoalKind = useCallback((goalId: string, entryId: string, kind: LedgerEntryKind) =>
+    resolveLegacyLedgerKind('goal', goalId, entryId, kind), [])
 
   const setGoalTransactionCycle = useCallback(
     (goalId: string, transactionId: string, cycleMonth: string) => {
@@ -735,6 +752,7 @@ export function useInvestments(
     removeHolding,
     restoreHolding,
     deleteEmptyHolding,
+    resolveHoldingKind,
     addHoldingTransaction,
     removeHoldingTransaction,
     setHoldingTransactionCycle,
@@ -752,6 +770,7 @@ export function useInvestments(
     removeGoal,
     restoreGoal,
     deleteEmptyGoal,
+    resolveGoalKind,
     addGoalTransaction,
     removeGoalTransaction,
     setGoalTransactionCycle,

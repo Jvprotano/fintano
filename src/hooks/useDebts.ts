@@ -1,9 +1,10 @@
 import { useCallback, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
 import { deleteUnusedCatalog } from '../data/catalogDeletion'
-import type { Asset, CostItem, Debt, DebtKind } from '../types'
+import { resolveLegacyLedgerKind } from '../data/ledgerClassification'
+import type { Asset, CostItem, Debt, DebtKind, LedgerEntryKind } from '../types'
 import { calculateDebtsSummary, normalizeDebt } from '../lib/debts'
-import { finiteNumber, ledgerBalance, nowIso, uid } from '../lib/shared'
+import { finiteNumber, ledgerBalance, ledgerOperationDates, monthKey, nowIso, uid } from '../lib/shared'
 
 /**
  * Dívidas. Recebe os custos do cenário ativo só para conferir se a parcela
@@ -12,7 +13,7 @@ import { finiteNumber, ledgerBalance, nowIso, uid } from '../lib/shared'
  * quais dívidas têm contrapartida: um financiamento com a casa do outro lado
  * não é a mesma coisa que um rotativo.
  */
-export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
+export function useDebts(costs: CostItem[] = [], assets: Asset[] = [], activeCycleMonth = monthKey()) {
   const [stored, setStored] = useRepositoryState<Debt[]>('debts', [])
   const debts = useMemo(
     () => (Array.isArray(stored) ? stored.map(normalizeDebt) : []),
@@ -78,6 +79,8 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
     [setStored],
   )
   const deleteEmptyDebt = useCallback((id: string) => deleteUnusedCatalog('debt', id), [])
+  const resolveDebtKind = useCallback((debtId: string, entryId: string, kind: LedgerEntryKind) =>
+    resolveLegacyLedgerKind('debt', debtId, entryId, kind), [])
 
   /**
    * Movimenta o saldo. Negativo = amortização (limitada ao saldo devedor);
@@ -85,7 +88,8 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
    * valor de mercado de uma posição acompanha o aporte.
    */
   const addDebtTransaction = useCallback(
-    (id: string, amount: number, note?: string) => {
+    (id: string, amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) => {
+      const competence = /^\d{4}-(0[1-9]|1[0-2])$/.test(cycleMonth) ? cycleMonth : activeCycleMonth
       return setStored((prev) =>
         prev.map((debt) => {
           if (debt.id !== id) return debt
@@ -97,15 +101,25 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
             balance,
             transactions: [
               ...debt.transactions,
-              { id: uid(), amount: delta, date: nowIso(), note: note?.trim() || undefined },
+              { id: uid(), amount: delta, kind: delta < 0 ? 'amortization' : 'balance_increase',
+                kindSource: 'user', cycleMonth: competence, ...ledgerOperationDates(occurredOn),
+                note: note?.trim() || undefined },
             ],
             settledAt: balance <= 0 ? (debt.settledAt ?? nowIso()) : undefined,
           }
         }),
       )
     },
-    [setStored],
+    [activeCycleMonth, setStored],
   )
+
+  const setDebtTransactionCycle = useCallback((debtId: string, transactionId: string, cycleMonth: string) => {
+    const competence = /^\d{4}-(0[1-9]|1[0-2])$/.test(cycleMonth) ? cycleMonth : activeCycleMonth
+    return setStored((prev) => prev.map((debt) => debt.id === debtId ? {
+      ...debt, transactions: debt.transactions.map((tx) => tx.id === transactionId
+        ? { ...tx, cycleMonth: competence } : tx),
+    } : debt))
+  }, [activeCycleMonth, setStored])
 
   const removeDebtTransaction = useCallback(
     (debtId: string, transactionId: string) => {
@@ -162,7 +176,9 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
     removeDebt,
     restoreDebt,
     deleteEmptyDebt,
+    resolveDebtKind,
     addDebtTransaction,
+    setDebtTransactionCycle,
     removeDebtTransaction,
     setDebtBalance,
   }

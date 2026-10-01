@@ -35,7 +35,7 @@ export function normalizeDebt(raw: Partial<Debt> | undefined): Debt {
     remainingInstallments: Math.max(0, Math.round(finiteNumber(raw?.remainingInstallments))),
     linkedCostId: raw?.linkedCostId || undefined,
     linkedAssetId: raw?.linkedAssetId || undefined,
-    transactions: normalizeLedger(raw?.transactions),
+    transactions: normalizeLedger(raw?.transactions, nowIso(), 'debt'),
     createdAt: raw?.createdAt || nowIso(),
     settledAt: raw?.settledAt || undefined,
     archivedAt: raw?.archivedAt && Number.isFinite(Date.parse(raw.archivedAt))

@@ -94,7 +94,7 @@ function FundingSources({ goal }: { goal: GoalSummary }) {
 }
 
 function GoalRow({ goal }: { goal: GoalSummary }) {
-  const { addGoalTransaction, removeGoalTransaction, setGoalTransactionCycle, removeGoal, restoreGoal, deleteEmptyGoal, updateGoal, toggleGoalInclusion, summary } = useInvestmentsStore()
+  const { addGoalTransaction, removeGoalTransaction, setGoalTransactionCycle, resolveGoalKind, removeGoal, restoreGoal, deleteEmptyGoal, updateGoal, toggleGoalInclusion, summary } = useInvestmentsStore()
   const { activeCycle } = useFinancasStore()
   const [expanded, setExpanded] = useState(false)
   const [deleteError, setDeleteError] = useState('')
@@ -161,8 +161,8 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
         <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">Use somente para dinheiro guardado fora das posições acima. Se ele está em CDB, ETF ou caixinha, cadastre a posição e destine o valor para evitar uma origem indefinida.</p>
         <div className="mt-3 space-y-3">
           <LedgerMoveForm
-            onMove={(amount, note, cycleMonth) =>
-              addGoalTransaction(goal.id, amount, note, cycleMonth)
+            onMove={(amount, note, cycleMonth, occurredOn) =>
+              addGoalTransaction(goal.id, amount, note, cycleMonth, occurredOn)
             }
             inLabel="Guardar"
             outLabel="Resgatar"
@@ -175,6 +175,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
             onCycleMonthChange={(id, cycleMonth) =>
               setGoalTransactionCycle(goal.id, id, cycleMonth)
             }
+            onKindChange={(id, entryKind) => resolveGoalKind(goal.id, id, entryKind)}
             inLabel="Guardado"
             outLabel="Resgatado"
           />

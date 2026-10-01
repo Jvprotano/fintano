@@ -8,6 +8,7 @@ import type { BackupInspection, FinTanoBackupV7, FinTanoBackupV8 } from '../data
 import {
   LEGACY_DOMAIN_KEYS,
   REPOSITORY_STORAGE_KEY,
+  type RepositoryDocument,
   inspectRepository,
   readRepositoryDocument,
   removeLegacyDomainKeys,
@@ -103,9 +104,9 @@ export function inspectBackup(payload: unknown): BackupInspection {
   return inspection
 }
 
-function createAutoBackupNow(storage: Storage): boolean {
+export function createAutoBackupNow(storage: Storage, source?: RepositoryDocument): boolean {
   try {
-    const current = buildBackupPayload(storage)
+    const current = source ? repositoryToBackupV8(source) : buildBackupPayload(storage)
     const inspection = inspectBackup(current)
     if (inspection.issues.some((issue) => issue.severity === 'error')) return false
     const backups = listAutoBackups(storage)

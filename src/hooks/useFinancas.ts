@@ -36,7 +36,7 @@ export function useFinancas() {
   const scenarios = useScenarios()
   const cards = useCreditCards()
   const assetsState = useAssets()
-  const debts = useDebts(scenarios.activeScenarioAll.costs, assetsState.assets)
+  const debts = useDebts(scenarios.activeScenarioAll.costs, assetsState.assets, activeCycle.month)
 
   const assetsSummary = useMemo(
     () => calculateAssetsSummary(assetsState.assets, debts.summary.debts),

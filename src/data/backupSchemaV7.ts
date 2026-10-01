@@ -218,6 +218,8 @@ export type LedgerEntryKind =
   | 'opening_balance'
   | 'contribution'
   | 'withdrawal'
+  | 'transfer_in'
+  | 'transfer_out'
   | 'balance_increase'
   | 'amortization'
   | 'adjustment'
@@ -230,6 +232,8 @@ export interface DomainLedgerEntryV7 {
   amountCents: MoneyCents
   competenceMonth: MonthKey
   occurredAt: string
+  recordedAt?: string
+  kindSource?: 'user' | 'legacy_inferred' | 'legacy_ambiguous'
   note?: string
 }
 

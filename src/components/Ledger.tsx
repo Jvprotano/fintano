@@ -2,8 +2,14 @@ import { useState } from 'react'
 import { ArrowDownUp, CalendarDays, Minus, Plus, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { formatCurrency, formatDate, formatMonthKey } from '../lib/format'
-import { ledgerEntryCycleMonth } from '../lib/shared'
-import type { LedgerEntry } from '../types'
+import { ledgerEntryCycleMonth, localDateKey } from '../lib/shared'
+import type { LedgerEntry, LedgerEntryKind } from '../types'
+
+const KIND_LABELS: Partial<Record<LedgerEntryKind, string>> = {
+  opening_balance: 'Saldo anterior', contribution: 'Aporte', withdrawal: 'Resgate',
+  transfer_in: 'Transferência recebida', transfer_out: 'Transferência enviada',
+  amortization: 'Amortização', balance_increase: 'Saldo da dívida aumentou', adjustment: 'Ajuste',
+}
 
 // Reserva, posições e metas compartilham o mesmo livro-razão: um formulário de
 // entrada/saída e uma lista de movimentações.
@@ -54,7 +60,7 @@ export function LedgerMoveForm({
   invert = false,
   cycleMonth,
 }: {
-  onMove: (amount: number, note?: string, cycleMonth?: string) => boolean
+  onMove: (amount: number, note?: string, cycleMonth?: string, occurredOn?: string) => boolean
   outLabel?: string
   inLabel?: string
   disableOut?: boolean
@@ -69,6 +75,7 @@ export function LedgerMoveForm({
 }) {
   const [amount, setAmount] = useState(0)
   const [note, setNote] = useState('')
+  const [occurredOn, setOccurredOn] = useState(localDateKey)
   const [cycleSelection, setCycleSelection] = useState(() => ({
     source: cycleMonth ?? '',
     selected: cycleMonth ?? '',
@@ -79,11 +86,12 @@ export function LedgerMoveForm({
       : (cycleMonth ?? '')
 
   const commit = (button: 'primary' | 'secondary') => {
-    if (amount <= 0) return
+    if (amount <= 0 || !occurredOn || (cycleMonth && !selectedCycleMonth)) return
     const positive = invert ? button === 'secondary' : button === 'primary'
-    if (!onMove((positive ? 1 : -1) * amount, note, selectedCycleMonth || cycleMonth)) return
+    if (!onMove((positive ? 1 : -1) * amount, note, selectedCycleMonth || cycleMonth, occurredOn)) return
     setAmount(0)
     setNote('')
+    setOccurredOn(localDateKey())
   }
 
   return (
@@ -129,7 +137,7 @@ export function LedgerMoveForm({
         <div className="flex gap-2">
           <button
             type="submit"
-            disabled={amount <= 0}
+            disabled={amount <= 0 || !occurredOn || (Boolean(cycleMonth) && !selectedCycleMonth)}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-primary-500/20 bg-primary-500/12 px-3.5 py-2.5 text-sm font-semibold text-primary-300 transition-colors hover:bg-primary-500/20 disabled:cursor-not-allowed disabled:opacity-35 sm:flex-none"
           >
             <Plus size={14} />
@@ -138,7 +146,7 @@ export function LedgerMoveForm({
           <button
             type="button"
             onClick={() => commit('secondary')}
-            disabled={amount <= 0 || disableOut}
+            disabled={amount <= 0 || !occurredOn || (Boolean(cycleMonth) && !selectedCycleMonth) || disableOut}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-500/15 bg-rose-500/[0.07] px-3.5 py-2.5 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/14 disabled:cursor-not-allowed disabled:opacity-35 sm:flex-none"
           >
             <Minus size={14} />
@@ -146,12 +154,16 @@ export function LedgerMoveForm({
           </button>
         </div>
       </div>
-      <input
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        placeholder={notePlaceholder}
-        className="app-field mt-2 w-full px-3 py-2 text-sm placeholder:text-dark-text-muted"
-      />
+      <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,auto)]">
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Observação (opcional)</span>
+          <input value={note} onChange={(event) => setNote(event.target.value)}
+            placeholder={notePlaceholder} className="app-field w-full px-3 py-2 text-sm placeholder:text-dark-text-muted" />
+        </label>
+        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Data real</span>
+          <input type="date" required value={occurredOn} onChange={(event) => setOccurredOn(event.target.value)}
+            className="app-field w-full px-3 py-2 text-sm" />
+        </label>
+      </div>
       {cycleMonth && (
         <div className="mt-2 flex items-center gap-2 rounded-lg border border-primary-500/10 bg-primary-500/[0.035] px-2.5 py-2 text-xs leading-relaxed text-dark-text-muted">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400" />
@@ -172,6 +184,7 @@ export function LedgerList({
   outLabel = 'Retirada',
   invert = false,
   onCycleMonthChange,
+  onKindChange,
 }: {
   transactions: LedgerEntry[]
   onRemove: (id: string) => void
@@ -179,9 +192,11 @@ export function LedgerList({
   outLabel?: string
   /** Habilita a correção de competência, inclusive para dados antigos. */
   onCycleMonthChange?: (id: string, cycleMonth: string) => void
+  onKindChange?: (id: string, kind: LedgerEntryKind) => boolean
   /** Numa dívida, quem merece a cor de bom é a saída (a amortização). */
   invert?: boolean
 }) {
+  const [classificationError, setClassificationError] = useState('')
   if (transactions.length === 0) return null
   const history = [...transactions].reverse()
 
@@ -207,8 +222,9 @@ export function LedgerList({
           return (
             <li
               key={tx.id}
-              className="group flex items-center gap-2.5 rounded-xl border border-dark-border-subtle bg-dark-input/35 px-3 py-2.5 transition-colors hover:border-dark-border hover:bg-dark-input/55"
+              className="group rounded-xl border border-dark-border-subtle bg-dark-input/35 px-3 py-2.5 transition-colors hover:border-dark-border hover:bg-dark-input/55"
             >
+              <div className="flex items-center gap-2.5">
               <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${
                 isGood
                   ? 'border-primary-500/15 bg-primary-500/[0.07] text-primary-400'
@@ -223,6 +239,7 @@ export function LedgerList({
                 {onCycleMonthChange ? (
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-dark-text-muted">
                     <span>Feito em {formatDate(tx.date)}</span>
+                    {tx.kind && <span>· {KIND_LABELS[tx.kind]}</span>}
                     <CycleMonthControl
                       compact
                       value={ledgerEntryCycleMonth(tx)}
@@ -231,7 +248,7 @@ export function LedgerList({
                     />
                   </div>
                 ) : (
-                  <p className="text-xs text-dark-text-muted">{formatDate(tx.date)}</p>
+                  <p className="text-xs text-dark-text-muted">{formatDate(tx.date)}{tx.kind ? ` · ${KIND_LABELS[tx.kind]}` : ''}</p>
                 )}
               </div>
               <span
@@ -249,10 +266,24 @@ export function LedgerList({
               >
                 <Trash2 size={13} />
               </button>
+              </div>
+              {tx.kindSource === 'legacy_ambiguous' && onKindChange && <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-2 text-xs text-amber-100">
+                <p>Movimento antigo: a observação sugeria saldo anterior. Confirme como ele deve afetar o ciclo.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(['opening_balance', invert ? 'balance_increase' : 'contribution'] as LedgerEntryKind[]).map((kind) => <button
+                    key={kind} type="button" onClick={() => {
+                      if (!onKindChange(tx.id, kind)) setClassificationError('Não foi possível salvar a classificação. Recarregue e tente novamente.')
+                      else setClassificationError('')
+                    }} className="rounded-lg border border-amber-400/25 px-2 py-1.5 font-medium hover:bg-amber-400/10">
+                    {kind === 'opening_balance' ? 'Saldo anterior' : invert ? 'Aumento da dívida' : 'Aporte do ciclo'}
+                  </button>)}
+                </div>
+              </div>}
             </li>
           )
         })}
       </ul>
+      {classificationError && <p role="alert" className="mt-2 text-xs text-amber-200">{classificationError}</p>}
     </div>
   )
 }

@@ -133,7 +133,8 @@ export function normalizeEmergencyFund(
 
   const legacyCurrent = Math.max(0, finiteNumber(raw?.current))
   if (transactions.length === 0 && legacyCurrent > 0) {
-    transactions = [{ id: seedId, amount: legacyCurrent, date: seedDate, note: 'Saldo inicial' }]
+    transactions = [{ id: seedId, amount: legacyCurrent, date: seedDate,
+      kind: 'opening_balance', kindSource: 'legacy_inferred', note: 'Saldo inicial' }]
   }
 
   return { current: Math.max(0, ledgerBalance(transactions)), targetMonths, transactions }

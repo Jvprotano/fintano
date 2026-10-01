@@ -119,7 +119,7 @@ export function normalizeGoal(raw: Partial<FinancialGoal> | undefined, index = 0
     targetAmount: Math.max(0, finiteNumber(raw?.targetAmount)),
     targetMonth: /^\d{4}-\d{2}$/.test(raw?.targetMonth ?? '') ? raw?.targetMonth : undefined,
     color: raw?.color || GOAL_PRESET_COLORS[index % GOAL_PRESET_COLORS.length],
-    transactions: normalizeLedger(raw?.transactions),
+    transactions: normalizeLedger(raw?.transactions, nowIso(), 'goal'),
     createdAt: raw?.createdAt || nowIso(),
     completedAt: raw?.completedAt || undefined,
     kind,

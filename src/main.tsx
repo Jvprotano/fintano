@@ -2,10 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
-import { bootstrapRepository } from './data/repository'
+import { bootstrapLedgerKinds } from './data/ledgerMigration'
 import { RecoveryScreen } from './components/RecoveryScreen'
 
-const repository = bootstrapRepository()
+const repository = bootstrapLedgerKinds()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

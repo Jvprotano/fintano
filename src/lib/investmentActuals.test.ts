@@ -131,13 +131,13 @@ describe('calculateMonthlyInvestmentActuals', () => {
       emergencyFund: {
         ...emergencyFund,
         transactions: [
-          { id: 'r1', amount: 2_000, date: '2026-08-01T12:00:00.000Z', note: 'Saldo inicial' },
+          { id: 'r1', amount: 2_000, date: '2026-08-01T12:00:00.000Z', note: 'Saldo inicial', kind: 'opening_balance' },
         ],
       },
       holdings: [
         holding({
           transactions: [
-            { id: 'h1', amount: 5_000, date: '2026-08-01T12:00:00.000Z', note: 'Aporte inicial' },
+            { id: 'h1', amount: 5_000, date: '2026-08-01T12:00:00.000Z', note: 'Aporte inicial', kind: 'opening_balance' },
           ],
         }),
       ],
@@ -178,6 +178,7 @@ describe('calculateMonthlyInvestmentActuals', () => {
                 amount: 1_000,
                 date: '2026-08-01T12:00:00.000Z',
                 note: 'Saldo inicial',
+                kind: 'opening_balance',
               },
             ],
           }),
@@ -185,5 +186,16 @@ describe('calculateMonthlyInvestmentActuals', () => {
         goals: [],
       }),
     ).toBe(false)
+  })
+
+  it('observação livre não transforma um aporte tipado em saldo anterior', () => {
+    const result = calculateMonthlyInvestmentActuals({
+      month: '2026-08', emergencyFund,
+      holdings: [holding({ transactions: [{ id: 'h1', amount: 250,
+        date: '2026-08-01T12:00:00.000Z', cycleMonth: '2026-08',
+        note: 'Aporte inicial', kind: 'contribution' }] })], goals: [],
+    })
+    expect(result.directNet).toBe(250)
+    expect(result.openingBalance).toBe(0)
   })
 })
