@@ -75,14 +75,38 @@ describe('summarizeActuals', () => {
     expect(summary.plannedCosts).toBe(1_200)
   })
 
-  it('valor informado de um custo que não existe mais é ignorado', () => {
+  it('valor informado de um custo sem cadastro continua no realizado', () => {
     const summary = summarizeActuals(
       costs,
       { month: '2026-07', costs: { apagado: 999 }, extraIncome: [], extraExpenses: [] },
       '2026-07',
     )
-    expect(summary.effectiveCosts).toBe(3_500)
-    expect(summary.informedCount).toBe(0)
+    expect(summary.effectiveCosts).toBe(4_499)
+    expect(summary.informedCount).toBe(1)
+    expect(summary.rows.find((row) => row.cost.id === 'apagado')).toMatchObject({
+      planned: 0, actual: 999, cost: { name: 'Custo sem cadastro' },
+    })
+  })
+
+  it('item arquivado conserva nome e realizado sem continuar no plano', () => {
+    const archivedCost: CostItem = {
+      id: 'internet', name: 'Internet antiga', value: 120, category: 'contas',
+      archivedAt: '2026-07-31T12:00:00.000Z',
+    }
+    const archivedWant: WantItem = {
+      id: 'viagem-antiga', name: 'Viagem antiga', plannedAmount: 200, paidWith: 'account',
+      archivedAt: '2026-07-31T12:00:00.000Z',
+    }
+    const summary = summarizeActuals(
+      [], { month: '2026-07', costs: { internet: 135 }, wants: { 'viagem-antiga': 170 } },
+      '2026-07', [], [archivedCost], [archivedWant],
+    )
+    expect(summary).toMatchObject({
+      plannedCosts: 0, effectiveCosts: 135,
+      plannedWants: 0, effectiveWants: 170,
+    })
+    expect(summary.rows[0].cost.name).toBe('Internet antiga')
+    expect(summary.wantRows[0].want.name).toBe('Viagem antiga')
   })
 
   it('sem custos cadastrados, tudo é zero', () => {

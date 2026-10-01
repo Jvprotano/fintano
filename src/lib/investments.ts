@@ -150,6 +150,8 @@ export function normalizeHolding(raw: Partial<FinancialHolding> | undefined): Fi
     purpose: raw?.purpose === 'emergency_fund' ? 'emergency_fund' : 'portfolio',
     benchmark: raw?.benchmark?.trim() || undefined,
     liquidity: raw?.liquidity?.trim() || undefined,
+    archivedAt: raw?.archivedAt && Number.isFinite(Date.parse(raw.archivedAt))
+      ? raw.archivedAt : undefined,
   }
 }
 

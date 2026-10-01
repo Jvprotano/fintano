@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 import {
   AlertCircle,
+  Archive,
   Building2,
   ChevronDown,
   CircleDollarSign,
   Flag,
   Landmark,
   Plus,
+  RotateCcw,
   Shield,
   Trash2,
   X,
@@ -56,6 +58,8 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
     goals,
     updateHolding,
     removeHolding,
+    restoreHolding,
+    deleteEmptyHolding,
     addHoldingTransaction,
     removeHoldingTransaction,
     setHoldingTransactionCycle,
@@ -63,6 +67,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
   } = useInvestmentsStore()
   const { activeCycle } = useFinancasStore()
   const [expanded, setExpanded] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const purpose = holdingPurpose(holding)
   const assetClass = investmentClasses.find((item) => item.id === holding.assetClassId)
   const allocations = goals.flatMap((goal) =>
@@ -87,6 +92,8 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1">
           <Tag>{purpose === 'emergency_fund' ? 'Reserva de emergência' : 'Carteira'}</Tag>
+          {holding.archivedAt && <Tag>Arquivada</Tag>}
+          {holding.archivedAt && holding.marketValue > 0 && <Tag>Saldo ainda no patrimônio</Tag>}
           {allocations.map((allocation) => <Tag key={allocation.goal}><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: allocation.color }} />{allocation.goal}: {formatCurrency(allocation.amount)}</Tag>)}
           {missingLocation && <span className="inline-flex items-center gap-1 text-xs text-amber-300"><AlertCircle size={10} /> complete a instituição</span>}
         </div>
@@ -140,14 +147,18 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         outLabel="Resgate"
       />
       <div className="border-t border-dark-border-subtle pt-3">
-        <button type="button" onClick={() => removeHolding(holding.id)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:bg-rose-500/[0.06] hover:text-rose-400"><Trash2 size={13} /> Excluir posição</button>
+        <button type="button" onClick={() => holding.archivedAt ? restoreHolding(holding.id) : removeHolding(holding.id)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:bg-dark-hover hover:text-dark-text">{holding.archivedAt ? <RotateCcw size={13} /> : <Archive size={13} />} {holding.archivedAt ? 'Restaurar posição' : 'Arquivar posição'}</button>
+        {holding.marketValue === 0 && holding.transactions.length === 0 && <button type="button" onClick={() => {
+          if (!deleteEmptyHolding(holding.id)) setDeleteError('Exclusão recusada: a posição ainda está vinculada a uma meta ou desconto em folha.')
+        }} className="ml-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-dark-text-muted hover:text-rose-400"><Trash2 size={13} /> Excluir cadastro vazio</button>}
+        {deleteError && <p role="alert" className="mt-2 text-xs text-amber-200">{deleteError}</p>}
       </div>
     </div>}
   </div>
 }
 
 function NewPositionForm({ onClose }: { onClose: () => void }) {
-  const { investmentClasses, addHolding, addClass, removeClass, holdings } = useInvestmentsStore()
+  const { investmentClasses, addHolding, addClass, removeClass, holdings, goals } = useInvestmentsStore()
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
   const [assetClassId, setAssetClassId] = useState(investmentClasses[0]?.id ?? '')
@@ -182,7 +193,8 @@ function NewPositionForm({ onClose }: { onClose: () => void }) {
       <div className="flex flex-wrap gap-1.5">
         {investmentClasses.map((item) => {
           const selected = selectedClassId === item.id
-          const isEmpty = !holdings.some((holding) => holding.assetClassId === item.id)
+          const isEmpty = !holdings.some((holding) => holding.assetClassId === item.id) &&
+            !goals.some((goal) => goal.includes?.some((inclusion) => inclusion.type === 'class' && inclusion.id === item.id))
           return <span key={item.id} className={`group inline-flex items-center rounded-lg border ${selected ? 'border-primary-500/60 bg-primary-500/10' : 'border-transparent bg-dark-input'}`}>
             <button type="button" onClick={() => setAssetClassId(item.id)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold ${selected ? 'text-primary-200' : 'text-dark-text-muted'}`}><span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />{item.name}</button>
             {isEmpty && <button type="button" onClick={() => removeClass(item.id)} className="pr-2 text-dark-text-muted hover:text-rose-400" aria-label={`Remover a classe ${item.name}`}><X size={12} /></button>}
@@ -351,9 +363,11 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
 function PositionsPanel() {
   const { summary } = useInvestmentsStore()
   const [showForm, setShowForm] = useState(false)
+  const archived = summary.allHoldings.filter((holding) => holding.archivedAt)
   const grouped = useMemo(() => {
     const groups = new Map<string, FinancialHoldingSummary[]>()
     for (const holding of summary.allHoldings) {
+      if (holding.archivedAt) continue
       const institution = holding.institution?.trim() || 'Instituição não informada'
       groups.set(institution, [...(groups.get(institution) ?? []), holding])
     }
@@ -367,6 +381,11 @@ function PositionsPanel() {
       <div className="mb-2 flex items-center gap-2 px-1"><Building2 size={13} className="text-dark-text-muted" /><h4 className="text-xs font-semibold text-dark-text">{institution}</h4><span className="ml-auto text-xs font-semibold tabular-nums text-dark-text-secondary">{formatCurrency(holdings.reduce((sum, holding) => sum + holding.marketValue, 0))}</span></div>
       <div className="space-y-2">{holdings.map((holding) => <PositionRow key={holding.id} holding={holding} />)}</div>
     </div>)}</div>}</div>
+    {archived.length > 0 && <details className="mt-5 rounded-xl border border-dark-border-subtle bg-dark-surface/30 p-3">
+      <summary className="cursor-pointer text-sm font-medium text-dark-text-secondary">Posições arquivadas ({archived.length})</summary>
+      <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">Movimentos antigos continuam no Histórico. Posições com saldo ainda compõem o patrimônio.</p>
+      <div className="mt-3 space-y-2">{archived.map((holding) => <PositionRow key={holding.id} holding={holding} />)}</div>
+    </details>}
   </Panel>
 }
 
@@ -374,7 +393,7 @@ export function InvestmentsManager() {
   const { summary, goals } = useInvestmentsStore()
   const { debts } = useFinancasStore()
   const [section, setSection] = useState<Section>('overview')
-  const activeGoals = goals.filter((goal) => !goal.isComplete).length
+  const activeGoals = goals.filter((goal) => !goal.archivedAt && !goal.isComplete).length
 
   return <div className="space-y-4">
     <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">

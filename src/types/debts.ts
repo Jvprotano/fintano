@@ -15,6 +15,7 @@ export interface Debt {
   transactions: LedgerEntry[]
   createdAt: string
   settledAt?: string
+  archivedAt?: string
 }
 
 export interface DebtSummary extends Debt {

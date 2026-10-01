@@ -36,7 +36,7 @@ export function useFinancas() {
   const scenarios = useScenarios()
   const cards = useCreditCards()
   const assetsState = useAssets()
-  const debts = useDebts(scenarios.activeScenario.costs, assetsState.assets)
+  const debts = useDebts(scenarios.activeScenarioAll.costs, assetsState.assets)
 
   const assetsSummary = useMemo(
     () => calculateAssetsSummary(assetsState.assets, debts.summary.debts),
@@ -61,10 +61,20 @@ export function useFinancas() {
   )
   const history = useHistory(activeCycle.month, historyInvestmentSource)
   const forecast = useForecast(activeCycle.month)
+  const knownCosts = useMemo(() => [
+    ...scenarios.scenarios.filter((scenario) => scenario.id !== scenarios.activeScenarioId).flatMap((scenario) => scenario.costs),
+    ...scenarios.activeScenarioAll.costs,
+  ], [scenarios.scenarios, scenarios.activeScenarioAll.costs, scenarios.activeScenarioId])
+  const knownWants = useMemo(() => [
+    ...scenarios.scenarios.filter((scenario) => scenario.id !== scenarios.activeScenarioId).flatMap((scenario) => scenario.wants),
+    ...scenarios.activeScenarioAll.wants,
+  ], [scenarios.scenarios, scenarios.activeScenarioAll.wants, scenarios.activeScenarioId])
   const actuals = useActuals(
     scenarios.activeScenario.costs,
     scenarios.activeScenario.wants,
     activeCycle.month,
+    knownCosts,
+    knownWants,
   )
 
   useEffect(() => {

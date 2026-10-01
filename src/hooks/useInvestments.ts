@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
+import { deleteUnusedCatalog } from '../data/catalogDeletion'
 import type {
   EmergencyFundState,
   FinancialGoal,
@@ -220,54 +221,35 @@ export function useInvestments(
         >
       >,
     ) => {
-      setHoldings((prev) =>
+      return setHoldings((prev) =>
         (Array.isArray(prev) ? prev : []).map((holding) =>
           holding.id === id ? normalizeHolding({ ...holding, ...patch }) : normalizeHolding(holding),
         ),
       )
-
-      // Dinheiro da reserva continua sendo uma posição real, mas não pode
-      // financiar uma meta discricionária ao mesmo tempo.
-      if (patch.purpose === 'emergency_fund') {
-        setGoals((prev) =>
-          prev.map((goal, index) =>
-            normalizeGoal(
-              {
-                ...goal,
-                includes: goal.includes?.filter(
-                  (inclusion) => inclusion.type !== 'holding' || inclusion.id !== id,
-                ),
-              },
-              index,
-            ),
-          ),
-        )
-      }
     },
-    [setGoals, setHoldings],
+    [setHoldings],
   )
 
   const removeHolding = useCallback(
     (id: string) => {
-      setHoldings((prev) =>
-        (Array.isArray(prev) ? prev : []).filter((holding) => holding.id !== id),
-      )
-      setGoals((prev) =>
-        prev.map((goal, index) =>
-          normalizeGoal(
-            {
-              ...goal,
-              includes: goal.includes?.filter(
-                (inclusion) => inclusion.type !== 'holding' || inclusion.id !== id,
-              ),
-            },
-            index,
-          ),
+      return setHoldings((prev) =>
+        (Array.isArray(prev) ? prev : []).map((holding) =>
+          holding.id === id ? { ...holding, archivedAt: nowIso() } : holding,
         ),
       )
     },
-    [setGoals, setHoldings],
+    [setHoldings],
   )
+
+  const restoreHolding = useCallback(
+    (id: string) => setHoldings((prev) =>
+      (Array.isArray(prev) ? prev : []).map((holding) =>
+        holding.id === id ? { ...holding, archivedAt: undefined } : holding,
+      ),
+    ),
+    [setHoldings],
+  )
+  const deleteEmptyHolding = useCallback((id: string) => deleteUnusedCatalog('holding', id), [])
 
   // Aporte/retirada: ajusta também o valor de mercado (retirada limitada a ele).
   const addHoldingTransaction = useCallback(
@@ -486,12 +468,13 @@ export function useInvestments(
     (id: string) => {
       // Reserva também usa classe real; uma classe só pode sair se nenhuma
       // posição — de qualquer finalidade — depender dela.
-      if (holdings.some((holding) => holding.assetClassId === id)) return
-      setClasses((prev) =>
+      if (holdings.some((holding) => holding.assetClassId === id) ||
+        goals.some((goal) => goal.includes?.some((item) => item.type === 'class' && item.id === id))) return false
+      return setClasses((prev) =>
         (Array.isArray(prev) ? prev : DEFAULT_INVESTMENT_CLASSES).filter((item) => item.id !== id),
       )
     },
-    [holdings, setClasses],
+    [goals, holdings, setClasses],
   )
 
   // Metas --------------------------------------------------------------------
@@ -608,7 +591,16 @@ export function useInvestments(
   )
 
   const removeGoal = useCallback(
-    (id: string) => setGoals((prev) => prev.filter((goal) => goal.id !== id)),
+    (id: string) => setGoals((prev) => prev.map((goal) =>
+      goal.id === id ? { ...goal, archivedAt: nowIso() } : goal,
+    )),
+    [setGoals],
+  )
+
+  const restoreGoal = useCallback(
+    (id: string) => setGoals((prev) => prev.map((goal) =>
+      goal.id === id ? { ...goal, archivedAt: undefined } : goal,
+    )),
     [setGoals],
   )
 
@@ -634,6 +626,7 @@ export function useInvestments(
     },
     [activeCycleMonth, setGoals],
   )
+  const deleteEmptyGoal = useCallback((id: string) => deleteUnusedCatalog('goal', id), [])
 
   const setGoalTransactionCycle = useCallback(
     (goalId: string, transactionId: string, cycleMonth: string) => {
@@ -740,6 +733,8 @@ export function useInvestments(
     addHolding,
     updateHolding,
     removeHolding,
+    restoreHolding,
+    deleteEmptyHolding,
     addHoldingTransaction,
     removeHoldingTransaction,
     setHoldingTransactionCycle,
@@ -755,6 +750,8 @@ export function useInvestments(
     toggleGoalInclusion,
     setGoalHoldingAllocation,
     removeGoal,
+    restoreGoal,
+    deleteEmptyGoal,
     addGoalTransaction,
     removeGoalTransaction,
     setGoalTransactionCycle,

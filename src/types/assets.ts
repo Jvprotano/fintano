@@ -9,6 +9,7 @@ export interface Asset {
   rentEquivalent?: number
   createdAt: string
   note?: string
+  archivedAt?: string
 }
 
 export interface AssetSummary extends Asset {

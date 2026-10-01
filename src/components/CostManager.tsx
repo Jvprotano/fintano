@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { CreditCard, Landmark, Plus, Receipt, SlidersHorizontal, Trash2, Users } from 'lucide-react'
+import { Archive, CreditCard, Landmark, Plus, Receipt, RotateCcw, SlidersHorizontal, Trash2, Users } from 'lucide-react'
 import { Card } from './Card'
 import { CurrencyInput } from './CurrencyInput'
 import { HeaderMetric } from './HeaderMetric'
@@ -48,7 +48,7 @@ const PAYMENT_OPTIONS: { value: PaymentMethod; label: ReactNode }[] = [
 ]
 
 export function CostManager() {
-  const { costs, addCost, updateCost, removeCost } = useScenarioStore()
+  const { costs, archivedCosts, addCost, updateCost, removeCost, restoreCost, deleteUnusedCost } = useScenarioStore()
   const metrics = useMetrics()
   const { summary } = useCardsStore()
 
@@ -60,6 +60,7 @@ export function CostManager() {
   const [splitting, setSplitting] = useState(false)
   const [paidWith, setPaidWith] = useState<PaymentMethod>('account')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [archiveError, setArchiveError] = useState('')
 
   const {
     totalCosts,
@@ -313,11 +314,15 @@ export function CostManager() {
                         <SlidersHorizontal size={14} />
                       </button>
                       <button
-                        onClick={() => removeCost(cost.id)}
+                        onClick={() => {
+                          if (!removeCost(cost.id)) {
+                            setArchiveError('Não foi possível arquivar. Confira se este custo representa a parcela de uma dívida ativa.')
+                          } else setArchiveError('')
+                        }}
                         className="rounded-md p-1.5 text-dark-text-muted opacity-100 transition-all hover:bg-rose-500/10 hover:text-rose-400 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
-                        aria-label={`Remover ${cost.name}`}
+                        aria-label={`Arquivar ${cost.name}`}
                       >
-                        <Trash2 size={14} />
+                        <Archive size={14} />
                       </button>
                     </div>
                   </div>
@@ -378,6 +383,19 @@ export function CostManager() {
             })}
           </ul>
         )}
+        {archiveError && <p role="alert" className="text-xs leading-relaxed text-amber-200">{archiveError}</p>}
+        {archivedCosts.length > 0 && <details className="rounded-lg border border-dark-border-subtle bg-dark-surface/30 p-3">
+          <summary className="cursor-pointer text-xs font-medium text-dark-text-secondary">Custos arquivados ({archivedCosts.length})</summary>
+          <div className="mt-2 space-y-1.5">{archivedCosts.map((cost) => <div key={cost.id} className="flex items-center justify-between gap-3 rounded-lg bg-dark-input/40 px-3 py-2 text-xs">
+            <span className="min-w-0 truncate text-dark-text-secondary">{cost.name} · {formatCurrency(personalCostValue(cost))} no plano antigo</span>
+            <span className="flex shrink-0 flex-wrap gap-2">
+              <button type="button" onClick={() => restoreCost(cost.id)} className="inline-flex items-center gap-1 text-primary-300"><RotateCcw size={12} /> Restaurar</button>
+              <button type="button" onClick={() => {
+                if (!deleteUnusedCost(cost.id)) setArchiveError('Exclusão recusada: este custo tem realizado ou está vinculado a uma dívida.')
+              }} className="inline-flex items-center gap-1 text-dark-text-muted hover:text-rose-400"><Trash2 size={12} /> Excluir se vazio</button>
+            </span>
+          </div>)}</div>
+        </details>}
       </div>
     </Card>
   )

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
-import type { Asset, AssetKind } from '../types'
+import { runRepositoryCommand } from '../data/repositoryCommand'
+import type { Asset, AssetKind, Debt } from '../types'
 import { defaultAppreciationFor, normalizeAsset } from '../lib/assets'
 import { finiteNumber, nowIso, uid } from '../lib/shared'
 
@@ -56,9 +57,41 @@ export function useAssets() {
   )
 
   const removeAsset = useCallback(
-    (id: string) => setStored((prev) => prev.filter((asset) => asset.id !== id)),
-    [setStored],
+    (id: string) => runRepositoryCommand({
+      id: uid(),
+      apply: (document) => {
+        const current = Array.isArray(document.collections.assets)
+          ? document.collections.assets as Asset[] : []
+        if (!current.some((asset) => asset.id === id && !asset.archivedAt)) return null
+        return {
+          ...document,
+          collections: { ...document.collections, assets: current.map((asset) =>
+            asset.id === id ? { ...asset, archivedAt: nowIso() } : asset) },
+        }
+      },
+    }).ok,
+    [],
   )
+
+  const restoreAsset = useCallback((id: string) => setStored((prev) =>
+    prev.map((asset) => asset.id === id ? { ...asset, archivedAt: undefined } : asset),
+  ), [setStored])
+
+  const deleteEmptyAsset = useCallback((id: string) => runRepositoryCommand({
+    id: uid(),
+    apply: (document) => {
+      const debts = Array.isArray(document.collections.debts)
+        ? document.collections.debts as Debt[] : []
+      if (debts.some((debt) => debt.linkedAssetId === id)) return null
+      const current = Array.isArray(document.collections.assets)
+        ? document.collections.assets as Asset[] : []
+      const target = current.find((asset) => asset.id === id)
+      if (!target || target.value !== 0) return null
+      return { ...document, collections: {
+        ...document.collections, assets: current.filter((asset) => asset.id !== id),
+      } }
+    },
+  }).ok, [])
 
   /** Marcação a mercado: o valor do bem hoje, como você reavaliaria uma posição. */
   const setAssetValue = useCallback(
@@ -72,5 +105,5 @@ export function useAssets() {
     [setStored],
   )
 
-  return { assets, addAsset, updateAsset, removeAsset, setAssetValue }
+  return { assets, addAsset, updateAsset, removeAsset, restoreAsset, deleteEmptyAsset, setAssetValue }
 }

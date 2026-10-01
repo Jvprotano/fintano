@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { readRepositoryDocument, useRepositoryState } from '../data/repository'
 import { runRepositoryCommand } from '../data/repositoryCommand'
+import { deleteUnusedCatalog } from '../data/catalogDeletion'
 import type {
   CostCategory,
   CostItem,
@@ -8,12 +9,16 @@ import type {
   DiversificationSlice,
   FinanceScenario,
   FinanceScenarioData,
+  Debt,
+  MonthlyActuals,
   PaymentMethod,
   SalaryInputMode,
 } from '../types'
 import {
   cloneScenario,
   createDefaultScenario,
+  isCardEnvelopeWant,
+  isWantIncludedInCardPlan,
   moveWantInPlanningOrder,
   normalizeScenario,
 } from '../lib/scenario'
@@ -63,11 +68,16 @@ export function useScenarios() {
     }
   }, [activeScenarioId, scenarios, setActiveScenarioId])
 
-  const activeScenario =
+  const activeScenarioAll =
     scenarios.find((scenario) => scenario.id === activeScenarioId) ??
     scenarios[0] ??
     createDefaultScenario('Atual')
-  const activeId = activeScenario.id
+  const activeId = activeScenarioAll.id
+  const activeScenario = useMemo(() => ({
+    ...activeScenarioAll,
+    costs: activeScenarioAll.costs.filter((cost) => !cost.archivedAt),
+    wants: activeScenarioAll.wants.filter((want) => !want.archivedAt),
+  }), [activeScenarioAll])
 
   const updateActiveScenario = useCallback(
     (updater: (scenario: FinanceScenario) => FinanceScenario) => {
@@ -154,7 +164,16 @@ export function useScenarios() {
           const current = Array.isArray(document.collections.scenarios)
             ? document.collections.scenarios as FinanceScenario[] : []
           if (current.length <= 1 || !current.some((scenario) => scenario.id === id)) return null
+          const removed = current.find((scenario) => scenario.id === id)!
           const remaining = current.filter((scenario) => scenario.id !== id)
+          const actuals = Array.isArray(document.collections.actuals)
+            ? document.collections.actuals as MonthlyActuals[] : []
+          const paidCostIds = new Set(actuals.flatMap((month) => Object.keys(month.costs ?? {})))
+          const paidWantIds = new Set(actuals.flatMap((month) => Object.keys(month.wants ?? {})))
+          const survivingCostIds = new Set(remaining.flatMap((scenario) => scenario.costs.map((cost) => cost.id)))
+          const survivingWantIds = new Set(remaining.flatMap((scenario) => scenario.wants.map((want) => want.id)))
+          if (removed.costs.some((cost) => paidCostIds.has(cost.id) && !survivingCostIds.has(cost.id)) ||
+            removed.wants.some((want) => paidWantIds.has(want.id) && !survivingWantIds.has(want.id))) return null
           return {
             ...document,
             collections: {
@@ -212,13 +231,42 @@ export function useScenarios() {
 
   const removeCost = useCallback(
     (id: string) => {
-      updateActiveScenario((scenario) => ({
-        ...scenario,
-        costs: scenario.costs.filter((c) => c.id !== id),
-      }))
+      return runRepositoryCommand({
+        id: uid(),
+        apply: (document) => {
+          const debts = Array.isArray(document.collections.debts)
+            ? document.collections.debts as Debt[] : []
+          if (debts.some((debt) => debt.linkedCostId === id && debt.balance > 0)) return null
+          const current = Array.isArray(document.collections.scenarios)
+            ? document.collections.scenarios as FinanceScenario[] : []
+          if (!current.some((scenario) => scenario.id === activeId && scenario.costs.some((cost) => cost.id === id))) return null
+          return {
+            ...document,
+            collections: {
+              ...document.collections,
+              scenarios: current.map((scenario) => scenario.id === activeId
+                ? { ...scenario, updatedAt: nowIso(), costs: scenario.costs.map((cost) =>
+                    cost.id === id ? { ...cost, archivedAt: nowIso() } : cost,
+                  ) }
+                : scenario),
+            },
+          }
+        },
+      }).ok
     },
+    [activeId],
+  )
+
+  const restoreCost = useCallback(
+    (id: string) => updateActiveScenario((scenario) => ({
+      ...scenario,
+      costs: scenario.costs.map((cost) =>
+        cost.id === id ? { ...cost, archivedAt: undefined } : cost,
+      ),
+    })),
     [updateActiveScenario],
   )
+  const deleteUnusedCost = useCallback((id: string) => deleteUnusedCatalog('cost', id, activeId), [activeId])
 
   // Desejos ------------------------------------------------------------------
 
@@ -237,13 +285,38 @@ export function useScenarios() {
 
   const removeWant = useCallback(
     (id: string) => {
-      updateActiveScenario((scenario) => ({
-        ...scenario,
-        wants: scenario.wants.filter((w) => w.id !== id),
-      }))
+      return updateActiveScenario((scenario) => {
+        const envelope = scenario.wants.find((item) => item.id === id)
+        const archivedAt = nowIso()
+        return {
+          ...scenario,
+          wants: scenario.wants.map((want) => {
+            const together = envelope && isCardEnvelopeWant(envelope) &&
+              isWantIncludedInCardPlan(want, scenario.wants)
+            return want.id === id || together ? { ...want, archivedAt } : want
+          }),
+        }
+      })
     },
     [updateActiveScenario],
   )
+
+  const restoreWant = useCallback(
+    (id: string) => updateActiveScenario((scenario) => {
+      const envelope = scenario.wants.find((item) => item.id === id)
+      return {
+        ...scenario,
+        wants: scenario.wants.map((want) => {
+          const together = envelope && isCardEnvelopeWant(envelope) &&
+            want.archivedAt === envelope.archivedAt &&
+            isWantIncludedInCardPlan(want, scenario.wants)
+          return want.id === id || together ? { ...want, archivedAt: undefined } : want
+        }),
+      }
+    }),
+    [updateActiveScenario],
+  )
+  const deleteUnusedWant = useCallback((id: string) => deleteUnusedCatalog('want', id, activeId), [activeId])
 
   const updateWantAmount = useCallback(
     (id: string, plannedAmount: number) => {
@@ -446,6 +519,7 @@ export function useScenarios() {
   return {
     scenarios,
     activeScenario,
+    activeScenarioAll,
     activeScenarioId: activeId,
     setActiveScenarioId,
     createScenario,
@@ -464,12 +538,18 @@ export function useScenarios() {
       [setScenarioField],
     ),
     costs: activeScenario.costs,
+    archivedCosts: activeScenarioAll.costs.filter((cost) => cost.archivedAt),
     addCost,
     updateCost,
     removeCost,
+    restoreCost,
+    deleteUnusedCost,
     wants: activeScenario.wants,
+    archivedWants: activeScenarioAll.wants.filter((want) => want.archivedAt),
     addWant,
     removeWant,
+    restoreWant,
+    deleteUnusedWant,
     updateWantAmount,
     applyWantAmounts,
     setWantPaidWith,

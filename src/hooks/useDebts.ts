@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
+import { deleteUnusedCatalog } from '../data/catalogDeletion'
 import type { Asset, CostItem, Debt, DebtKind } from '../types'
 import { calculateDebtsSummary, normalizeDebt } from '../lib/debts'
 import { finiteNumber, ledgerBalance, nowIso, uid } from '../lib/shared'
@@ -64,9 +65,19 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
   )
 
   const removeDebt = useCallback(
-    (id: string) => setStored((prev) => prev.filter((debt) => debt.id !== id)),
+    (id: string) => setStored((prev) => prev.map((debt) =>
+      debt.id === id ? { ...debt, archivedAt: nowIso() } : debt,
+    )),
     [setStored],
   )
+
+  const restoreDebt = useCallback(
+    (id: string) => setStored((prev) => prev.map((debt) =>
+      debt.id === id ? { ...debt, archivedAt: undefined } : debt,
+    )),
+    [setStored],
+  )
+  const deleteEmptyDebt = useCallback((id: string) => deleteUnusedCatalog('debt', id), [])
 
   /**
    * Movimenta o saldo. Negativo = amortização (limitada ao saldo devedor);
@@ -149,6 +160,8 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = []) {
     addDebt,
     updateDebt,
     removeDebt,
+    restoreDebt,
+    deleteEmptyDebt,
     addDebtTransaction,
     removeDebtTransaction,
     setDebtBalance,

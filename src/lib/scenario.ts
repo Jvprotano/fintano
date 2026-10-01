@@ -107,6 +107,8 @@ function normalizeCost(raw: Partial<CostItem> | undefined): CostItem {
     sharedWith: raw?.sharedWith?.trim() || undefined,
     // Contas fixas costumam ser débito/boleto; quem paga no cartão marca o item.
     paidWith: raw?.paidWith === 'card' ? 'card' : 'account',
+    archivedAt: raw?.archivedAt && Number.isFinite(Date.parse(raw.archivedAt))
+      ? raw.archivedAt : undefined,
   }
 }
 
@@ -140,6 +142,8 @@ export function normalizeScenario(scenario: FinanceScenario): FinanceScenario {
               : want.includedInCardPlan === false
                 ? false
                 : undefined,
+          archivedAt: want.archivedAt && Number.isFinite(Date.parse(want.archivedAt))
+            ? want.archivedAt : undefined,
         }))
       : [],
     deductions: Array.isArray(scenario.deductions)
@@ -355,18 +359,20 @@ export function calculateScenario(
   /** Custo médio dos meses fechados; quando existe, é a base da reserva. */
   averageMonthlyCosts: number | null = null,
 ) {
+  const activeCosts = state.costs.filter((cost) => !cost.archivedAt)
+  const activeWants = state.wants.filter((want) => !want.archivedAt)
   const selectedModel = getSelectedModel(state)
 
   // Custos: o orçamento enxerga apenas a sua parte; o valor cheio fica visível
   // para você saber o tamanho real da conta e o quanto tem a receber.
-  const totalCostsGross = state.costs.reduce((sum, c) => sum + c.value, 0)
-  const totalCosts = state.costs.reduce((sum, c) => sum + personalCostValue(c), 0)
+  const totalCostsGross = activeCosts.reduce((sum, c) => sum + c.value, 0)
+  const totalCosts = activeCosts.reduce((sum, c) => sum + personalCostValue(c), 0)
   const totalCostsShared = totalCostsGross - totalCosts
 
   // Forma de pagamento: o mesmo gasto, visto pelo caixa. O que passa no cartão
   // só deixa a conta quando a fatura vence — e é o que deve reaparecer, sem
   // virar gasto novo, na aba de cartões marcado com a área do orçamento.
-  const costsOnCard = state.costs
+  const costsOnCard = activeCosts
     .filter((c) => c.paidWith === 'card')
     .reduce((sum, c) => sum + personalCostValue(c), 0)
   const costsOnAccount = totalCosts - costsOnCard
@@ -400,9 +406,9 @@ export function calculateScenario(
     investimentos: (availableForBudget * selectedModel.investimentos) / 100,
   }
 
-  const standaloneWants = state.wants.filter((w) => !isWantIncludedInCardPlan(w, state.wants))
-  const cardIncludedWantsAmount = state.wants
-    .filter((w) => isWantIncludedInCardPlan(w, state.wants))
+  const standaloneWants = activeWants.filter((w) => !isWantIncludedInCardPlan(w, activeWants))
+  const cardIncludedWantsAmount = activeWants
+    .filter((w) => isWantIncludedInCardPlan(w, activeWants))
     .reduce((sum, w) => sum + w.plannedAmount, 0)
   const totalWantsAmount = standaloneWants.reduce((sum, w) => sum + w.plannedAmount, 0)
   const wantsOnCard = standaloneWants
@@ -450,7 +456,7 @@ export function calculateScenario(
     .reduce((sum, slice) => sum + slice.amount, 0)
 
   const costsByCategory = new Map<CostCategory, number>()
-  for (const cost of state.costs) {
+  for (const cost of activeCosts) {
     costsByCategory.set(cost.category, (costsByCategory.get(cost.category) || 0) + personalCostValue(cost))
   }
 

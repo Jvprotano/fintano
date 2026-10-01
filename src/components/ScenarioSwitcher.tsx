@@ -19,6 +19,7 @@ export function ScenarioSwitcher() {
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
+  const [removeError, setRemoveError] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const activeScenario = scenarios.find((scenario) => scenario.id === activeScenarioId)
 
@@ -145,7 +146,11 @@ export function ScenarioSwitcher() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeScenario(scenario.id)}
+                      onClick={() => {
+                        if (!removeScenario(scenario.id)) {
+                          setRemoveError('Não foi possível excluir. Confira se este cenário é a única origem de custos ou Desejos já realizados.')
+                        } else setRemoveError('')
+                      }}
                       disabled={scenarios.length <= 1}
                       className="rounded-md p-1.5 text-dark-text-muted hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-30"
                       aria-label={`Excluir ${scenario.name}`}
@@ -157,6 +162,7 @@ export function ScenarioSwitcher() {
               )
             })}
           </div>
+          {removeError && <p role="alert" className="px-3 pb-2 text-xs leading-relaxed text-amber-200">{removeError}</p>}
           <div className="flex gap-1.5 border-t border-dark-border-subtle p-1.5">
             <button
               type="button"

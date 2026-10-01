@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, CreditCard, Heart, Landmark, Plus, Trash2 } from 'lucide-react'
+import { Archive, ChevronDown, ChevronUp, CreditCard, Heart, Landmark, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { Card } from './Card'
 import { CurrencyInput } from './CurrencyInput'
 import { HeaderMetric } from './HeaderMetric'
@@ -27,13 +27,17 @@ const SUGGESTIONS = [
 export function WantsManager() {
   const {
     wants,
+    archivedWants,
     addWant,
     removeWant,
+    restoreWant,
+    deleteUnusedWant,
     updateWantAmount,
     setWantPaidWith,
     setWantIncludedInCardPlan,
     moveWant,
   } = useScenarioStore()
+  const [deleteError, setDeleteError] = useState('')
   const {
     totalWantsAmount,
     budgetAllocation,
@@ -283,9 +287,9 @@ export function WantsManager() {
                     <button
                       onClick={() => removeWant(want.id)}
                       className="rounded-md p-1.5 text-dark-text-muted opacity-100 transition-all hover:bg-rose-500/10 hover:text-rose-400 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
-                      aria-label={`Remover ${want.name}`}
+                      aria-label={`Arquivar ${want.name}`}
                     >
-                      <Trash2 size={14} />
+                      <Archive size={14} />
                     </button>
                   </div>
                 </li>
@@ -293,6 +297,20 @@ export function WantsManager() {
             })}
           </ul>
         )}
+
+        {archivedWants.length > 0 && <details className="rounded-lg border border-dark-border-subtle bg-dark-surface/30 p-3">
+          <summary className="cursor-pointer text-xs font-medium text-dark-text-secondary">Desejos arquivados ({archivedWants.length})</summary>
+          <div className="mt-2 space-y-1.5">{archivedWants.map((want) => <div key={want.id} className="flex items-center justify-between gap-3 rounded-lg bg-dark-input/40 px-3 py-2 text-xs">
+            <span className="min-w-0 truncate text-dark-text-secondary">{want.name} · {formatCurrency(want.plannedAmount)} no plano antigo</span>
+            <span className="flex shrink-0 flex-wrap gap-2">
+              <button type="button" onClick={() => restoreWant(want.id)} className="inline-flex items-center gap-1 text-primary-300"><RotateCcw size={12} /> Restaurar</button>
+              <button type="button" onClick={() => {
+                if (!deleteUnusedWant(want.id)) setDeleteError('Exclusão recusada: este Desejo tem realizado ou contém detalhes do cartão.')
+              }} className="inline-flex items-center gap-1 text-dark-text-muted hover:text-rose-400"><Trash2 size={12} /> Excluir se vazio</button>
+            </span>
+          </div>)}</div>
+        </details>}
+        {deleteError && <p role="alert" className="text-xs text-amber-200">{deleteError}</p>}
 
         {wants.length > 0 && desejosTarget > 0 && remaining < 0 && (
           <p className="text-xs font-medium text-rose-400">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, ChevronDown, Flag, Landmark, Layers, Link2, Plus, Trash2 } from 'lucide-react'
+import { Archive, CheckCircle2, ChevronDown, Flag, Landmark, Layers, Link2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { LedgerList, LedgerMoveForm } from './Ledger'
 import { EmptyState, Meter, Panel, PanelHeader, PrimaryButton, SecondaryButton, SegmentedControl, Tag } from './ui'
@@ -94,9 +94,10 @@ function FundingSources({ goal }: { goal: GoalSummary }) {
 }
 
 function GoalRow({ goal }: { goal: GoalSummary }) {
-  const { addGoalTransaction, removeGoalTransaction, setGoalTransactionCycle, removeGoal, updateGoal, toggleGoalInclusion, summary } = useInvestmentsStore()
+  const { addGoalTransaction, removeGoalTransaction, setGoalTransactionCycle, removeGoal, restoreGoal, deleteEmptyGoal, updateGoal, toggleGoalInclusion, summary } = useInvestmentsStore()
   const { activeCycle } = useFinancasStore()
   const [expanded, setExpanded] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const kind = goal.kind ?? 'funding'
   const lateBy = goal.monthsLeft !== null && goal.monthsLeft < 0 ? -goal.monthsLeft : 0
   const unavailable = goal.holdingAllocations.reduce((sum, item) => sum + item.unavailable, 0)
@@ -111,6 +112,8 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
           <Tag>{kind === 'funding' ? <><Link2 size={10} /> Dinheiro destinado</> : <><Layers size={10} /> Indicador</>}</Tag>
+          {goal.archivedAt && <Tag>Arquivada</Tag>}
+          {goal.archivedAt && goal.ownBalance > 0 && <Tag>Saldo ainda no patrimônio</Tag>}
           {goal.targetMonth && <Tag>{formatMonthKey(goal.targetMonth)}</Tag>}
           {goal.includedLabels.length > 0 && <span className="truncate">{goal.includedLabels.join(' + ')}</span>}
           {lateBy > 0 && !goal.isComplete && <span className="text-amber-400">{formatMonths(lateBy)} atrasada</span>}
@@ -178,7 +181,11 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
         </div>
       </details>}
 
-      <button type="button" onClick={() => removeGoal(goal.id)} className="inline-flex items-center gap-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:text-rose-400"><Trash2 size={13} /> Excluir meta</button>
+      <button type="button" onClick={() => goal.archivedAt ? restoreGoal(goal.id) : removeGoal(goal.id)} className="inline-flex items-center gap-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:text-dark-text">{goal.archivedAt ? <RotateCcw size={13} /> : <Archive size={13} />} {goal.archivedAt ? 'Restaurar meta' : 'Arquivar meta'}</button>
+      {goal.transactions.length === 0 && (goal.includes?.length ?? 0) === 0 && <button type="button" onClick={() => {
+        if (!deleteEmptyGoal(goal.id)) setDeleteError('Exclusão recusada: um evento ou compromisso ainda está vinculado a esta meta.')
+      }} className="ml-3 inline-flex items-center gap-1.5 text-xs text-dark-text-muted hover:text-rose-400"><Trash2 size={13} /> Excluir cadastro vazio</button>}
+      {deleteError && <p role="alert" className="text-xs text-amber-200">{deleteError}</p>}
     </div>}
   </div>
 }
@@ -205,7 +212,9 @@ export function GoalsSection() {
     if (!addGoal({ name, targetAmount, targetMonth: targetMonth || undefined, kind, includes })) return
     setName(''); setTargetAmount(0); setTargetMonth(''); setIncludes([]); setKind('funding'); setOpen(false)
   }
-  const allocated = goals.filter((goal) => goal.kind === 'funding').reduce((sum, goal) => sum + goal.current, 0)
+  const activeGoals = goals.filter((goal) => !goal.archivedAt)
+  const archivedGoals = goals.filter((goal) => goal.archivedAt)
+  const allocated = activeGoals.filter((goal) => goal.kind === 'funding').reduce((sum, goal) => sum + goal.current, 0)
 
   return <Panel>
     <PanelHeader
@@ -227,6 +236,11 @@ export function GoalsSection() {
       <div className="flex gap-2"><PrimaryButton onClick={handleAdd} disabled={!name.trim()}><Plus size={15} /> Criar meta</PrimaryButton><SecondaryButton onClick={() => setOpen(false)}>Cancelar</SecondaryButton></div>
     </div>}
 
-    <div className="mt-4">{goals.length === 0 ? <EmptyState icon={<Landmark size={24} />} title="Nenhuma meta ainda">Crie um objetivo e depois indique em quais posições o dinheiro está. Assim o patrimônio não é duplicado e cada real ganha uma finalidade clara.</EmptyState> : <div className="space-y-2">{goals.map((goal) => <GoalRow key={goal.id} goal={goal} />)}</div>}</div>
+    <div className="mt-4">{activeGoals.length === 0 ? <EmptyState icon={<Landmark size={24} />} title="Nenhuma meta ativa">Crie um objetivo e depois indique em quais posições o dinheiro está. Assim o patrimônio não é duplicado e cada real ganha uma finalidade clara.</EmptyState> : <div className="space-y-2">{activeGoals.map((goal) => <GoalRow key={goal.id} goal={goal} />)}</div>}</div>
+    {archivedGoals.length > 0 && <details className="mt-4 rounded-xl border border-dark-border-subtle bg-dark-surface/30 p-3">
+      <summary className="cursor-pointer text-sm font-medium text-dark-text-secondary">Metas arquivadas ({archivedGoals.length})</summary>
+      <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">O livro-razão permanece no Histórico. Saldos próprios ainda fazem parte do patrimônio.</p>
+      <div className="mt-3 space-y-2">{archivedGoals.map((goal) => <GoalRow key={goal.id} goal={goal} />)}</div>
+    </details>}
   </Panel>
 }

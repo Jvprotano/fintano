@@ -124,6 +124,8 @@ export function normalizeGoal(raw: Partial<FinancialGoal> | undefined, index = 0
     completedAt: raw?.completedAt || undefined,
     kind,
     includes: includes.length ? includes : undefined,
+    archivedAt: raw?.archivedAt && Number.isFinite(Date.parse(raw.archivedAt))
+      ? raw.archivedAt : undefined,
   }
 }
 
@@ -206,7 +208,7 @@ export function summarizeGoals(
   return goals.map((goal) => {
     const ownBalance = Math.max(0, ledgerBalance(goal.transactions))
     const holdingAllocations =
-      goal.kind === 'funding'
+      !goal.archivedAt && goal.kind === 'funding'
         ? resolveHoldingAllocations(goal, context, remainingByHolding)
         : []
     const allocatedBalance = holdingAllocations.reduce(
@@ -214,7 +216,7 @@ export function summarizeGoals(
       0,
     )
     const tracked =
-      goal.kind === 'tracking'
+      !goal.archivedAt && goal.kind === 'tracking'
         ? resolveTrackingInclusions(goal, context)
         : { balance: 0, labels: [] }
     const includedBalance = allocatedBalance + tracked.balance

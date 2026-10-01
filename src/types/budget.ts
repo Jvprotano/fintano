@@ -19,6 +19,7 @@ export interface CostItem {
   sharedAmount?: number
   sharedWith?: string
   paidWith?: PaymentMethod
+  archivedAt?: string
 }
 
 export interface WantItem {
@@ -27,6 +28,7 @@ export interface WantItem {
   plannedAmount: number
   paidWith?: PaymentMethod
   includedInCardPlan?: boolean
+  archivedAt?: string
 }
 
 export type DeductionType =

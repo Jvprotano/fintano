@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
-import type { ExpectedEvent, ExpectedOccurrenceOverride, ForecastAssumptions } from '../types'
+import { runRepositoryCommand } from '../data/repositoryCommand'
+import type { ExpectedEvent, ExpectedOccurrenceOverride, ForecastAssumptions, MonthlyActuals } from '../types'
 import {
   DEFAULT_ASSUMPTIONS,
   normalizeAssumptions,
@@ -52,8 +53,40 @@ export function useForecast(cycleMonth = monthKey()) {
   )
 
   const removeEvent = useCallback(
-    (id: string) => setEvents((prev) => prev.filter((event) => event.id !== id)),
-    [setEvents],
+    (id: string) => runRepositoryCommand({
+      id: uid(),
+      apply: (document) => {
+        const events = Array.isArray(document.collections.forecastEvents)
+          ? document.collections.forecastEvents as ExpectedEvent[] : []
+        const target = events.find((event) => event.id === id)
+        if (!target) return null
+        const actuals = Array.isArray(document.collections.actuals)
+          ? document.collections.actuals as MonthlyActuals[] : []
+        const cashLinked = actuals.some((month) =>
+          [...(month.extraIncome ?? []), ...(month.extraExpenses ?? [])]
+            .some((entry) => entry.sourceEventId === id),
+        )
+        const cardEntries = Array.isArray(document.collections.cardEntries)
+          ? document.collections.cardEntries as Array<{ sourceForecastOccurrenceId?: string }> : []
+        const cardLinked = cardEntries.some((entry) =>
+          entry.sourceForecastOccurrenceId?.startsWith(`${id}@`),
+        )
+        const paidInvoices = Array.isArray(document.collections.cardPaidInvoices)
+          ? document.collections.cardPaidInvoices as Array<{ forecastOccurrences?: Array<{ id: string }> }> : []
+        const invoiceLinked = paidInvoices.some((invoice) => invoice.forecastOccurrences?.some((item) =>
+          item.id.startsWith(`${id}@`),
+        ))
+        const overrideLinked = Object.values(target.occurrenceOverrides ?? {}).some((item) =>
+          item.realizedAmount !== undefined || item.realizedAt !== undefined,
+        )
+        if (cashLinked || cardLinked || invoiceLinked || overrideLinked) return null
+        return {
+          ...document,
+          collections: { ...document.collections, forecastEvents: events.filter((event) => event.id !== id) },
+        }
+      },
+    }).ok,
+    [],
   )
 
   const updateOccurrence = useCallback((eventId: string, originalMonth: string, patch: ExpectedOccurrenceOverride) => {

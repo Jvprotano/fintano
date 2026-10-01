@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import {
   AlertTriangle,
+  Archive,
   ChevronDown,
   Home,
   Landmark,
   Plus,
+  RotateCcw,
   Scale,
-  Trash2,
   TrendingDown,
+  Trash2,
 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { LedgerList, LedgerMoveForm } from './Ledger'
@@ -148,6 +150,7 @@ function PayoffComparison({ debt }: { debt: DebtSummary }) {
 function DebtRow({ debt }: { debt: DebtSummary }) {
   const { debts, scenarios, assets } = useFinancasStore()
   const [expanded, setExpanded] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   return (
     <div className="rounded-lg border border-dark-border/60 bg-dark-surface/40">
@@ -165,6 +168,8 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
           <p className="truncate text-sm font-medium text-dark-text">{debt.name}</p>
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
             {DEBT_KIND_LABELS[debt.kind]}
+            {debt.archivedAt && <Tag>Arquivada</Tag>}
+            {debt.archivedAt && debt.balance > 0 && <Tag>Saldo ainda devido</Tag>}
             <Tag>{debt.annualRatePct.toFixed(1)}% a.a.</Tag>
             {debt.isSecured && (
               <Tag>
@@ -411,12 +416,16 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
 
           <button
             type="button"
-            onClick={() => debts.removeDebt(debt.id)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:text-rose-400"
+            onClick={() => debt.archivedAt ? debts.restoreDebt(debt.id) : debts.removeDebt(debt.id)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:text-dark-text"
           >
-            <Trash2 size={13} />
-            Excluir dívida
+            {debt.archivedAt ? <RotateCcw size={13} /> : <Archive size={13} />}
+            {debt.archivedAt ? 'Restaurar dívida' : 'Arquivar dívida'}
           </button>
+          {debt.balance === 0 && debt.transactions.length === 0 && <button type="button" onClick={() => {
+            if (!debts.deleteEmptyDebt(debt.id)) setDeleteError('Exclusão recusada: esta dívida ainda possui saldo ou movimentos.')
+          }} className="ml-3 inline-flex items-center gap-1.5 text-xs text-dark-text-muted hover:text-rose-400"><Trash2 size={13} /> Excluir cadastro vazio</button>}
+          {deleteError && <p role="alert" className="text-xs text-amber-200">{deleteError}</p>}
         </div>
       )}
     </div>
@@ -575,8 +584,9 @@ export function DebtsManager() {
   const { debts } = useFinancasStore()
   const [showForm, setShowForm] = useState(false)
   const { summary } = debts
-  const active = summary.debts.filter((debt) => !debt.isSettled)
-  const settled = summary.debts.filter((debt) => debt.isSettled)
+  const active = summary.debts.filter((debt) => !debt.isSettled && !debt.archivedAt)
+  const settled = summary.debts.filter((debt) => debt.isSettled && !debt.archivedAt)
+  const archived = summary.debts.filter((debt) => debt.archivedAt)
   const secured = active.filter((debt) => debt.isSecured)
   const unsecured = active.filter((debt) => !debt.isSecured)
   // Média ponderada e "mais cara" só dizem algo quando há mais de uma dívida
@@ -711,6 +721,11 @@ export function DebtsManager() {
                 ))}
               </>
             )}
+            {archived.length > 0 && <details className="rounded-lg border border-dark-border-subtle bg-dark-surface/30 p-3">
+              <summary className="cursor-pointer text-xs font-medium text-dark-text-secondary">Dívidas arquivadas ({archived.length})</summary>
+              <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">Movimentos antigos continuam no Histórico; saldos em aberto ainda entram no patrimônio líquido.</p>
+              <div className="mt-3 space-y-2">{archived.map((debt) => <DebtRow key={debt.id} debt={debt} />)}</div>
+            </details>}
           </div>
         )}
       </div>

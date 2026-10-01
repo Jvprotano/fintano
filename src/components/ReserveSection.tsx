@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, ChevronDown, Plus, Shield, Trash2 } from 'lucide-react'
+import { Archive, Building2, ChevronDown, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { LedgerList, LedgerMoveForm } from './Ledger'
 import {
@@ -26,6 +26,8 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
     investmentClasses,
     updateHolding,
     removeHolding,
+    restoreHolding,
+    deleteEmptyHolding,
     addHoldingTransaction,
     removeHoldingTransaction,
     setHoldingTransactionCycle,
@@ -33,6 +35,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
   } = useInvestmentsStore()
   const { activeCycle } = useFinancasStore()
   const [expanded, setExpanded] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const assetClass = investmentClasses.find((item) => item.id === holding.assetClassId)
 
   return (
@@ -44,7 +47,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.025]"
       >
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-dark-text">{holding.name}</p>
+          <p className="truncate text-sm font-medium text-dark-text">{holding.name}{holding.archivedAt ? ' · arquivada' : ''}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dark-text-muted">
             {holding.institution && (
               <span className="inline-flex items-center gap-1">
@@ -181,12 +184,16 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
           <div className="border-t border-dark-border-subtle pt-3">
             <button
               type="button"
-              onClick={() => removeHolding(holding.id)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:bg-rose-500/[0.06] hover:text-rose-400"
+              onClick={() => holding.archivedAt ? restoreHolding(holding.id) : removeHolding(holding.id)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:bg-dark-hover hover:text-dark-text"
             >
-              <Trash2 size={13} />
-              Excluir posição da reserva
+              {holding.archivedAt ? <RotateCcw size={13} /> : <Archive size={13} />}
+              {holding.archivedAt ? 'Restaurar posição da reserva' : 'Arquivar posição da reserva'}
             </button>
+            {holding.marketValue === 0 && holding.transactions.length === 0 && <button type="button" onClick={() => {
+              if (!deleteEmptyHolding(holding.id)) setDeleteError('Exclusão recusada: a posição ainda está vinculada a uma meta ou desconto em folha.')
+            }} className="ml-2 inline-flex items-center gap-1.5 text-xs text-dark-text-muted hover:text-rose-400"><Trash2 size={13} /> Excluir cadastro vazio</button>}
+            {deleteError && <p role="alert" className="mt-2 text-xs text-amber-200">{deleteError}</p>}
           </div>
         </div>
       )}
@@ -302,6 +309,8 @@ export function ReserveSection() {
   const [showForm, setShowForm] = useState(false)
 
   const reserveHoldings = summary.reserveHoldings
+  const activeReserveHoldings = reserveHoldings.filter((holding) => !holding.archivedAt)
+  const archivedReserveHoldings = reserveHoldings.filter((holding) => holding.archivedAt)
   const classById = new Map(investmentClasses.map((item) => [item.id, item]))
 
   return (
@@ -364,7 +373,7 @@ export function ReserveSection() {
 
         {showForm && <NewReservePositionForm onClose={() => setShowForm(false)} />}
 
-        {reserveHoldings.length === 0 ? (
+        {activeReserveHoldings.length === 0 && archivedReserveHoldings.length === 0 ? (
           <EmptyState
             icon={<Shield size={26} />}
             title="Diga onde sua reserva está aplicada"
@@ -382,9 +391,14 @@ export function ReserveSection() {
           </EmptyState>
         ) : (
           <div className="space-y-2">
-            {reserveHoldings.map((holding) => (
+            {activeReserveHoldings.map((holding) => (
               <ReservePositionRow key={holding.id} holding={holding} />
             ))}
+            {archivedReserveHoldings.length > 0 && <details className="rounded-lg border border-dark-border-subtle bg-dark-surface/30 p-3">
+              <summary className="cursor-pointer text-xs font-medium text-dark-text-secondary">Posições da reserva arquivadas ({archivedReserveHoldings.length})</summary>
+              <p className="mt-2 text-xs text-dark-text-muted">Saldos atuais continuam na reserva e aportes antigos permanecem no Histórico.</p>
+              <div className="mt-3 space-y-2">{archivedReserveHoldings.map((holding) => <ReservePositionRow key={holding.id} holding={holding} />)}</div>
+            </details>}
           </div>
         )}
 

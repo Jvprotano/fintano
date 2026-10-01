@@ -77,6 +77,7 @@ export interface PlanningTemplateV7 {
     sharedAmountCents?: MoneyCents
     sharedWith?: string
     paidWith: PaymentMethod
+    archivedAt?: string
   }[]
   wants: {
     id: string
@@ -84,6 +85,7 @@ export interface PlanningTemplateV7 {
     plannedAmountCents: MoneyCents
     paidWith: PaymentMethod
     includedInCardPlan?: boolean
+    archivedAt?: string
   }[]
   payrollDeductions: {
     id: string
@@ -200,6 +202,7 @@ export interface InvestmentHoldingV7 {
   purpose: InvestmentPurpose
   benchmark?: string
   liquidity?: string
+  archivedAt?: string
 }
 
 export interface InvestmentValuationV7 {
@@ -239,6 +242,7 @@ export interface AssetV7 {
   rentEquivalentCents?: MoneyCents
   createdAt: string
   note?: string
+  archivedAt?: string
 }
 
 export interface DebtV7 {
@@ -253,6 +257,7 @@ export interface DebtV7 {
   linkedAssetId?: string
   createdAt: string
   settledAt?: string
+  archivedAt?: string
 }
 
 export interface GoalV7 {
@@ -263,6 +268,7 @@ export interface GoalV7 {
   color: string
   createdAt: string
   completedAt?: string
+  archivedAt?: string
   kind: GoalKind
   includes: {
     type: GoalInclusionType

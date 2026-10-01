@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Home, Plus, Scale, Trash2 } from 'lucide-react'
+import { Archive, ChevronDown, Home, Plus, RotateCcw, Scale, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { EmptyState, Meter, Panel, PanelHeader, PrimaryButton, SecondaryButton, StatTile, Tag } from './ui'
 import { formatCurrency, inputClass, selectClass } from '../lib/format'
@@ -124,6 +124,7 @@ function OwnVsRent({ asset }: { asset: AssetSummary }) {
 function AssetRow({ asset }: { asset: AssetSummary }) {
   const { assets, debts } = useFinancasStore()
   const [expanded, setExpanded] = useState(false)
+  const [removeError, setRemoveError] = useState('')
   const linkedDebts = debts.summary.debts.filter((debt) => debt.linkedAssetId === asset.id)
 
   return (
@@ -139,7 +140,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
           style={{ backgroundColor: ASSET_KIND_COLORS[asset.kind] }}
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-dark-text">{asset.name}</p>
+          <p className="truncate text-sm font-medium text-dark-text">{asset.name} {asset.archivedAt && <Tag>Arquivado</Tag>}</p>
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
             {ASSET_KIND_LABELS[asset.kind]}
             <Tag>
@@ -262,12 +263,24 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
 
           <button
             type="button"
-            onClick={() => assets.removeAsset(asset.id)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:text-rose-400"
+            onClick={() => {
+              if (!(asset.archivedAt ? assets.restoreAsset(asset.id) : assets.removeAsset(asset.id))) {
+                setRemoveError('Não foi possível atualizar este bem. Recarregue os dados e tente novamente.')
+              } else setRemoveError('')
+            }}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-dark-text-muted transition-colors hover:text-dark-text"
           >
-            <Trash2 size={13} />
-            Excluir bem
+            {asset.archivedAt ? <RotateCcw size={13} /> : <Archive size={13} />}
+            {asset.archivedAt ? 'Restaurar bem' : 'Arquivar bem'}
           </button>
+          {asset.value === 0 && linkedDebts.length === 0 && (
+            <button type="button" onClick={() => {
+              if (!assets.deleteEmptyAsset(asset.id)) setRemoveError('Exclusão recusada: há valor ou dívida vinculada a este bem.')
+            }} className="ml-3 inline-flex items-center gap-1.5 text-xs font-medium text-dark-text-muted hover:text-rose-400">
+              <Trash2 size={13} /> Excluir cadastro vazio
+            </button>
+          )}
+          {removeError && <p role="alert" className="text-xs leading-relaxed text-amber-200">{removeError}</p>}
         </div>
       )}
     </div>
@@ -379,6 +392,8 @@ export function AssetsManager() {
   const { assets, debts } = useFinancasStore()
   const [showForm, setShowForm] = useState(false)
   const { summary } = assets
+  const activeAssets = summary.assets.filter((asset) => !asset.archivedAt)
+  const archivedAssets = summary.assets.filter((asset) => asset.archivedAt)
   const orphanSecuredDebts = debts.summary.debts.filter(
     (debt) => !debt.isSettled && debt.kind === 'financiamento' && !debt.isSecured,
   )
@@ -459,9 +474,14 @@ export function AssetsManager() {
           </EmptyState>
         ) : (
           <div className="space-y-2">
-            {summary.assets.map((asset) => (
+            {activeAssets.map((asset) => (
               <AssetRow key={asset.id} asset={asset} />
             ))}
+            {archivedAssets.length > 0 && <details className="rounded-lg border border-dark-border-subtle bg-dark-surface/30 p-3">
+              <summary className="cursor-pointer text-xs font-medium text-dark-text-secondary">Bens arquivados ({archivedAssets.length})</summary>
+              <p className="mt-2 text-xs text-dark-text-muted">O valor atual continua no patrimônio e os vínculos com dívidas são preservados.</p>
+              <div className="mt-3 space-y-2">{archivedAssets.map((asset) => <AssetRow key={asset.id} asset={asset} />)}</div>
+            </details>}
           </div>
         )}
       </div>

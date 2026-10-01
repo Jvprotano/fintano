@@ -51,11 +51,24 @@ export function summarizeActuals(
   actuals: Partial<MonthlyActuals> | undefined,
   month = monthKey(),
   wants: WantItem[] = [],
+  knownCosts: CostItem[] = costs,
+  knownWants: WantItem[] = wants,
 ): ActualsSummary {
   const informed = actuals?.costs ?? {}
   const byCategory = new Map<CostCategory, number>()
 
-  const rows = costs.map((cost) => {
+  const activeCostIds = new Set(costs.map((cost) => cost.id))
+  const knownCostById = new Map(knownCosts.map((cost) => [cost.id, cost]))
+  const costRows = [
+    ...costs,
+    ...Object.keys(informed).filter((id) => !activeCostIds.has(id)).map((id): CostItem => {
+      const known = knownCostById.get(id)
+      return known
+        ? { ...known, value: 0, sharedAmount: undefined, paidWith: 'account' }
+        : { id, name: 'Custo sem cadastro', value: 0, category: 'outros', paidWith: 'account' }
+    }),
+  ]
+  const rows = costRows.map((cost) => {
     const planned = personalCostValue(cost)
     const actual = Object.hasOwn(informed, cost.id) ? informed[cost.id] : null
     const effective = actual ?? planned
@@ -70,8 +83,17 @@ export function summarizeActuals(
   const informedWants = actuals?.wants ?? {}
   // O cartão já tem seu realizado na fatura. Esta lista registra somente o que
   // foi destinado fora dele, evitando duas fontes para o mesmo dinheiro.
-  const wantRows = wants
-    .filter((want) => want.paidWith === 'account')
+  const activeWantIds = new Set(wants.map((want) => want.id))
+  const knownWantById = new Map(knownWants.map((want) => [want.id, want]))
+  const accountWants = [
+    ...wants.filter((want) => want.paidWith === 'account'),
+    ...Object.keys(informedWants).filter((id) => !activeWantIds.has(id)).map((id): WantItem => ({
+      id, name: knownWantById.get(id)?.name ?? 'Desejo sem cadastro',
+      plannedAmount: 0, paidWith: 'account', includedInCardPlan: false,
+      archivedAt: knownWantById.get(id)?.archivedAt,
+    })),
+  ]
+  const wantRows = accountWants
     .map((want) => {
       const planned = Math.max(0, finiteNumber(want.plannedAmount))
       const actual = Object.hasOwn(informedWants, want.id) ? informedWants[want.id] : null

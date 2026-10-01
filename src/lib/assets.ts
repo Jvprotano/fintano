@@ -44,13 +44,13 @@ export function normalizeAsset(raw: Partial<Asset> | undefined): Asset {
     rentEquivalent: rentEquivalent > 0 ? rentEquivalent : undefined,
     createdAt: raw?.createdAt || nowIso(),
     note: raw?.note?.trim() || undefined,
+    archivedAt: raw?.archivedAt && Number.isFinite(Date.parse(raw.archivedAt)) ? raw.archivedAt : undefined,
   }
 }
 
 /**
  * Um bem com as dívidas que apontam para ele. A ligação mora na dívida
- * (`linkedAssetId`), então um bem apagado não deixa dívida órfã: ela apenas
- * volta a ser dívida sem contrapartida.
+ * (`linkedAssetId`), então o bem continua identificável quando arquivado.
  */
 export function summarizeAsset(asset: Asset, debts: DebtSummary[] = []): AssetSummary {
   const linked = debts.filter((debt) => debt.linkedAssetId === asset.id && !debt.isSettled)

@@ -38,6 +38,8 @@ export function normalizeDebt(raw: Partial<Debt> | undefined): Debt {
     transactions: normalizeLedger(raw?.transactions),
     createdAt: raw?.createdAt || nowIso(),
     settledAt: raw?.settledAt || undefined,
+    archivedAt: raw?.archivedAt && Number.isFinite(Date.parse(raw.archivedAt))
+      ? raw.archivedAt : undefined,
   }
 }
 

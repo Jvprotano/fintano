@@ -35,6 +35,7 @@ export interface FinancialGoal {
   completedAt?: string
   kind?: GoalKind
   includes?: GoalInclusion[]
+  archivedAt?: string
 }
 
 export interface GoalHoldingAllocationSummary {
@@ -74,6 +75,7 @@ export interface InvestmentHolding {
   institution?: string
   marketValue: number
   transactions: LedgerEntry[]
+  archivedAt?: string
 }
 
 export interface HoldingSummary extends InvestmentHolding {

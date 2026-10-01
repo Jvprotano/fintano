@@ -235,6 +235,7 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
   const { forecast } = useFinancasStore()
   const [editing, setEditing] = useState(false)
   const [showDates, setShowDates] = useState(false)
+  const [removeError, setRemoveError] = useState('')
   const next = occurrencesInRange([event], currentMonth, 120)[0]
   const monthsAway = next ? monthsBetween(currentMonth, next.month) : null
   const isIncome = event.kind === 'income'
@@ -275,13 +276,18 @@ function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth:
         className="shrink-0 rounded-md p-1.5 text-dark-text-muted hover:bg-white/[0.06] hover:text-dark-text"><Pencil size={14} /></button>
       <button
         type="button"
-        onClick={() => forecast.removeEvent(event.id)}
+        onClick={() => {
+          if (!forecast.removeEvent(event.id)) {
+            setRemoveError('Este evento já tem efetivações vinculadas. Preserve a origem; ajuste as próximas ocorrências no detalhe.')
+          } else setRemoveError('')
+        }}
         className="shrink-0 rounded-md p-1.5 text-dark-text-muted opacity-100 transition-all hover:bg-rose-500/10 hover:text-rose-400 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
         aria-label={`Remover ${event.name}`}
       >
         <Trash2 size={14} />
       </button>
       </div>
+      {removeError && <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">{removeError}</p>}
       <button type="button" onClick={() => setShowDates((value) => !value)}
         className="mt-1 text-xs text-dark-text-muted hover:text-dark-text">
         {showDates ? 'Ocultar datas' : 'Ver datas e registrar efetivação'}

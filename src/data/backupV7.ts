@@ -461,6 +461,7 @@ export function repositoryToBackupV7(
             cost.sharedAmount === undefined ? undefined : toCents(cost.sharedAmount),
           sharedWith: cost.sharedWith,
           paidWith: cost.paidWith === 'card' ? 'card' : 'account',
+          archivedAt: cost.archivedAt,
         })),
         wants: scenario.wants.map((want) => ({
           id: want.id,
@@ -468,6 +469,7 @@ export function repositoryToBackupV7(
           plannedAmountCents: toCents(want.plannedAmount),
           paidWith: want.paidWith === 'account' ? 'account' : 'card',
           includedInCardPlan: want.includedInCardPlan,
+          archivedAt: want.archivedAt,
         })),
         payrollDeductions: scenario.deductions.map((deduction) => ({
           id: deduction.id,
@@ -607,6 +609,7 @@ export function repositoryToBackupV7(
         purpose: holdingPurpose(holding),
         benchmark: holding.benchmark,
         liquidity: holding.liquidity,
+        archivedAt: holding.archivedAt,
       })),
       valuations: holdings.map((holding) => ({
         id: `valuation-${holding.id}-${exportedAt}`,
@@ -628,6 +631,7 @@ export function repositoryToBackupV7(
           asset.rentEquivalent === undefined ? undefined : toCents(asset.rentEquivalent),
         createdAt: normalizePersistedInstant(asset.createdAt),
         note: asset.note,
+        archivedAt: asset.archivedAt,
       })),
       debts: debts.map((debt) => ({
         id: debt.id,
@@ -641,6 +645,7 @@ export function repositoryToBackupV7(
         linkedAssetId: debt.linkedAssetId,
         createdAt: normalizePersistedInstant(debt.createdAt),
         settledAt: debt.settledAt ? normalizePersistedInstant(debt.settledAt) : undefined,
+        archivedAt: debt.archivedAt,
       })),
     },
     goals: goals.map((goal) => ({
@@ -651,6 +656,7 @@ export function repositoryToBackupV7(
       color: goal.color,
       createdAt: normalizePersistedInstant(goal.createdAt),
       completedAt: goal.completedAt ? normalizePersistedInstant(goal.completedAt) : undefined,
+      archivedAt: goal.archivedAt,
       kind: goal.kind === 'tracking' ? 'tracking' : 'funding',
       includes: (goal.includes ?? []).map((item) => ({
         type: item.type,
@@ -737,6 +743,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
           cost.sharedAmountCents === undefined ? undefined : fromCents(cost.sharedAmountCents),
         sharedWith: cost.sharedWith,
         paidWith: cost.paidWith,
+        archivedAt: cost.archivedAt,
       })),
       wants: template.wants.map((want) => ({
         id: want.id,
@@ -744,6 +751,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         plannedAmount: fromCents(want.plannedAmountCents),
         paidWith: want.paidWith,
         includedInCardPlan: want.includedInCardPlan,
+        archivedAt: want.archivedAt,
       })),
       deductions: template.payrollDeductions.map((deduction) => ({
         id: deduction.id,
@@ -808,6 +816,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     purpose: holding.purpose,
     benchmark: holding.benchmark,
     liquidity: holding.liquidity,
+    archivedAt: holding.archivedAt,
   }))
   const goals: FinancialGoal[] = backup.goals.map((goal) => ({
     id: goal.id,
@@ -818,6 +827,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     transactions: ledgerFromV7(backup.investments.ledgerEntries, 'goal', goal.id),
     createdAt: goal.createdAt,
     completedAt: goal.completedAt,
+    archivedAt: goal.archivedAt,
     kind: goal.kind,
     includes: goal.includes.map((item) => ({
       type: item.type,
@@ -835,6 +845,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     remainingInstallments: debt.remainingInstallments,
     linkedCostId: debt.linkedPlanCostId,
     linkedAssetId: debt.linkedAssetId,
+    archivedAt: debt.archivedAt,
     transactions: ledgerFromV7(backup.investments.ledgerEntries, 'debt', debt.id),
     createdAt: debt.createdAt,
     settledAt: debt.settledAt,
@@ -891,6 +902,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
             : fromCents(asset.rentEquivalentCents),
         createdAt: asset.createdAt,
         note: asset.note,
+        archivedAt: asset.archivedAt,
       })),
       debts,
       cardAccounts: accounts,
@@ -1081,8 +1093,66 @@ function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null):
   const templateIds = ids(backup.planning.templates, 'Planejamento')
   const accountIds = ids(backup.cards.accounts, 'Cartão')
   const holdingIds = ids(backup.investments.holdings, 'Posição')
+  const classIds = ids(backup.investments.classes, 'Classe de ativo')
+  const assetIds = ids(backup.balanceSheet.assets, 'Bem')
+  const costIds = new Set(backup.planning.templates.flatMap((template) => template.costs.map((cost) => cost.id)))
   ids(backup.investments.valuations, 'Avaliação de posição')
   const goalIds = ids(backup.goals, 'Meta')
+  for (const goal of backup.goals) {
+    for (const inclusion of goal.includes ?? []) {
+      if (inclusion.type === 'holding' && inclusion.id && !holdingIds.has(inclusion.id)) {
+        add('warning', 'goal_holding_missing', 'Meta aponta para posição inexistente.', goal.id)
+      }
+      if (inclusion.type === 'class' && inclusion.id && !classIds.has(inclusion.id)) {
+        add('warning', 'goal_class_missing', 'Meta aponta para classe inexistente.', goal.id)
+      }
+    }
+  }
+  for (const debt of backup.balanceSheet.debts) {
+    if (debt.linkedPlanCostId && !costIds.has(debt.linkedPlanCostId)) {
+      add('warning', 'debt_cost_missing', 'Dívida aponta para custo inexistente.', debt.id)
+    }
+    if (debt.linkedAssetId && !assetIds.has(debt.linkedAssetId)) {
+      add('warning', 'debt_asset_missing', 'Dívida aponta para bem inexistente.', debt.id)
+    }
+  }
+  for (const asset of backup.balanceSheet.assets) {
+    if (asset.archivedAt && !Number.isFinite(Date.parse(asset.archivedAt))) {
+      add('error', 'asset_archive_invalid', 'Bem tem data de arquivamento inválida.', asset.id)
+    }
+  }
+  for (const event of backup.forecast.events) {
+    if (event.goalId && !goalIds.has(event.goalId)) {
+      add('warning', 'forecast_goal_missing', 'Evento aponta para meta inexistente.', event.id)
+    }
+  }
+  for (const holding of backup.investments.holdings) {
+    if (holding.archivedAt && !Number.isFinite(Date.parse(holding.archivedAt))) {
+      add('error', 'holding_archive_invalid', 'Posição tem data de arquivamento inválida.', holding.id)
+    }
+  }
+  for (const goal of backup.goals) {
+    if (goal.archivedAt && !Number.isFinite(Date.parse(goal.archivedAt))) {
+      add('error', 'goal_archive_invalid', 'Meta tem data de arquivamento inválida.', goal.id)
+    }
+  }
+  for (const debt of backup.balanceSheet.debts) {
+    if (debt.archivedAt && !Number.isFinite(Date.parse(debt.archivedAt))) {
+      add('error', 'debt_archive_invalid', 'Dívida tem data de arquivamento inválida.', debt.id)
+    }
+  }
+  for (const template of backup.planning.templates) {
+    for (const cost of template.costs) {
+      if (cost.archivedAt && !Number.isFinite(Date.parse(cost.archivedAt))) {
+        add('error', 'cost_archive_invalid', 'Custo tem data de arquivamento inválida.', cost.id)
+      }
+    }
+    for (const want of template.wants) {
+      if (want.archivedAt && !Number.isFinite(Date.parse(want.archivedAt))) {
+        add('error', 'want_archive_invalid', 'Desejo tem data de arquivamento inválida.', want.id)
+      }
+    }
+  }
   const fundIds = ids(backup.forecast.funds, 'Grupo de compromisso')
   ids(backup.forecast.events, 'Evento esperado')
   const debtIds = ids(backup.balanceSheet.debts, 'Dívida')
