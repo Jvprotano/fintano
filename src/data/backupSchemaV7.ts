@@ -124,6 +124,7 @@ export interface CyclePlanV7 {
 
 export interface CycleActualsV7 {
   month: MonthKey
+  paycheck?: { amountCents: MoneyCents; payrollInvestmentCents: MoneyCents; employerInvestmentCents: MoneyCents }
   costPayments: { planItemId: string; amountCents: MoneyCents }[]
   wantPayments: { planItemId: string; amountCents: MoneyCents }[]
   cashMovements: {

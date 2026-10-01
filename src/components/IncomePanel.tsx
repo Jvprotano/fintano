@@ -67,7 +67,7 @@ export function IncomePanel() {
             htmlFor="salary"
             className="mb-1.5 block text-sm font-medium text-dark-text-secondary"
           >
-            Salário mensal
+            Salário mensal planejado
           </label>
           <CurrencyInput id="salary" value={salaryNet} onChange={setSalaryNet} />
           <SegmentedControl

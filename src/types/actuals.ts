@@ -14,6 +14,8 @@ export type ExtraExpenseEntry = ExtraIncomeEntry
 
 export interface MonthlyActuals {
   month: string
+  /** Folha efetivamente recebida; ausente significa que ainda não foi confirmada. */
+  paycheck?: { amount: number; payrollInvestment: number; employerInvestment: number }
   costs: Record<string, number>
   /** Valor efetivamente destinado a cada item de Desejos neste ciclo. */
   wants: Record<string, number>
@@ -23,11 +25,14 @@ export interface MonthlyActuals {
 
 export interface ActualsSummary {
   month: string
+  paycheck: MonthlyActuals['paycheck'] | null
   extraIncome: ExtraIncomeEntry[]
   extraIncomeTotal: number
   extraExpenses: ExtraExpenseEntry[]
   extraExpenseTotal: number
   effectiveCosts: number
+  confirmedCosts: number
+  pendingCosts: number
   plannedCosts: number
   variance: number
   informedCount: number
@@ -40,6 +45,8 @@ export interface ActualsSummary {
     variance: number
   }[]
   effectiveWants: number
+  confirmedWants: number
+  pendingWants: number
   plannedWants: number
   wantsVariance: number
   informedWantsCount: number

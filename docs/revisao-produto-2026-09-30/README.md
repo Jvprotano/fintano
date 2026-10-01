@@ -27,7 +27,7 @@ As etapas são incrementais. FT-04 e FT-06 definem o contrato de dados usado nas
 - [x] Análise das seis abas, subáreas patrimoniais, persistência, backup e exportação para IA.
 - [x] Leitura das telas no navegador e confronto com componentes, hooks e cálculos.
 - [x] Diagnóstico, direção de produto, plano e tarefas registrados.
-- [ ] Implementação das tarefas abaixo — FT-01 a FT-06 concluídas; FT-07 a FT-26 pendentes. Evidências e limites estão em `tasks.md`.
+- [ ] Implementação das tarefas abaixo — FT-01 a FT-09 concluídas; FT-10 a FT-26 pendentes. Evidências e limites estão em `tasks.md`.
 
 Base: commit `7d6f998`, incluindo as alterações locais já existentes em `ForecastView`, `ForecastCommitments`, `useForecast`, no teste de compromissos e em `docs/futuro-eventos-plano.md`. Essas alterações retiram grupos de Futuro; a proposta respeita essa direção. Não foram modificadas nesta revisão.
 

@@ -6,9 +6,15 @@ export interface FinancialCycleInput {
   income: number
   invoiceToPay: number
   costsOnAccount: number
+  /** Contas confirmadas ou ainda reservadas pelo plano. */
+  costsCommitted?: number
   wantsOnAccount: number
   directInvestment: number
+  /** Maior entre aporte programado e aporte já executado. */
+  directInvestmentCommitted?: number
   extraExpense: number
+  /** Extras pagos somados às ocorrências ainda pendentes neste ciclo. */
+  extraExpenseCommitted?: number
   /** Compras já feitas no cartão — viram a fatura do *próximo* ciclo. */
   nextInvoicePersonal: number
   /** Plano do cartão para o mês em formação (também do próximo ciclo). */
@@ -24,7 +30,10 @@ export interface FinancialCycleSummary {
   costsOnAccount: number
   wantsOnAccount: number
   directInvestment: number
+  costsCommitted: number
+  directInvestmentCommitted: number
   extraExpense: number
+  extraExpenseCommitted: number
   nextInvoicePersonal: number
   plannedNextInvoice: number
   /** Obrigações que vencem agora, já incluindo desejos em conta. */
@@ -56,6 +65,8 @@ export interface FinancialCycleSummary {
   discretionaryPool: number
   /** Quanto falta para cobrir obrigações deste ciclo, sem contar desejos em conta. */
   discretionaryShortfall: number
+  /** Verba restante depois dos Desejos efetivamente destinados. */
+  remainingAfterWants: number
 }
 
 export function calculateFinancialCycle(input: FinancialCycleInput): FinancialCycleSummary {
@@ -70,8 +81,11 @@ export function calculateFinancialCycle(input: FinancialCycleInput): FinancialCy
   const reservedForNextInvoice = Math.max(input.nextInvoicePersonal, input.plannedNextInvoice)
 
   // Pool discricionário: só o que este salário precisa cobrir agora.
+  const costsCommitted = Math.max(input.costsOnAccount, input.costsCommitted ?? input.costsOnAccount)
+  const directInvestmentCommitted = Math.max(input.directInvestment, input.directInvestmentCommitted ?? input.directInvestment)
+  const extraExpenseCommitted = Math.max(input.extraExpense, input.extraExpenseCommitted ?? input.extraExpense)
   const commitmentsBeforeWants =
-    input.invoiceToPay + input.costsOnAccount + input.directInvestment + input.extraExpense
+    input.invoiceToPay + costsCommitted + directInvestmentCommitted + extraExpenseCommitted
   const discretionaryAvailable = input.income - commitmentsBeforeWants
 
   return {
@@ -83,6 +97,9 @@ export function calculateFinancialCycle(input: FinancialCycleInput): FinancialCy
     costsOnAccount: input.costsOnAccount,
     wantsOnAccount: input.wantsOnAccount,
     directInvestment: input.directInvestment,
+    costsCommitted,
+    directInvestmentCommitted,
+    extraExpenseCommitted,
     extraExpense: input.extraExpense,
     nextInvoicePersonal: input.nextInvoicePersonal,
     plannedNextInvoice: input.plannedNextInvoice,
@@ -96,6 +113,7 @@ export function calculateFinancialCycle(input: FinancialCycleInput): FinancialCy
     discretionaryAvailable,
     discretionaryPool: Math.max(0, discretionaryAvailable),
     discretionaryShortfall: Math.max(0, -discretionaryAvailable),
+    remainingAfterWants: discretionaryAvailable - input.wantsOnAccount,
   }
 }
 

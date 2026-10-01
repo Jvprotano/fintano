@@ -19,6 +19,7 @@ const emptyMonth = (month: string): MonthlyActuals => ({
 
 const hasFacts = (actuals: MonthlyActuals) =>
   Object.keys(actuals.costs).length > 0 ||
+  actuals.paycheck !== undefined ||
   Object.keys(actuals.wants).length > 0 ||
   actuals.extraIncome.length > 0 ||
   actuals.extraExpenses.length > 0
@@ -62,7 +63,16 @@ export function useActuals(
     [setStored],
   )
 
-  /** Informa o valor pago de um custo. `null` volta a usar o planejado. */
+  const setPaycheck = useCallback((value: MonthlyActuals['paycheck'] | null, targetMonth = month) =>
+    updateMonth(targetMonth, (current) => {
+      const next = { ...current }
+      if (value) next.paycheck = value
+      else delete next.paycheck
+      return next
+    }),
+  [month, updateMonth])
+
+  /** Informa o valor pago de um custo. `null` volta ao estado pendente. */
   const setActual = useCallback(
     (costId: string, amount: number | null, targetMonth = month) => {
       return updateMonth(targetMonth, (current) => {
@@ -94,7 +104,7 @@ export function useActuals(
       return updateMonth(targetMonth, (current) => {
         const filled = { ...current.costs }
         for (const row of summary.rows) {
-          if (costs.some((cost) => cost.id === row.cost.id) && !Object.hasOwn(filled, row.cost.id)) {
+          if (costs.some((cost) => cost.id === row.cost.id && cost.paidWith !== 'card') && !Object.hasOwn(filled, row.cost.id)) {
             filled[row.cost.id] = row.planned
           }
         }
@@ -215,6 +225,7 @@ export function useActuals(
     months,
     month,
     summary,
+    setPaycheck,
     setActual,
     setWantActual,
     fillFromPlan,

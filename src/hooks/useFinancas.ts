@@ -9,6 +9,7 @@ import { useHistory } from './useHistory'
 import { useForecast } from './useForecast'
 import { useActuals } from './useActuals'
 import { calculateScenario } from '../lib/scenario'
+import { planAsScenario, planFromTemplate } from '../lib/monthlyPlans'
 import { buildCurrentCycleFacts } from '../lib/currentCycleFacts'
 import { calculateAllocationPreview, calculateFinancialCycle } from '../lib/financialCycle'
 import { calculateCardCycleAccounting, cardAdvancePaymentsForMonth } from '../lib/cardCycleAccounting'
@@ -62,13 +63,15 @@ export function useFinancas() {
   const history = useHistory(activeCycle.month, historyInvestmentSource)
   const forecast = useForecast(activeCycle.month)
   const knownCosts = useMemo(() => [
-    ...scenarios.scenarios.filter((scenario) => scenario.id !== scenarios.activeScenarioId).flatMap((scenario) => scenario.costs),
+    ...scenarios.scenarios.flatMap((scenario) => scenario.costs),
+    ...scenarios.monthlyPlans.flatMap((plan) => plan.costs),
     ...scenarios.activeScenarioAll.costs,
-  ], [scenarios.scenarios, scenarios.activeScenarioAll.costs, scenarios.activeScenarioId])
+  ], [scenarios.scenarios, scenarios.monthlyPlans, scenarios.activeScenarioAll.costs])
   const knownWants = useMemo(() => [
-    ...scenarios.scenarios.filter((scenario) => scenario.id !== scenarios.activeScenarioId).flatMap((scenario) => scenario.wants),
+    ...scenarios.scenarios.flatMap((scenario) => scenario.wants),
+    ...scenarios.monthlyPlans.flatMap((plan) => plan.wants),
     ...scenarios.activeScenarioAll.wants,
-  ], [scenarios.scenarios, scenarios.activeScenarioAll.wants, scenarios.activeScenarioId])
+  ], [scenarios.scenarios, scenarios.monthlyPlans, scenarios.activeScenarioAll.wants])
   const actuals = useActuals(
     scenarios.activeScenario.costs,
     scenarios.activeScenario.wants,
@@ -134,11 +137,11 @@ export function useFinancas() {
       holdings: investments.holdings,
       goals: investments.goals,
     })
-    const payroll = metrics.investmentDeductions
-    const employer = metrics.employerInvestmentContributions
+    const payroll = actuals.summary.paycheck?.payrollInvestment ?? 0
+    const employer = actuals.summary.paycheck?.employerInvestment ?? 0
     const personalTotal = payroll + ledger.directNet
     const creditedTotal = personalTotal + employer
-    const realizedIncomeBase = metrics.availableForBudget + actuals.summary.extraIncomeTotal
+    const realizedIncomeBase = (actuals.summary.paycheck?.amount ?? 0) + payroll + actuals.summary.extraIncomeTotal
     const savingsRate = realizedIncomeBase > 0 ? (personalTotal / realizedIncomeBase) * 100 : 0
 
     return {
@@ -156,9 +159,7 @@ export function useFinancas() {
     emergencyFund,
     investments.goals,
     investments.holdings,
-    metrics.availableForBudget,
-    metrics.employerInvestmentContributions,
-    metrics.investmentDeductions,
+    actuals.summary.paycheck,
     actuals.summary.extraIncomeTotal,
   ])
 
@@ -190,20 +191,20 @@ export function useFinancas() {
     const cardAdvancePaid = cardAdvancePaymentsForMonth(cards.entries, cards.paidInvoices, activeCycle.month)
     const costsOnAccount = actuals.summary.rows
       .filter((row) => row.cost.paidWith !== 'card')
-      .reduce((sum, row) => sum + row.effective, 0)
+      .reduce((sum, row) => sum + (row.actual ?? 0), 0)
     const costsOnAccountPlanned = actuals.summary.rows
       .filter((row) => row.cost.paidWith !== 'card')
       .reduce((sum, row) => sum + row.planned, 0)
 
     return buildCurrentCycleFacts({
       month: activeCycle.month,
-      paycheck: metrics.paycheckInAccount,
+      paycheck: actuals.summary.paycheck?.amount ?? 0,
       extraIncome: actuals.summary.extraIncomeTotal,
       extraExpense: actuals.summary.extraExpenseTotal,
       cardAdvancePaid,
       costsOnAccountActual: costsOnAccount,
       costsPlanned: costsOnAccountPlanned,
-      wantsOnAccountActual: actuals.summary.effectiveWants,
+      wantsOnAccountActual: actuals.summary.confirmedWants,
       wantsPlanned: actuals.summary.plannedWants,
       costsOnCardPlanned: metrics.costsOnCard,
       wantsOnCardPlanned: metrics.wantsOnCard,
@@ -226,21 +227,32 @@ export function useFinancas() {
   const cashFlow = currentCycleFacts.cash
 
   const financialCycle = useMemo(
-    () =>
-      calculateFinancialCycle({
+    () => {
+      const pendingExtraExpense = forecast.monthOccurrences
+        .filter((item) => item.event.kind === 'expense' && item.event.cashTreatment !== 'planned' &&
+          item.event.cashTreatment !== 'card')
+        .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months,
+          new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
+      return calculateFinancialCycle({
         cashMonth: activeCycle.month,
         income: cashFlow.totalIn,
         invoiceToPay: cashFlow.invoiceToPay,
         costsOnAccount: cashFlow.costsOnAccount,
+        costsCommitted: actuals.summary.confirmedCosts + actuals.summary.pendingCosts,
         wantsOnAccount: cashFlow.wantsOnAccount,
         directInvestment: cashFlow.directInvestment,
+        directInvestmentCommitted: Math.max(metrics.directInvestmentTarget, cashFlow.directInvestment),
         extraExpense: cashFlow.extraExpense + cashFlow.cardAdvancePaid,
+        extraExpenseCommitted: cashFlow.extraExpense + cashFlow.cardAdvancePaid + pendingExtraExpense,
         // A reserva do próximo caixa usa a parte pessoal da fatura que encerra
         // o ciclo ativo.
         nextInvoicePersonal: cardCycleAccounting.invoiceFormedByCycle.personalTotal,
         plannedNextInvoice: cashFlow.plannedOnCard,
-      }),
-    [activeCycle.month, cardCycleAccounting.invoiceFormedByCycle.personalTotal, cashFlow],
+      })
+    },
+    [activeCycle.month, cardCycleAccounting.invoiceFormedByCycle.personalTotal, cashFlow,
+      actuals.summary.confirmedCosts, actuals.summary.pendingCosts, metrics.directInvestmentTarget,
+      forecast.monthOccurrences, actuals.months, cards.entries, cards.paidInvoices],
   )
 
   /**
@@ -251,9 +263,13 @@ export function useFinancas() {
    */
   const nextCycleAllocation = useMemo(() => {
     const month = addMonths(activeCycle.month, 1)
+    const nextPlan = scenarios.monthlyPlans.find((plan) => plan.month === month) ??
+      planFromTemplate(month, scenarios.scenarios.find((item) => item.id === scenarios.recurringTemplateId) ??
+        scenarios.scenarios[0] ?? scenarios.activeScenarioAll)
+    const nextMetrics = calculateScenario(planAsScenario(nextPlan), emergencyFund)
     const occurrences = occurrencesInMonth(forecast.events, month)
     const extraIncome = occurrences
-      .filter((item) => item.event.kind === 'income')
+      .filter((item) => item.event.kind === 'income' && item.event.confirmed)
       .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months, new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
     const extraExpense = occurrences
       .filter((item) => item.event.kind === 'expense' && item.event.cashTreatment !== 'planned' && item.event.cashTreatment !== 'card')
@@ -261,32 +277,29 @@ export function useFinancas() {
 
     return calculateAllocationPreview({
       month,
-      paycheck: metrics.paycheckInAccount,
+      paycheck: nextMetrics.paycheckInAccount,
       invoice: cardCycleAccounting.invoiceFormedByCycle.personalTotal,
-      // O Liberado carrega o resultado real do ciclo encerrado para o próximo:
-      // economia em custos aumenta a folga; estouro reduz o que resta para alocar.
-      // `cashFlow.costsOnAccount` usa realizado e cai no plano apenas onde ainda
-      // não há valor efetivo informado.
-      costsOnAccount: cashFlow.costsOnAccount,
-      baseInvestment: metrics.directInvestmentTarget,
+      costsOnAccount: nextMetrics.costsOnAccount,
+      baseInvestment: nextMetrics.directInvestmentTarget,
       // Neste contexto, Desejos fora do cartão são os envelopes que sairão da
       // conta (Viagens, Qualidade de vida etc.). O cartão já foi abatido inteiro
       // pela fatura acima.
-      plannedWants: metrics.wantsOnAccount,
+      plannedWants: nextMetrics.wantsOnAccount,
       extraIncome,
       extraExpense,
     })
   }, [
     activeCycle.month,
+    scenarios.monthlyPlans,
+    scenarios.scenarios,
+    scenarios.recurringTemplateId,
+    scenarios.activeScenarioAll,
+    emergencyFund,
     cardCycleAccounting.invoiceFormedByCycle.personalTotal,
     forecast.events,
     actuals.months,
     cards.entries,
     cards.paidInvoices,
-    cashFlow.costsOnAccount,
-    metrics.directInvestmentTarget,
-    metrics.paycheckInAccount,
-    metrics.wantsOnAccount,
   ])
 
   const monthlyContribution = useMemo(() => {
@@ -383,7 +396,7 @@ export function useFinancas() {
 
       const costs = actuals.summary.effectiveCosts
       const balance =
-        metrics.paycheckInAccount +
+        (actuals.summary.paycheck?.amount ?? 0) +
         actuals.summary.extraIncomeTotal -
         actuals.summary.extraExpenseTotal -
         costs -
@@ -394,8 +407,8 @@ export function useFinancas() {
         month,
         scenarioId: activeScenario.id,
         scenarioName: activeScenario.name,
-        availableForBudget: metrics.availableForBudget,
-        paycheckInAccount: metrics.paycheckInAccount,
+        availableForBudget: (actuals.summary.paycheck?.amount ?? 0) + investmentActuals.payroll,
+        paycheckInAccount: actuals.summary.paycheck?.amount ?? 0,
         extraIncome: actuals.summary.extraIncomeTotal,
         extraIncomeEntries: actuals.summary.extraIncome,
         extraExpense: actuals.summary.extraExpenseTotal,
@@ -446,6 +459,8 @@ export function useFinancas() {
           snapshot,
           costRows: actuals.summary.rows.map((row) => ({ id: row.cost.id, planned: row.planned })),
           wantRows: actuals.summary.wantRows.map((row) => ({ id: row.want.id, planned: row.planned })),
+          invoiceKnown: cardCycleAccounting.invoiceThisCycle.amountKnown &&
+            cardCycleAccounting.invoiceFormedByCycle.amountKnown,
           payInvoiceDueMonth: options?.payInvoice
             ? cardCycleAccounting.invoiceFormedByCycle.dueMonth : undefined,
         }),
@@ -457,6 +472,8 @@ export function useFinancas() {
       activeScenario.name,
       actuals.summary,
       cardCycleAccounting.invoiceFormedByCycle.dueMonth,
+      cardCycleAccounting.invoiceFormedByCycle.amountKnown,
+      cardCycleAccounting.invoiceThisCycle.amountKnown,
       cardCycleAccounting.invoiceFormedByCycle.personalTotal,
       cardCycleAccounting.spendingThisCycle.personalByArea,
       currentCycleFacts.cash.leftover,

@@ -11,6 +11,7 @@ export interface CloseCycleInput {
   snapshot: Omit<MonthlySnapshot, 'id' | 'closedAt'>
   costRows: { id: string; planned: number }[]
   wantRows: { id: string; planned: number }[]
+  invoiceKnown?: boolean
   payInvoiceDueMonth?: string
 }
 
@@ -22,6 +23,7 @@ export function closeCycleInDocument(
     document.collections.activeCycle as Parameters<typeof normalizeActiveCycle>[0],
   )
   if (cycle.month !== input.month || input.snapshot.month !== input.month) return null
+  if (input.invoiceKnown !== true) return null
   const plan = Array.isArray(document.collections.monthlyPlans)
     ? (document.collections.monthlyPlans as MonthlyPlan[]).find((item) => item.month === input.month)
     : undefined
@@ -34,30 +36,19 @@ export function closeCycleInDocument(
   const storedActuals = Array.isArray(document.collections.actuals)
     ? document.collections.actuals as MonthlyActuals[] : []
   const current = normalizeActuals(storedActuals.find((item) => item.month === input.month) ?? { month: input.month })
-  const filledCosts = { ...current.costs }
-  for (const row of input.costRows) {
-    if (!Object.hasOwn(filledCosts, row.id)) filledCosts[row.id] = row.planned
-  }
-  const filledWants = { ...current.wants }
-  for (const row of input.wantRows) {
-    if (!Object.hasOwn(filledWants, row.id)) filledWants[row.id] = row.planned
-  }
+  if (!current.paycheck || input.costRows.some((row) => !Object.hasOwn(current.costs, row.id)) ||
+    input.wantRows.some((row) => !Object.hasOwn(current.wants, row.id))) return null
   const closed: MonthlySnapshot = {
     ...input.snapshot,
     id: previous?.id ?? uid(),
     closedAt: nowIso(),
   }
-  const filledMonth: MonthlyActuals = { ...current, costs: filledCosts, wants: filledWants }
-  const hasFacts = Object.keys(filledCosts).length > 0 || Object.keys(filledWants).length > 0 ||
-    current.extraIncome.length > 0 || current.extraExpenses.length > 0
   let next: RepositoryDocument = {
     ...document,
     collections: {
       ...document.collections,
-      actuals: [
-        ...storedActuals.filter((item) => item.month !== input.month),
-        ...(hasFacts ? [filledMonth] : []),
-      ].sort((a, b) => a.month.localeCompare(b.month)),
+      actuals: [...storedActuals.filter((item) => item.month !== input.month), current]
+        .sort((a, b) => a.month.localeCompare(b.month)),
       history: [...storedHistory.filter((item) => item.month !== input.month), closed]
         .sort((a, b) => a.month.localeCompare(b.month)),
       activeCycle: previous ? cycle : { ...cycle, month: advanceCycleMonth(input.month) },

@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { ActualsPanel } from './ActualsPanel'
 import {
-  ConfirmButton,
   Panel,
   PanelHeader,
   PrimaryButton,
@@ -102,6 +101,9 @@ export function ClosingView({
   const invoiceKnown = cardCycleAccounting.invoiceFormedByCycle.amountKnown
   const closingInvoiceAlreadyPaid = cardCycleAccounting.invoiceFormedByCycle.paid
   const currentInvoiceKnown = cardCycleAccounting.invoiceThisCycle.amountKnown
+  const incomeKnown = actuals.summary.paycheck !== null
+  const closingReady = actuals.summary.paycheck !== null && missingActualRows.length === 0 &&
+    missingWantActualRows.length === 0 && invoiceKnown && currentInvoiceKnown
   const currentDueMonth = cards.settings.currentDueMonth ?? activeCycle.month
   const canPayClosingInvoiceTogether =
     invoiceKnown &&
@@ -125,38 +127,18 @@ export function ClosingView({
     setShowCloseReview(false)
   }
 
-  const handleReclose = () => {
-    if (persistence.hasError) return
-    const result = closeCurrentMonth(currentMonth, note, {
-      expectedRevision: repositoryRevision(), operationId: uid(),
-    })
-    if (!result.ok) { setCloseError(result.message); return }
-    setNote('')
-    setCloseError('')
-  }
-
-  if (metrics.availableForBudget <= 0) {
-    return (
-      <div className="app-panel-shadow flex flex-col items-center rounded-2xl border border-dark-border bg-dark-card/95 px-6 py-16 text-center">
-        <h2 className="text-xl font-semibold tracking-tight text-dark-text">Comece pelo salário</h2>
-        <p className="mt-2 max-w-md text-sm leading-relaxed text-dark-text-muted">
-          Informe sua renda e seus custos em Planejar para montar o ciclo.
-        </p>
-        <PrimaryButton className="mt-6" onClick={onGoToPlanning}>
-          Ir para Planejar
-        </PrimaryButton>
-      </div>
-    )
-  }
-
   const allocationReliable = invoiceKnown
   const nextExpectedIncome = occurrencesInMonth(forecast.events, nextCycleAllocation.month)
     .filter((item) => item.event.kind === 'income' && !item.event.confirmed)
     .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months,
       new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
-  const allocationWithoutUncertainIncome = nextCycleAllocation.availableToAllocate - nextExpectedIncome
-  const allocationTone = nextCycleAllocation.shortfall > 0.005 ? 'negative' :
-    nextExpectedIncome > 0.005 ? 'neutral' : 'accent'
+  const allocationWithUncertainIncome = nextCycleAllocation.availableToAllocate + nextExpectedIncome
+  const laterThanInvoice = occurrencesInMonth(forecast.events, nextCycleAllocation.month)
+    .filter((item) => item.event.kind === 'income' && item.date &&
+      Number(item.date.slice(8, 10)) > activeCycle.cycle.cardDueHintDay)
+    .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months,
+      new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
+  const allocationTone = nextCycleAllocation.shortfall > 0.005 ? 'negative' : 'accent'
   const allocationPlanDelta = nextCycleAllocation.afterPlannedWants
   const costsStatus = evaluateBudgetCeiling(
     actuals.summary.plannedCosts,
@@ -184,12 +166,12 @@ export function ClosingView({
           <StatTile
             label="Disponível para Desejos"
             value={
-              currentInvoiceKnown
+              currentInvoiceKnown && incomeKnown
                 ? formatCurrency(financialCycle.discretionaryAvailable)
                 : '—'
             }
-            detail="após fatura anterior, contas, aporte e extraordinários"
-            tone={!currentInvoiceKnown ? 'neutral' : financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
+            detail="após fatura, contas e aporte incluindo pendências do plano"
+            tone={!currentInvoiceKnown || !incomeKnown ? 'neutral' : financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
           />
           <StatTile
             label="Entrou no ciclo"
@@ -197,20 +179,20 @@ export function ClosingView({
             detail={
               cashFlow.extraIncome > 0.005
                 ? `${formatCurrency(cashFlow.paycheck)} de salário + ${formatCurrency(cashFlow.extraIncome)} extras`
-                : 'salário líquido na conta'
+                : actuals.summary.paycheck ? 'folha confirmada em conta' : 'folha ainda não confirmada'
             }
             tone={cashFlow.totalIn > 0 ? 'positive' : 'neutral'}
           />
           <StatTile
             label="Compromissos antes de Desejos"
             value={currentInvoiceKnown ? formatCurrency(financialCycle.commitmentsBeforeWants) : '—'}
-            detail="fatura anterior, contas atuais, aporte e extraordinários"
+            detail="inclui contas pendentes e aporte ainda não executado"
           />
           <StatTile
-            label="Depois dos Desejos realizados"
-            value={currentInvoiceKnown ? formatCurrency(financialCycle.cashAfterDue) : '—'}
+            label="Após Desejos destinados"
+            value={currentInvoiceKnown && incomeKnown ? formatCurrency(financialCycle.remainingAfterWants) : '—'}
             detail={`${formatCurrency(cashFlow.wantsOnAccount)} efetivamente destinados fora do cartão`}
-            tone={!currentInvoiceKnown ? 'neutral' : financialCycle.cashAfterDue < -0.005 ? 'negative' : financialCycle.cashAfterDue > 0.005 ? 'positive' : 'neutral'}
+            tone={!currentInvoiceKnown || !incomeKnown ? 'neutral' : financialCycle.remainingAfterWants < -0.005 ? 'negative' : financialCycle.remainingAfterWants > 0.005 ? 'positive' : 'neutral'}
           />
         </div>
 
@@ -221,16 +203,16 @@ export function ClosingView({
               <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.invoiceToPay)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <dt className="text-dark-text-muted">Contas atuais</dt>
-              <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.costsOnAccount)}</dd>
+              <dt className="text-dark-text-muted">Contas comprometidas</dt>
+              <dd className="tabular-nums text-dark-text">{formatCurrency(financialCycle.costsCommitted)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <dt className="text-dark-text-muted">Aporte realizado pela conta</dt>
-              <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.directInvestment)}</dd>
+              <dt className="text-dark-text-muted">Aporte reservado</dt>
+              <dd className="tabular-nums text-dark-text">{formatCurrency(financialCycle.directInvestmentCommitted)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <dt className="text-dark-text-muted">Extraordinários pagos</dt>
-              <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.extraExpense)}</dd>
+              <dt className="text-dark-text-muted">Extraordinários pagos/pendentes</dt>
+              <dd className="tabular-nums text-dark-text">{formatCurrency(financialCycle.extraExpenseCommitted)}</dd>
             </div>
             {cashFlow.cardAdvancePaid > 0 && (
               <div className="flex items-center justify-between gap-3">
@@ -263,7 +245,7 @@ export function ClosingView({
           />
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <StatTile
-              label="Disponível para alocar"
+              label="Base para alocar"
               value={formatCurrency(
                 nextCycleAllocation.shortfall > 0
                   ? -nextCycleAllocation.shortfall
@@ -283,8 +265,8 @@ export function ClosingView({
               value={formatCurrency(nextCycleAllocation.totalIncome)}
               detail={
                 nextCycleAllocation.extraIncome > 0.005
-                  ? `${formatCurrency(nextCycleAllocation.extraIncome)} em extras previstos`
-                  : 'somente salário recorrente'
+                  ? `${formatCurrency(nextCycleAllocation.extraIncome)} em entradas confirmadas`
+                  : 'somente salário do plano'
               }
             />
             <StatTile
@@ -310,9 +292,13 @@ export function ClosingView({
             </p>
           )}
           {nextExpectedIncome > 0.005 && <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-dark-text-secondary">
-            Esta prévia depende de {formatCurrency(nextExpectedIncome)} em entradas ainda não confirmadas.
-            Sem elas, o valor para alocar seria {formatCurrency(allocationWithoutUncertainIncome)}.
-            Confira as datas em Futuro antes de assumir que cobrem uma cobrança.
+            Há {formatCurrency(nextExpectedIncome)} em entradas ainda não confirmadas. Se ocorrerem,
+            a verba para alocar sobe para {formatCurrency(allocationWithUncertainIncome)}.
+            Confira as datas em Futuro: sem dia de recebimento e vencimento, esta prévia não assegura a cobertura de uma cobrança.
+          </p>}
+          {laterThanInvoice > 0.005 && <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-dark-text-secondary">
+            {formatCurrency(laterThanInvoice)} em entradas têm data posterior ao dia de vencimento indicado para o cartão.
+            Esse dinheiro não cobre a fatura na data; confira o calendário em Cartões e Futuro.
           </p>}
         </Panel>
       )}
@@ -326,9 +312,7 @@ export function ClosingView({
           description="Só o necessário para congelar o mês no Histórico."
           actions={
             isCurrentMonthClosed ? (
-              <ConfirmButton onConfirm={handleReclose} confirmLabel="Substituir" tone="primary">
-                Refechar
-              </ConfirmButton>
+              <span className="text-xs text-dark-text-muted">Fechado. Revise correções no Histórico.</span>
             ) : (
               <PrimaryButton
                 onClick={() => { setCloseReviewRevision(repositoryRevision()); setCloseOperationId(uid()); setCloseError(''); setShowCloseReview(true) }}
@@ -490,9 +474,13 @@ export function ClosingView({
               </div>
             )}
 
+            {actuals.summary.paycheck === null && <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2.5 text-xs text-amber-100/85">
+              Confirme a folha recebida em Realizado, inclusive se o valor foi zero.
+            </div>}
+
             {missingActualRows.length > 0 && (
               <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2.5 text-xs leading-relaxed text-amber-100/85">
-                <strong className="text-amber-200">Usando o planejamento em:</strong>{' '}
+                <strong className="text-amber-200">Confirme antes de fechar:</strong>{' '}
                 {missingActualRows.map((row) => row.cost.name).join(', ')}.
               </div>
             )}
@@ -500,15 +488,15 @@ export function ClosingView({
             {missingWantActualRows.length > 0 && (
               <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2.5 text-xs leading-relaxed text-amber-100/85">
                 <strong className="text-amber-200">
-                  Desejos fora do cartão usando o planejamento:
+                  Confirme Desejos fora do cartão antes de fechar:
                 </strong>{' '}
                 {missingWantActualRows.map((row) => row.want.name).join(', ')}.
               </div>
             )}
 
-            {!invoiceKnown && (
+            {(!invoiceKnown || !currentInvoiceKnown) && (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-500/20 bg-rose-500/[0.05] px-3 py-2.5 text-xs text-rose-100/90">
-                <span>Confira a fatura antes de fechar para não gravar um valor incompleto.</span>
+                <span>Confira as faturas do ciclo e do próximo vencimento antes de fechar; valor desconhecido não é zero.</span>
                 <SecondaryButton onClick={onGoToCards}>Ir para Cartões</SecondaryButton>
               </div>
             )}
@@ -526,17 +514,17 @@ export function ClosingView({
             </label>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <SecondaryButton onClick={() => finishClose(false)}>
+              <SecondaryButton disabled={!closingReady} onClick={() => finishClose(false)}>
                 Fechar apenas o ciclo
               </SecondaryButton>
               {canPayClosingInvoiceTogether && (
-                <PrimaryButton onClick={() => finishClose(true)}>
+                <PrimaryButton disabled={!closingReady} onClick={() => finishClose(true)}>
                   <CheckCircle2 size={15} />
                   Fechar + pagar fatura ({formatCurrency(closingInvoiceDue)})
                 </PrimaryButton>
               )}
               {closingInvoiceAlreadyPaid && (
-                <PrimaryButton onClick={() => finishClose(false)}>
+                <PrimaryButton disabled={!closingReady} onClick={() => finishClose(false)}>
                   <CheckCircle2 size={15} />
                   Fechar ciclo — fatura já paga
                 </PrimaryButton>

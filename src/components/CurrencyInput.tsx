@@ -3,6 +3,8 @@ import { useCallback } from 'react'
 interface CurrencyInputProps {
   value: number
   onChange: (value: number) => void
+  onEmpty?: () => void
+  showZero?: boolean
   placeholder?: string
   className?: string
   id?: string
@@ -14,6 +16,8 @@ interface CurrencyInputProps {
 export function CurrencyInput({
   value,
   onChange,
+  onEmpty,
+  showZero = false,
   placeholder = '0,00',
   className = '',
   id,
@@ -22,17 +26,18 @@ export function CurrencyInput({
   ariaLabel,
 }: CurrencyInputProps) {
   const formatDisplay = (val: number): string => {
-    if (val === 0) return ''
+    if (val === 0 && !showZero) return ''
     return val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value.replace(/[^\d]/g, '')
+      if (!raw && onEmpty) { onEmpty(); return }
       const numeric = parseInt(raw, 10)
       onChange(isNaN(numeric) ? 0 : numeric / 100)
     },
-    [onChange],
+    [onChange, onEmpty],
   )
 
   return (

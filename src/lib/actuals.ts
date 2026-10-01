@@ -16,7 +16,7 @@ import { finiteNumber, monthKey, normalizeExtraIncomeEntries } from './shared'
 // R$ 260 e o app nunca sabe. Sem isto o "custo médio real" do histórico é só a
 // média dos planos, e a meta da reserva de emergência herda o mesmo erro.
 //
-// A regra é sempre: valor informado manda; onde não houver, vale o planejado.
+// O plano pode estimar o restante, mas somente valores informados são realizados.
 // ---------------------------------------------------------------------------
 
 export function normalizeActuals(raw: Partial<MonthlyActuals> | undefined): MonthlyActuals {
@@ -39,6 +39,12 @@ export function normalizeActuals(raw: Partial<MonthlyActuals> | undefined): Mont
 
   return {
     month: /^\d{4}-\d{2}$/.test(raw?.month ?? '') ? (raw?.month as string) : monthKey(),
+    ...(raw?.paycheck && typeof raw.paycheck === 'object' &&
+      Number.isFinite(raw.paycheck.amount) && raw.paycheck.amount >= 0
+      ? { paycheck: { amount: raw.paycheck.amount,
+        payrollInvestment: Math.max(0, finiteNumber(raw.paycheck.payrollInvestment)),
+        employerInvestment: Math.max(0, finiteNumber(raw.paycheck.employerInvestment)) } }
+      : {}),
     costs,
     wants,
     extraIncome,
@@ -57,11 +63,13 @@ export function summarizeActuals(
   const informed = actuals?.costs ?? {}
   const byCategory = new Map<CostCategory, number>()
 
-  const activeCostIds = new Set(costs.map((cost) => cost.id))
+  const accountCosts = costs.filter((cost) => cost.paidWith !== 'card')
+  const activeCostIds = new Set(accountCosts.map((cost) => cost.id))
   const knownCostById = new Map(knownCosts.map((cost) => [cost.id, cost]))
   const costRows = [
-    ...costs,
-    ...Object.keys(informed).filter((id) => !activeCostIds.has(id)).map((id): CostItem => {
+    ...accountCosts,
+    ...Object.keys(informed).filter((id) => !activeCostIds.has(id) &&
+      knownCostById.get(id)?.paidWith !== 'card').map((id): CostItem => {
       const known = knownCostById.get(id)
       return known
         ? { ...known, value: 0, sharedAmount: undefined, paidWith: 'account' }
@@ -79,6 +87,8 @@ export function summarizeActuals(
   })
 
   const effectiveCosts = rows.reduce((sum, row) => sum + row.effective, 0)
+  const confirmedCosts = rows.reduce((sum, row) => sum + (row.actual ?? 0), 0)
+  const pendingCosts = rows.reduce((sum, row) => sum + (row.actual === null ? row.planned : 0), 0)
   const plannedCosts = rows.reduce((sum, row) => sum + row.planned, 0)
   const informedWants = actuals?.wants ?? {}
   // O cartão já tem seu realizado na fatura. Esta lista registra somente o que
@@ -107,10 +117,13 @@ export function summarizeActuals(
       }
     })
   const effectiveWants = wantRows.reduce((sum, row) => sum + row.effective, 0)
+  const confirmedWants = wantRows.reduce((sum, row) => sum + (row.actual ?? 0), 0)
+  const pendingWants = wantRows.reduce((sum, row) => sum + (row.actual === null ? row.planned : 0), 0)
   const plannedWants = wantRows.reduce((sum, row) => sum + row.planned, 0)
 
   return {
     month,
+    paycheck: actuals?.paycheck ?? null,
     extraIncome: actuals?.extraIncome ?? [],
     extraIncomeTotal: (actuals?.extraIncome ?? []).reduce((sum, entry) => sum + entry.amount, 0),
     extraExpenses: actuals?.extraExpenses ?? [],
@@ -119,12 +132,16 @@ export function summarizeActuals(
       0,
     ),
     effectiveCosts,
+    confirmedCosts,
+    pendingCosts,
     plannedCosts,
     variance: effectiveCosts - plannedCosts,
     informedCount: rows.filter((row) => row.actual !== null).length,
     byCategory,
     rows,
     effectiveWants,
+    confirmedWants,
+    pendingWants,
     plannedWants,
     wantsVariance: effectiveWants - plannedWants,
     informedWantsCount: wantRows.filter((row) => row.actual !== null).length,

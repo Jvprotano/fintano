@@ -58,7 +58,7 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ### FT-07 — Reconciliar realizado sem transformar vazio em pagamento
 
-- [ ] **P1 · G · depende de FT-04, FT-06 · achados D06, D08, D13.**
+- [x] **P1 · G · depende de FT-04, FT-06 · achados D06, D08, D13.**
 - **Escopo:** registrar salário/folha do ciclo e distinguir valor não informado, zero, previsto e confirmado. Manter fatos independentes da lista do cenário. Oferecer “Confirmar como no plano” em lote e por item. Custo no cartão consulta sua origem sem exigir um segundo realizado manual.
 - **Referências:** `src/types/actuals.ts`, `src/lib/actuals.ts`, `src/hooks/useActuals.ts`, `src/hooks/useFinancas.ts`, `src/components/ActualsPanel.tsx`, `src/components/IncomePanel.tsx`.
 - **Aceite:** campo vazio não aparece como “pago”; zero informado permanece visível como zero. Alterar salário planejado não reescreve salário confirmado. Um gasto de cartão tem uma fonte de realizado e não é novamente editado como saída em conta.
@@ -66,14 +66,14 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ### FT-08 — Calcular verba discricionária com compromissos pendentes
 
-- [ ] **P1 · M · depende de FT-07 · achado D07.**
+- [x] **P1 · M · depende de FT-07 · achado D07.**
 - **Escopo:** separar fluxo efetivo, compromissos pagos/pendentes, verba total para Desejos e restante após destinações. Proteger o aporte programado ainda não executado. Incluir origem e qualidade dos valores na consulta comum às telas.
 - **Referências:** `src/lib/currentCycleFacts.ts`, `src/lib/financialCycle.ts`, `src/lib/cashflow.ts`, `src/hooks/useFinancas.ts`.
 - **Aceite:** com renda 5.000, fatura 1.000, contas 2.000 e aporte programado 1.000, a verba é 1.000 antes e depois de aportar 400; executar 1.200 de aporte no total reduz a verba para 800. Desejos não são descontados antes de calcular sua própria verba. Resgate não é renda nova.
 
 ### FT-09 — Usar o plano seguinte e explicitar incerteza na prévia
 
-- [ ] **P1 · M · depende de FT-06, FT-08 · achados D09, D18.**
+- [x] **P1 · M · depende de FT-06, FT-08 · achados D09, D18.**
 - **Escopo:** calcular a prévia com renda, contas e aporte do próximo ciclo. Separar base sem extras incertos e cenário com eles. Mostrar dependência de datas quando entrada posterior não pode cobrir cobrança anterior. Não transportar automaticamente economia/estouro atual como custo do próximo mês.
 - **Referências:** `src/hooks/useFinancas.ts`, `src/lib/financialCycle.ts`, `src/components/ClosingView.tsx`.
 - **Aceite:** conta excepcionalmente menor hoje não reduz a previsão recorrente de amanhã sem aplicação explícita. Bônus incerto não aumenta o destaque da prévia base. Com datas incompletas, o app identifica a limitação em vez de assegurar cobertura.

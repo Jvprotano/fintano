@@ -498,6 +498,9 @@ export function repositoryToBackupV7(
     actuals: {
       cycles: actuals.map((cycle) => ({
         month: cycle.month,
+        ...(cycle.paycheck ? { paycheck: { amountCents: toCents(cycle.paycheck.amount),
+          payrollInvestmentCents: toCents(cycle.paycheck.payrollInvestment),
+          employerInvestmentCents: toCents(cycle.paycheck.employerInvestment) } } : {}),
         costPayments: Object.entries(cycle.costs).map(([planItemId, amount]) => ({
           planItemId,
           amountCents: toCents(amount),
@@ -778,6 +781,9 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
   const scenarios: FinanceScenario[] = backup.planning.templates.map(templateToScenario)
   const actuals: MonthlyActuals[] = backup.actuals.cycles.map((cycle) => ({
     month: cycle.month,
+    ...(cycle.paycheck ? { paycheck: { amount: fromCents(cycle.paycheck.amountCents),
+      payrollInvestment: fromCents(cycle.paycheck.payrollInvestmentCents),
+      employerInvestment: fromCents(cycle.paycheck.employerInvestmentCents) } } : {}),
     costs: Object.fromEntries(
       cycle.costPayments.map((item) => [item.planItemId, fromCents(item.amountCents)]),
     ),
@@ -1103,6 +1109,13 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     return seen
   }
   const templateIds = ids(backup.planning.templates, 'Planejamento')
+  for (const cycle of backup.actuals.cycles) {
+    if (cycle.paycheck && (!Number.isSafeInteger(cycle.paycheck.amountCents) || cycle.paycheck.amountCents < 0 ||
+      !Number.isSafeInteger(cycle.paycheck.payrollInvestmentCents) || cycle.paycheck.payrollInvestmentCents < 0 ||
+      !Number.isSafeInteger(cycle.paycheck.employerInvestmentCents) || cycle.paycheck.employerInvestmentCents < 0)) {
+      add('error', 'paycheck_invalid', 'Folha recebida possui valor inválido.', cycle.month)
+    }
+  }
   ids(backup.planning.cycles, 'Plano mensal')
   if (backup.planning.monthlyPlans !== undefined && !Array.isArray(backup.planning.monthlyPlans)) {
     add('error', 'monthly_plans_invalid', 'Planos operacionais têm formato inválido.')

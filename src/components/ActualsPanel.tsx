@@ -12,7 +12,7 @@ import {
 import { CurrencyInput } from './CurrencyInput'
 import { EmptyState, Panel, PanelHeader, SecondaryButton, Tag } from './ui'
 import { formatCurrency, formatMonthLong } from '../lib/format'
-import { useActualsStore, useCardsStore, useForecastStore } from '../context/financasStore'
+import { useActualsStore, useCardsStore, useForecastStore, useMetrics } from '../context/financasStore'
 import { COST_CATEGORY_COLORS, COST_CATEGORY_LABELS } from '../types/constants'
 import { ActualCashEntries } from './ActualCashEntries'
 import { reconcileOccurrence } from '../lib/forecastCoverage'
@@ -113,14 +113,19 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
   const actuals = useActualsStore()
   const forecast = useForecastStore()
   const cards = useCardsStore()
+  const metrics = useMetrics()
   const { summary } = actuals
   const {
     rows,
     effectiveCosts,
+    confirmedCosts,
+    pendingCosts,
     plannedCosts,
     variance,
     informedCount,
     effectiveWants,
+    confirmedWants,
+    pendingWants,
     plannedWants,
     wantsVariance,
     informedWantsCount,
@@ -150,13 +155,13 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                 Custos do mês
               </span>
               <strong className="block text-lg font-semibold tabular-nums text-dark-text">
-                {formatCurrency(effectiveCosts)}
+                {formatCurrency(confirmedCosts)}
               </strong>
             </span>
-            {rows.length > 0 && (
+            {(rows.length > 0 || wantRows.length > 0) && (
               <SecondaryButton onClick={() => actuals.fillFromPlan()}>
                 <Wand2 size={14} />
-                Copiar do plano
+                Confirmar pendentes como no plano
               </SecondaryButton>
             )}
             {informedCount > 0 && (
@@ -168,6 +173,40 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
           </>
         }
       />
+
+      <div className="mt-4 rounded-xl border border-dark-border bg-dark-surface/60 p-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-dark-text">Folha recebida</h3>
+            <p className="text-xs text-dark-text-muted">Plano em conta: {formatCurrency(metrics.paycheckInAccount)}. Sem confirmação, não entra no caixa realizado.</p>
+          </div>
+          <SecondaryButton onClick={() => actuals.setPaycheck({ amount: metrics.paycheckInAccount,
+            payrollInvestment: metrics.investmentDeductions,
+            employerInvestment: metrics.employerInvestmentContributions })}>
+            <Check size={14} /> Confirmar como no plano
+          </SecondaryButton>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <label className="app-form-label">Recebido em conta
+            <span className="mt-1 block"><CurrencyInput value={summary.paycheck?.amount ?? 0}
+              showZero={summary.paycheck !== null} onEmpty={() => actuals.setPaycheck(null)}
+              onChange={(amount) => actuals.setPaycheck({ amount,
+                payrollInvestment: summary.paycheck?.payrollInvestment ?? 0,
+                employerInvestment: summary.paycheck?.employerInvestment ?? 0 })} /></span>
+          </label>
+          <label className="app-form-label">Previdência descontada
+            <span className="mt-1 block"><CurrencyInput value={summary.paycheck?.payrollInvestment ?? 0}
+              onChange={(payrollInvestment) => actuals.setPaycheck({ amount: summary.paycheck?.amount ?? 0,
+                payrollInvestment, employerInvestment: summary.paycheck?.employerInvestment ?? 0 })} /></span>
+          </label>
+          <label className="app-form-label">Contrapartida recebida
+            <span className="mt-1 block"><CurrencyInput value={summary.paycheck?.employerInvestment ?? 0}
+              onChange={(employerInvestment) => actuals.setPaycheck({ amount: summary.paycheck?.amount ?? 0,
+                payrollInvestment: summary.paycheck?.payrollInvestment ?? 0, employerInvestment })} /></span>
+          </label>
+        </div>
+        <p className="mt-2 text-xs text-dark-text-muted">{summary.paycheck ? 'Folha confirmada neste ciclo.' : 'Folha ainda não confirmada.'}</p>
+      </div>
 
       {cycleEvents.length > 0 && <details className="mt-4 rounded-lg border border-dark-border-subtle px-3 py-2.5">
         <summary className="cursor-pointer text-sm text-dark-text-secondary marker:text-dark-text-muted">
@@ -265,6 +304,8 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                     <div className="w-32 shrink-0">
                       <CurrencyInput
                         value={row.actual ?? 0}
+                        showZero={row.actual !== null}
+                        onEmpty={() => actuals.setWantActual(row.want.id, null)}
                         onChange={(value) => actuals.setWantActual(row.want.id, value)}
                         placeholder={row.planned.toLocaleString('pt-BR', {
                           minimumFractionDigits: 2,
@@ -273,6 +314,11 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                         className="!py-1.5"
                       />
                     </div>
+                    {row.actual === null && <button type="button"
+                      onClick={() => actuals.setWantActual(row.want.id, row.planned)}
+                      className="rounded-md px-2 py-1 text-xs text-primary-300 hover:bg-primary-500/10">
+                      Confirmar plano
+                    </button>}
                     <button
                       type="button"
                       onClick={() => actuals.setWantActual(row.want.id, null)}
@@ -291,14 +337,15 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
             <p className="mt-3 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed text-dark-text-muted">
               {informedWantsCount === 0 ? (
                 <>
-                  Nenhum valor informado ainda — o fechamento vai usar os{' '}
-                  {formatCurrency(plannedWants)} do plano.
+                  Nenhum valor confirmado ainda. O plano prevê{' '}
+                  {formatCurrency(plannedWants)}; confirme antes de fechar.
                 </>
               ) : (
                 <>
                   {informedWantsCount} de {wantRows.length}{' '}
                   {wantRows.length === 1 ? 'item informado' : 'itens informados'}. Total do ciclo{' '}
-                  <strong className="text-dark-text">{formatCurrency(effectiveWants)}</strong>,{' '}
+                  <strong className="text-dark-text">{formatCurrency(confirmedWants)} confirmado</strong>,{' '}
+                  {formatCurrency(pendingWants)} pendente; estimativa total {formatCurrency(effectiveWants)}.{' '}
                   <strong className={wantsVariance > 0 ? 'text-rose-400' : 'text-primary-400'}>
                     {Math.abs(wantsVariance) <= 0.005
                       ? 'igual ao plano'
@@ -318,6 +365,7 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
           <span className="text-xs text-dark-text-muted">
             Débito e boleto; cartão já vem da fatura.
           </span>
+          <SecondaryButton onClick={onGoToCards}>Conferir cartão</SecondaryButton>
         </div>
 
       {rows.length === 0 ? (
@@ -362,6 +410,8 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                     <div className="w-32 shrink-0">
                       <CurrencyInput
                         value={row.actual ?? 0}
+                        showZero={row.actual !== null}
+                        onEmpty={() => actuals.setActual(row.cost.id, null)}
                         onChange={(value) => actuals.setActual(row.cost.id, value)}
                         placeholder={row.planned.toLocaleString('pt-BR', {
                           minimumFractionDigits: 2,
@@ -370,6 +420,11 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                         className="!py-1.5"
                       />
                     </div>
+                    {row.actual === null && <button type="button"
+                      onClick={() => actuals.setActual(row.cost.id, row.planned)}
+                      className="rounded-md px-2 py-1 text-xs text-primary-300 hover:bg-primary-500/10">
+                      Confirmar plano
+                    </button>}
                     <CostAdjustmentControl
                       costName={row.cost.name}
                       onAdjust={(delta) =>
@@ -395,14 +450,15 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
           <p className="mt-3 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed text-dark-text-muted">
             {informedCount === 0 ? (
               <>
-                Nenhum valor informado ainda — o fechamento vai usar os{' '}
-                {formatCurrency(plannedCosts)} do plano.
+                  Nenhum valor confirmado ainda. O plano prevê{' '}
+                  {formatCurrency(plannedCosts)}; confirme antes de fechar.
               </>
             ) : (
               <>
                 {informedCount} de {rows.length}{' '}
                 {rows.length === 1 ? 'item informado' : 'itens informados'}. Contra o plano de{' '}
                 {formatCurrency(plannedCosts)}, o mês está{' '}
+                {formatCurrency(confirmedCosts)} confirmado e {formatCurrency(pendingCosts)} pendente; estimativa total {formatCurrency(effectiveCosts)}.{' '}
                 <strong className={variance > 0 ? 'text-rose-400' : 'text-primary-400'}>
                   {variance > 0 ? 'acima' : 'abaixo'} em {formatCurrency(Math.abs(variance))}
                 </strong>
