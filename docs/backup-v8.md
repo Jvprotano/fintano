@@ -1,5 +1,7 @@
 # Backup público v8: compromissos futuros
 
+Esta página descreve a versão anterior. A exportação atual e suas regras de ida e volta estão em [backup v9](backup-v9.md).
+
 O repositório interno continua em `fintano_data_v7`. A versão 8 identifica o **arquivo exportado**, não uma mudança da chave local. Ao importar v7, o app cria `forecast.funds: []` e mantém os meses dos eventos sem inventar dias, meios de pagamento ou quitações.
 
 ## Campos novos

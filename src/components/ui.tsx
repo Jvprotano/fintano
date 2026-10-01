@@ -917,7 +917,7 @@ export function ConfirmationDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="app-panel-shadow w-full max-w-md rounded-2xl border border-dark-border bg-dark-card p-5 shadow-2xl shadow-black/50"
+          className="app-panel-shadow max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-dark-border bg-dark-card p-5 shadow-2xl shadow-black/50"
       >
         <h2 id={titleId} className="text-base font-semibold tracking-tight text-dark-text">
           {title}

@@ -67,11 +67,19 @@ import type {
   DomainLedgerEntryV7,
   FinTanoBackupV7,
   FinTanoBackupV8,
+  FinTanoBackupV9,
   LedgerOwnerType,
   MoneyCents,
   MonthKey,
   CyclePlanV7,
+  InvestmentValuationV7,
 } from './backupSchemaV7'
+
+type BackupCarryover = {
+  valuations: InvestmentValuationV7[]
+  cyclePlans: CyclePlanV7[]
+  activeScenarioFingerprint?: string
+}
 
 export interface LegacyBackupPayloadLike {
   app?: string
@@ -990,6 +998,12 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
       history: backup.history.closures.map(closureToSnapshot),
       investmentClasses: backup.investments.classes,
       investmentHoldings: holdings,
+      backupCarryover: {
+        valuations: backup.investments.valuations,
+        cyclePlans: backup.planning.cycles,
+        activeScenarioFingerprint: JSON.stringify(scenarios.find((scenario) =>
+          scenario.id === backup.profile.activePlanningTemplateId)),
+      } satisfies BackupCarryover,
     },
   }
 }
@@ -1079,7 +1093,7 @@ function isBackupV7(value: unknown): value is FinTanoBackupV7 {
   )
 }
 
-function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null): BackupInspection {
+function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null): BackupInspection {
   const issues: BackupValidationIssue[] = []
   const add = (
     severity: BackupValidationIssue['severity'],
@@ -1098,8 +1112,14 @@ function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null):
     return seen
   }
   const templateIds = ids(backup.planning.templates, 'Planejamento')
+  ids(backup.planning.cycles, 'Plano mensal')
   const accountIds = ids(backup.cards.accounts, 'Cartão')
   const holdingIds = ids(backup.investments.holdings, 'Posição')
+  for (const holding of backup.investments.holdings) {
+    if (!Number.isSafeInteger(holding.currentValueCents) || holding.currentValueCents < 0) {
+      add('error', 'holding_current_invalid', 'Posição possui valor atual inválido.', holding.id)
+    }
+  }
   const classIds = ids(backup.investments.classes, 'Classe de ativo')
   const assetIds = ids(backup.balanceSheet.assets, 'Bem')
   const costIds = new Set(backup.planning.templates.flatMap((template) => template.costs.map((cost) => cost.id)))
@@ -1201,7 +1221,13 @@ function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null):
     if (fund.goalId) usedFundingGoals.add(fund.goalId)
   }
 
+  const plannedMonths = new Set<string>()
   for (const plan of backup.planning.cycles) {
+    if (plannedMonths.has(plan.month)) add('error', 'cycle_plan_month_duplicate', 'Há mais de um plano para a mesma competência.', plan.id)
+    plannedMonths.add(plan.month)
+    if (!MONTH_RE.test(plan.month) || !Number.isFinite(Date.parse(plan.capturedAt))) {
+      add('error', 'cycle_plan_date_invalid', 'Plano mensal tem competência ou data inválida.', plan.id)
+    }
     if (!templateIds.has(plan.planningTemplateId)) {
       add('warning', 'cycle_plan_template_missing', 'Plano mensal aponta para modelo inexistente.', plan.id)
     }
@@ -1238,6 +1264,9 @@ function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null):
     }
   }
   for (const valuation of backup.investments.valuations) {
+    if (!Number.isFinite(Date.parse(valuation.asOf))) {
+      add('error', 'valuation_date_invalid', 'Avaliação de posição tem data inválida.', valuation.id)
+    }
     if (!holdingIds.has(valuation.holdingId)) {
       add('error', 'valuation_holding_missing', 'Avaliação aponta para posição inexistente.', valuation.id)
     }
@@ -1320,22 +1349,37 @@ function inspectV8(backup: FinTanoBackupV8, migratedFromVersion: number | null):
 }
 
 export function inspectBackupPayload(payload: unknown): BackupInspection {
-  if (isBackupV8(payload)) return inspectV8(payload, null)
-  if (isBackupV7(payload)) return inspectV8(migrateV7ToV8(payload), 7)
+  if (isBackupV9(payload)) return inspectV9(payload, null)
+  if (isBackupV8(payload)) return inspectV9(migrateV8ToV9(payload), 8)
+  if (isBackupV7(payload)) return inspectV9(migrateV8ToV9(migrateV7ToV8(payload)), 7)
   if (!payload || typeof payload !== 'object') throw new Error('Backup inválido.')
   const legacy = payload as LegacyBackupPayloadLike
   if (!legacy.localStorage || typeof legacy.localStorage !== 'object') {
     throw new Error('O arquivo não contém dados reconhecidos do FinTano.')
   }
-  const backup = repositoryToBackupV8(
+  const backup = repositoryToBackupV9(
     legacyPayloadToRepository(legacy),
     legacy.exportedAt ?? new Date().toISOString(),
   )
-  return inspectV8(backup, typeof legacy.version === 'number' ? legacy.version : 6)
+  return inspectV9(backup, typeof legacy.version === 'number' ? legacy.version : 6)
 }
 
 function migrateV7ToV8(backup: FinTanoBackupV7): FinTanoBackupV8 {
   return { ...backup, schemaVersion: 8, forecast: { ...backup.forecast, funds: [] } }
+}
+
+function migrateV8ToV9(backup: FinTanoBackupV8): FinTanoBackupV9 {
+  const latestByHolding = new Map<string, InvestmentValuationV7>()
+  for (const valuation of backup.investments.valuations) {
+    const current = latestByHolding.get(valuation.holdingId)
+    if (!current || valuation.asOf > current.asOf) latestByHolding.set(valuation.holdingId, valuation)
+  }
+  return { ...backup, schemaVersion: 9, investments: {
+    ...backup.investments,
+    holdings: backup.investments.holdings.map((holding) => ({
+      ...holding, currentValueCents: latestByHolding.get(holding.id)?.valueCents ?? 0,
+    })),
+  } }
 }
 
 function isBackupV8(value: unknown): value is FinTanoBackupV8 {
@@ -1353,6 +1397,13 @@ function isBackupV8(value: unknown): value is FinTanoBackupV8 {
     Array.isArray(candidate.history?.closures)
 }
 
+function isBackupV9(value: unknown): value is FinTanoBackupV9 {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<FinTanoBackupV9>
+  return candidate.schemaVersion === 9 &&
+    isBackupV8({ ...candidate, schemaVersion: 8 })
+}
+
 function validCalendarDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T12:00:00Z`)
@@ -1361,11 +1412,39 @@ function validCalendarDate(value: string) {
 
 export function repositoryToBackupV8(document: RepositoryDocument, exportedAt = new Date().toISOString()): FinTanoBackupV8 {
   const base = repositoryToBackupV7(document, exportedAt)
+  const carryover = document.collections.backupCarryover as Partial<BackupCarryover> | undefined
+  const previousValuations = Array.isArray(carryover?.valuations) ? carryover.valuations : []
+  const valuations = [...previousValuations]
+  for (const current of base.investments.valuations) {
+    const latest = previousValuations
+      .filter((item) => item.holdingId === current.holdingId)
+      .sort((a, b) => b.asOf.localeCompare(a.asOf))[0]
+    if (latest?.valueCents === current.valueCents) continue
+    valuations.push({ ...current, id: valuations.some((item) => item.id === current.id)
+      ? `${current.id}-${valuations.length}` : current.id })
+  }
+  const previousPlans = Array.isArray(carryover?.cyclePlans) ? carryover.cyclePlans : []
+  const activeScenarios = collection<FinanceScenario[]>(document, 'scenarios', [])
+  const currentScenarioFingerprint = JSON.stringify(activeScenarios.find((scenario) =>
+    scenario.id === document.collections.activeScenarioId))
+  const activeScenarioEdited = carryover?.activeScenarioFingerprint !== undefined &&
+    carryover.activeScenarioFingerprint !== currentScenarioFingerprint
+  const cyclePlans = [...previousPlans]
+  for (const current of base.planning.cycles) {
+    const index = cyclePlans.findIndex((item) => item.month === current.month)
+    if (index < 0) cyclePlans.push(current)
+    else if (current.status === 'open' && activeScenarioEdited &&
+      JSON.stringify(cyclePlans[index].totals) !== JSON.stringify(current.totals)) {
+      cyclePlans[index] = { ...current, id: cyclePlans[index].id }
+    }
+  }
   const funds = Array.isArray(document.collections.forecastFunds)
     ? document.collections.forecastFunds as { id: string; name: string; reservedAmount: number; goalId?: string }[] : []
   return {
     ...base,
     schemaVersion: 8,
+    planning: { ...base.planning, cycles: cyclePlans },
+    investments: { ...base.investments, valuations },
     forecast: { ...base.forecast, funds: funds.map((fund) => ({
       id: fund.id, name: fund.name, reservedAmountCents: toCents(fund.reservedAmount), goalId: fund.goalId,
     })) },
@@ -1376,6 +1455,29 @@ export function backupV8ToRepository(backup: FinTanoBackupV8): RepositoryDocumen
   const base = backupV7ToRepository({ ...backup, schemaVersion: 7 })
   base.collections.forecastFunds = backup.forecast.funds.map((fund) => ({
     id: fund.id, name: fund.name, reservedAmount: fromCents(fund.reservedAmountCents), goalId: fund.goalId,
+  }))
+  return base
+}
+
+export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = new Date().toISOString()): FinTanoBackupV9 {
+  const base = repositoryToBackupV8(document, exportedAt)
+  const holdings = collection<FinancialHolding[]>(document, 'investmentHoldings', []).map(normalizeHolding)
+  const currentById = new Map(holdings.map((holding) => [holding.id, toCents(holding.marketValue)]))
+  return {
+    ...base, schemaVersion: 9,
+    investments: { ...base.investments, holdings: base.investments.holdings.map((holding) => ({
+      ...holding,
+      currentValueCents: currentById.get(holding.id) ??
+        base.investments.valuations.find((item) => item.holdingId === holding.id)?.valueCents ?? 0,
+    })) },
+  }
+}
+
+export function backupV9ToRepository(backup: FinTanoBackupV9): RepositoryDocument {
+  const base = backupV8ToRepository({ ...backup, schemaVersion: 8 })
+  const currentById = new Map(backup.investments.holdings.map((holding) => [holding.id, fromCents(holding.currentValueCents)]))
+  base.collections.investmentHoldings = (base.collections.investmentHoldings as FinancialHolding[]).map((holding) => ({
+    ...holding, marketValue: currentById.get(holding.id) ?? holding.marketValue,
   }))
   return base
 }
@@ -1400,14 +1502,18 @@ export function createEmptyBackupV8(exportedAt = new Date().toISOString()): FinT
   return migrateV7ToV8(createEmptyBackupV7(exportedAt))
 }
 
+export function createEmptyBackupV9(exportedAt = new Date().toISOString()): FinTanoBackupV9 {
+  return migrateV8ToV9(createEmptyBackupV8(exportedAt))
+}
+
 export function migratedBackupFileName(originalName: string): string {
   const base = originalName.replace(/\.json$/i, '')
-  return `${base}-v8.json`
+  return `${base}-v9.json`
 }
 
 export function migrationReport(inspection: BackupInspection) {
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     migratedFromVersion: inspection.migratedFromVersion,
     generatedAt: new Date().toISOString(),
     counts: inspection.counts,

@@ -369,7 +369,7 @@ export interface BackupValidationIssue {
 }
 
 export interface BackupInspection {
-  backup: FinTanoBackupV8
+  backup: FinTanoBackupV9
   migratedFromVersion: number | null
   issues: BackupValidationIssue[]
   counts: {
@@ -388,5 +388,13 @@ export interface FinTanoBackupV8 extends Omit<FinTanoBackupV7, 'schemaVersion' |
   schemaVersion: 8
   forecast: FinTanoBackupV7['forecast'] & {
     funds: { id: string; name: string; reservedAmountCents: MoneyCents; goalId?: string }[]
+  }
+}
+
+/** v9 explicita o valor atual sem reduzir o histórico de avaliações aceito no arquivo. */
+export interface FinTanoBackupV9 extends Omit<FinTanoBackupV8, 'schemaVersion' | 'investments'> {
+  schemaVersion: 9
+  investments: Omit<FinTanoBackupV8['investments'], 'holdings'> & {
+    holdings: (InvestmentHoldingV7 & { currentValueCents: MoneyCents })[]
   }
 }

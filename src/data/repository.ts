@@ -39,7 +39,7 @@ export const LEGACY_DOMAIN_KEYS = {
   investmentHoldings: 'uf_investment_holdings_v1',
 } as const
 
-export type RepositoryCollection = keyof typeof LEGACY_DOMAIN_KEYS
+export type RepositoryCollection = keyof typeof LEGACY_DOMAIN_KEYS | 'backupCarryover'
 
 export interface RepositoryDocument {
   schemaVersion: typeof REPOSITORY_SCHEMA_VERSION
@@ -58,7 +58,7 @@ const ARRAY_COLLECTIONS = new Set<RepositoryCollection>([
   'investmentClasses', 'investmentHoldings',
 ])
 const OBJECT_COLLECTIONS = new Set<RepositoryCollection>([
-  'cardSettings', 'emergencyFund', 'forecastAssumptions',
+  'cardSettings', 'emergencyFund', 'forecastAssumptions', 'backupCarryover',
 ])
 
 function hasValidCollectionShapes(collections: Record<string, unknown>): boolean {

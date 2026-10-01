@@ -1,5 +1,5 @@
 import type { LedgerEntry } from '../types'
-import { createAutoBackupNow } from '../lib/backup'
+import { createAutoBackupNow, PRE_LEDGER_MIGRATION_RAW_KEY } from '../lib/backup'
 import { classifyLegacyLedgerEntry, isLedgerEntryKind, type LedgerOwner } from '../lib/shared'
 import { createDefaultScenario } from '../lib/scenario'
 import {
@@ -8,7 +8,7 @@ import {
 } from './repository'
 import { repositoryRevision, runRepositoryCommand } from './repositoryCommand'
 
-export const PRE_LEDGER_MIGRATION_RAW_KEY = 'ufbk_pre_ft04_raw_v1'
+export { PRE_LEDGER_MIGRATION_RAW_KEY } from '../lib/backup'
 
 /** Acrescenta a classificação sem normalizar, filtrar ou reordenar os registros antigos. */
 export function classifyUntypedLedgerInDocument(document: RepositoryDocument) {

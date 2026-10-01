@@ -1,10 +1,10 @@
 import {
-  backupV8ToRepository,
+  backupV9ToRepository,
   inspectBackupPayload,
-  repositoryToBackupV8,
+  repositoryToBackupV9,
   type LegacyBackupPayloadLike,
 } from '../data/backupV7'
-import type { BackupInspection, FinTanoBackupV7, FinTanoBackupV8 } from '../data/backupSchemaV7'
+import type { BackupInspection, FinTanoBackupV7, FinTanoBackupV8, FinTanoBackupV9 } from '../data/backupSchemaV7'
 import {
   LEGACY_DOMAIN_KEYS,
   REPOSITORY_STORAGE_KEY,
@@ -18,16 +18,18 @@ import {
 export const APP_STORAGE_PREFIX = 'uf_'
 export const BACKUP_STORAGE_PREFIX = 'ufbk_'
 export const AUTO_BACKUP_KEY = 'ufbk_auto_v2'
+export const LAST_EXTERNAL_EXPORT_KEY = 'uf_last_external_export_v1'
+export const PRE_LEDGER_MIGRATION_RAW_KEY = 'ufbk_pre_ft04_raw_v1'
 const AUTO_BACKUP_INTERVAL_DAYS = 7
 const AUTO_BACKUP_KEEP = 3
 const RESTORE_PROBE_KEY = 'fintano_restore_probe'
 const MAX_BACKUP_BYTES = 4 * 1024 * 1024
 
-export type BackupPayload = FinTanoBackupV8 | FinTanoBackupV7 | LegacyBackupPayloadLike
+export type BackupPayload = FinTanoBackupV9 | FinTanoBackupV8 | FinTanoBackupV7 | LegacyBackupPayloadLike
 
 export interface AutoBackup {
   createdAt: string
-  backup: FinTanoBackupV8 | FinTanoBackupV7
+  backup: FinTanoBackupV9 | FinTanoBackupV8 | FinTanoBackupV7
 }
 
 export interface RestoreResult {
@@ -57,8 +59,8 @@ function byteSize(value: unknown): number {
 export function buildBackupPayload(
   storage: Storage = localStorage,
   exportedAt = new Date().toISOString(),
-): FinTanoBackupV8 {
-  return repositoryToBackupV8(readRepositoryDocument(storage), exportedAt)
+): FinTanoBackupV9 {
+  return repositoryToBackupV9(readRepositoryDocument(storage), exportedAt)
 }
 
 export function downloadBackup() {
@@ -68,11 +70,45 @@ export function downloadBackup() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `fintano-backup-v8-${new Date().toISOString().slice(0, 10)}.json`
+  link.download = `fintano-backup-v9-${new Date().toISOString().slice(0, 10)}.json`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
+  try { localStorage.setItem(LAST_EXTERNAL_EXPORT_KEY, new Date().toISOString()) } catch { /* download já solicitado */ }
+}
+
+export function lastExternalExportRequestedAt(storage: Storage = localStorage): string | null {
+  try {
+    const value = storage.getItem(LAST_EXTERNAL_EXPORT_KEY)
+    return value && Number.isFinite(Date.parse(value)) ? value : null
+  } catch { return null }
+}
+
+export function downloadPreLedgerMigrationRaw(storage: Storage = localStorage): boolean {
+  const raw = storage.getItem(PRE_LEDGER_MIGRATION_RAW_KEY)
+  if (raw === null) return false
+  const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `fintano-original-pre-migracao-${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+  return true
+}
+
+export function backupFinancialTotals(backup: FinTanoBackupV9) {
+  return {
+    financialAssetsCents: backup.investments.holdings.reduce((sum, item) => sum + item.currentValueCents, 0),
+    physicalAssetsCents: backup.balanceSheet.assets.reduce((sum, item) => sum + item.currentValueCents, 0),
+    liabilitiesCents: backup.balanceSheet.debts.reduce((sum, item) => sum + item.currentBalanceCents, 0),
+    actualCashIncomeCents: backup.actuals.cycles.flatMap((cycle) => cycle.cashMovements)
+      .filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amountCents, 0),
+    actualCashExpenseCents: backup.actuals.cycles.flatMap((cycle) => cycle.cashMovements)
+      .filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amountCents, 0),
+  }
 }
 
 function removeByPrefixes(prefixes: string[], storage: Storage): void {
@@ -106,7 +142,7 @@ export function inspectBackup(payload: unknown): BackupInspection {
 
 export function createAutoBackupNow(storage: Storage, source?: RepositoryDocument): boolean {
   try {
-    const current = source ? repositoryToBackupV8(source) : buildBackupPayload(storage)
+    const current = source ? repositoryToBackupV9(source) : buildBackupPayload(storage)
     const inspection = inspectBackup(current)
     if (inspection.issues.some((issue) => issue.severity === 'error')) return false
     const backups = listAutoBackups(storage)
@@ -131,7 +167,7 @@ export function restoreBackup(
     inspection = inspectBackup(payload)
     const errors = inspection.issues.filter((issue) => issue.severity === 'error')
     if (errors.length) throw new Error(errors.map((issue) => issue.message).join(' '))
-    const repository = backupV8ToRepository(inspection.backup)
+    const repository = backupV9ToRepository(inspection.backup)
     storage.setItem(RESTORE_PROBE_KEY, JSON.stringify(repository))
     storage.removeItem(RESTORE_PROBE_KEY)
   } catch (error) {
@@ -166,7 +202,7 @@ export function restoreBackup(
   }
 
   try {
-    const repository = backupV8ToRepository(inspection.backup)
+    const repository = backupV9ToRepository(inspection.backup)
     if (!writeRepositoryDocument(repository, storage)) {
       throw new Error('O navegador recusou a gravação do documento v7.')
     }

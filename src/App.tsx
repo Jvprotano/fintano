@@ -41,13 +41,19 @@ import { AIAnalysisDialog } from './components/AIAnalysisDialog'
 import { ScenarioSwitcher } from './components/ScenarioSwitcher'
 import { CycleSwitcher } from './components/CycleSwitcher'
 import { ConfirmationDialog } from './components/ui'
-import { formatDate } from './lib/format'
+import { formatCurrency, formatDate } from './lib/format'
+import type { BackupInspection } from './data/backupSchemaV7'
 import {
+  backupFinancialTotals,
+  buildBackupPayload,
   clearAppStorage,
   clearAllFinTanoStorage,
   downloadBackup,
+  downloadPreLedgerMigrationRaw,
   inspectBackup,
   listAutoBackups,
+  lastExternalExportRequestedAt,
+  PRE_LEDGER_MIGRATION_RAW_KEY,
   restoreBackup,
   restoreAutoBackup,
 } from './lib/backup'
@@ -168,6 +174,28 @@ function TabBar({
   )
 }
 
+function BackupReview({ inspection }: { inspection: BackupInspection }) {
+  const current = backupFinancialTotals(buildBackupPayload())
+  const incoming = backupFinancialTotals(inspection.backup)
+  const warnings = inspection.issues.filter((issue) => issue.severity === 'warning')
+  const { counts } = inspection
+  return <span className="space-y-2">
+    <span className="block">{counts.planningTemplates} modelos, {counts.cyclePlans} planos mensais, {counts.cardCharges} cobranças, {counts.holdings} posições, {counts.valuations} avaliações, {counts.ledgerEntries} movimentos e {counts.closures} fechamentos foram validados.</span>
+    <span className="block rounded-lg border border-dark-border bg-dark-surface/60 p-2 text-xs">
+      <strong className="block text-dark-text">Conferência antes de substituir</strong>
+      <span className="block">Patrimônio financeiro: {formatCurrency(current.financialAssetsCents / 100)} atual → {formatCurrency(incoming.financialAssetsCents / 100)} no arquivo</span>
+      <span className="block">Bens: {formatCurrency(current.physicalAssetsCents / 100)} → {formatCurrency(incoming.physicalAssetsCents / 100)} · Dívidas: {formatCurrency(current.liabilitiesCents / 100)} → {formatCurrency(incoming.liabilitiesCents / 100)}</span>
+      <span className="block">Caixa extra realizado: entradas {formatCurrency(current.actualCashIncomeCents / 100)} → {formatCurrency(incoming.actualCashIncomeCents / 100)}; saídas {formatCurrency(current.actualCashExpenseCents / 100)} → {formatCurrency(incoming.actualCashExpenseCents / 100)}</span>
+    </span>
+    {inspection.migratedFromVersion !== null && <span className="block text-amber-200">O formato v{inspection.migratedFromVersion} será convertido para o contrato público v9. O documento local permanece v7.</span>}
+    {warnings.length > 0 && <span className="block max-h-32 overflow-y-auto rounded-lg border border-amber-500/20 bg-amber-500/[0.05] p-2 text-amber-100">
+      <strong className="block">Avisos de integridade ({warnings.length})</strong>
+      {warnings.map((warning, index) => <span key={`${warning.code}-${warning.entityId ?? index}`} className="mt-1 block text-xs">{warning.entityId ? `${warning.entityId}: ` : ''}{warning.message}</span>)}
+    </span>}
+    <span className="block">Os dados atuais serão substituídos depois de uma cópia automática de segurança.</span>
+  </span>
+}
+
 function AppMenu({
   onExport,
   onImport,
@@ -186,6 +214,8 @@ function AppMenu({
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const autoBackups = useMemo(() => (open ? listAutoBackups() : []), [open])
+  const lastExport = open ? lastExternalExportRequestedAt() : null
+  const hasMigrationOriginal = open && localStorage.getItem(PRE_LEDGER_MIGRATION_RAW_KEY) !== null
 
   useEffect(() => {
     if (!open) return
@@ -221,6 +251,11 @@ function AppMenu({
             <Download size={14} />
             Exportar backup
           </button>
+          {lastExport && <p className="px-3 pb-1 text-xs text-dark-text-muted">Última exportação solicitada: {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(lastExport))}</p>}
+          {hasMigrationOriginal && <button type="button" className={itemClass} onClick={run(downloadPreLedgerMigrationRaw)}>
+            <Download size={14} /> Baixar original pré-migração
+          </button>}
+          {hasMigrationOriginal && <p className="px-3 pb-1 text-xs text-dark-text-muted">Documento bruto para análise; use uma cópia automática para restaurar pelo app.</p>}
           <button type="button" className={itemClass} onClick={run(onImport)}>
             <Upload size={14} />
             Importar backup
@@ -390,34 +425,9 @@ function AppShell() {
       const inspection = inspectBackup(payload)
       const errors = inspection.issues.filter((issue) => issue.severity === 'error')
       if (errors.length) throw new Error(errors.map((issue) => issue.message).join(' '))
-      const warnings = inspection.issues.filter((issue) => issue.severity === 'warning')
-      const { counts } = inspection
-
       setDialog({
         title: 'Importar este backup?',
-        description: (
-          <span className="space-y-2">
-            <span className="block">
-              {counts.planningTemplates} modelos, {counts.cyclePlans} planos mensais,{' '}
-              {counts.cardCharges} cobranças, {counts.holdings} posições e{' '}
-              {counts.closures} fechamentos foram validados.
-            </span>
-            {inspection.migratedFromVersion !== null && (
-              <span className="block text-amber-200">
-                O formato v{inspection.migratedFromVersion} será convertido para v7 antes da
-                gravação.
-              </span>
-            )}
-            {warnings.length > 0 && (
-              <span className="block text-amber-200">
-                {warnings.length} {warnings.length === 1 ? 'aviso será preservado' : 'avisos serão preservados'} no relatório de integridade.
-              </span>
-            )}
-            <span className="block">
-              Os dados atuais serão substituídos depois de uma cópia automática de segurança.
-            </span>
-          </span>
-        ),
+        description: <BackupReview inspection={inspection} />,
         confirmLabel: 'Importar backup',
         onConfirm: () => {
           const result = restoreBackup(payload)
@@ -462,16 +472,25 @@ function AppShell() {
   }
 
   const handleRestoreAuto = (createdAt: string) => {
-    setDialog({
-      title: `Restaurar cópia de ${formatDate(createdAt)}?`,
-      description: 'Os dados atuais serão substituídos. Uma nova cópia de segurança será criada antes da restauração.',
-      confirmLabel: 'Restaurar cópia',
-      onConfirm: () => {
-        const result = restoreAutoBackup(createdAt)
-        if (result.ok) window.location.reload()
-        else showNotice('Não foi possível restaurar', result.error ?? 'A cópia não foi restaurada.')
-      },
-    })
+    const copy = listAutoBackups().find((item) => item.createdAt === createdAt)
+    if (!copy) { showNotice('Cópia indisponível', 'Esta cópia não está mais neste navegador.'); return }
+    try {
+      const inspection = inspectBackup(copy.backup)
+      const errors = inspection.issues.filter((issue) => issue.severity === 'error')
+      if (errors.length) throw new Error(errors.map((issue) => issue.message).join(' '))
+      setDialog({
+        title: `Restaurar cópia de ${formatDate(createdAt)}?`,
+        description: <BackupReview inspection={inspection} />,
+        confirmLabel: 'Restaurar cópia',
+        onConfirm: () => {
+          const result = restoreAutoBackup(createdAt)
+          if (result.ok) window.location.reload()
+          else showNotice('Não foi possível restaurar', result.error ?? 'A cópia não foi restaurada.')
+        },
+      })
+    } catch (error) {
+      showNotice('Cópia inválida', error instanceof Error ? error.message : 'Não foi possível conferir esta cópia.')
+    }
   }
 
   return (

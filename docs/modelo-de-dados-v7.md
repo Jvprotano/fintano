@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-O documento v7 é a fronteira estável entre a interface atual e uma futura persistência em banco. A aplicação pode armazená-lo em `localStorage` hoje e desmembrá-lo em coleções ou tabelas depois sem mudar o significado financeiro dos campos.
+O documento local v7 é a fronteira de persistência da interface atual. O arquivo público exportado usa v9; consulte [backup v9](backup-v9.md). A aplicação pode armazenar o documento em `localStorage` hoje e desmembrá-lo em coleções ou tabelas depois sem mudar o significado financeiro dos campos.
 
 O repositório interno guarda as coleções usadas pelo runtime em uma única chave. O backup é deliberadamente diferente: ele expõe um contrato de domínio, não detalhes de implementação do navegador.
 
@@ -12,11 +12,11 @@ O repositório interno guarda as coleções usadas pelo runtime em uma única ch
 | --- | --- |
 | `profile` | competência e modelo ativos |
 | `planning.templates` | modelos editáveis de renda, folha, custos, desejos e alocação |
-| `planning.cycles` | plano capturado para cada competência, aberto ou fechado |
+| `planning.cycles` | plano capturado no backup; no runtime atual os ciclos importados ficam em `backupCarryover` até FT-06 |
 | `actuals.cycles` | pagamentos e movimentos de caixa efetivos por competência |
 | `cards` | contas, cobranças relacionadas por `accountId` e faturas pagas |
 | `investments.holdings` | cadastro das posições |
-| `investments.valuations` | valor observado da posição em uma data |
+| `investments.valuations` | histórico preservado no backup e em `backupCarryover`; a tela usa o valor atual explícito da posição |
 | `investments.ledgerEntries` | saldos iniciais, aportes, retiradas e amortizações |
 | `balanceSheet` | bens e dívidas atuais |
 | `goals` | metas e suas inclusões explícitas |
@@ -41,7 +41,7 @@ O repositório interno guarda as coleções usadas pelo runtime em uma única ch
 A importação segue uma transação local:
 
 1. ler o JSON como dado desconhecido;
-2. converter v6 para v7 em memória, quando necessário;
+2. converter v6, v7 ou v8 para v9 em memória, quando necessário;
 3. validar forma, centavos, IDs e referências;
 4. apresentar contagens e avisos;
 5. testar a capacidade de gravação;
@@ -53,12 +53,12 @@ Avisos não inventam informação. Uma previdência sem posição patrimonial vi
 
 ## Migração reproduzível de um arquivo
 
-O teste `src/data/backupMigration.test.ts` funciona também como ferramenta controlada de conversão. Ele só grava quando os três caminhos são fornecidos:
+O teste `src/data/backupMigration.test.ts` funciona também como ferramenta controlada de conversão para v9. Ele só grava quando os três caminhos são fornecidos:
 
 ```powershell
 $env:FINTANO_BACKUP_PATH='C:\caminho\backup-v6.json'
-$env:FINTANO_BACKUP_OUTPUT='C:\caminho\backup-v7.json'
-$env:FINTANO_MIGRATION_REPORT='C:\caminho\relatorio-v7.json'
+$env:FINTANO_BACKUP_OUTPUT='C:\caminho\backup-v9.json'
+$env:FINTANO_MIGRATION_REPORT='C:\caminho\relatorio-v9.json'
 npx vitest run src/data/backupMigration.test.ts
 ```
 
