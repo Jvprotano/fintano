@@ -4,6 +4,7 @@ import { advanceCycleMonth, normalizeActiveCycle } from '../lib/activeCycle'
 import { nowIso, uid } from '../lib/shared'
 import { payInvoiceInDocument } from '../hooks/useCreditCards'
 import type { RepositoryDocument } from './repository'
+import type { MonthlyPlan } from '../lib/monthlyPlans'
 
 export interface CloseCycleInput {
   month: string
@@ -21,7 +22,11 @@ export function closeCycleInDocument(
     document.collections.activeCycle as Parameters<typeof normalizeActiveCycle>[0],
   )
   if (cycle.month !== input.month || input.snapshot.month !== input.month) return null
-  if (document.collections.activeScenarioId && document.collections.activeScenarioId !== input.snapshot.scenarioId) return null
+  const plan = Array.isArray(document.collections.monthlyPlans)
+    ? (document.collections.monthlyPlans as MonthlyPlan[]).find((item) => item.month === input.month)
+    : undefined
+  if (plan ? plan.sourceTemplateId !== input.snapshot.scenarioId :
+    document.collections.activeScenarioId && document.collections.activeScenarioId !== input.snapshot.scenarioId) return null
 
   const storedHistory = Array.isArray(document.collections.history)
     ? document.collections.history as MonthlySnapshot[] : []

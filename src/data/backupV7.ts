@@ -73,7 +73,9 @@ import type {
   MonthKey,
   CyclePlanV7,
   InvestmentValuationV7,
+  PlanningTemplateV7,
 } from './backupSchemaV7'
+import { normalizeMonthlyPlan, planAsScenario, type MonthlyPlan } from '../lib/monthlyPlans'
 
 type BackupCarryover = {
   valuations: InvestmentValuationV7[]
@@ -359,6 +361,36 @@ function closureToSnapshot(closure: CycleClosureV7): MonthlySnapshot {
   })
 }
 
+function scenarioToTemplate(scenario: FinanceScenario): PlanningTemplateV7 {
+  return {
+    id: scenario.id, name: scenario.name,
+    createdAt: normalizePersistedInstant(scenario.createdAt),
+    updatedAt: normalizePersistedInstant(scenario.updatedAt),
+    salaryCents: toCents(scenario.salaryNet), salaryInputMode: scenario.salaryInputMode,
+    costs: scenario.costs.map((cost) => ({
+      id: cost.id, name: cost.name, amountCents: toCents(cost.value), category: cost.category,
+      sharedAmountCents: cost.sharedAmount === undefined ? undefined : toCents(cost.sharedAmount),
+      sharedWith: cost.sharedWith, paidWith: cost.paidWith === 'card' ? 'card' : 'account',
+      archivedAt: cost.archivedAt,
+    })),
+    wants: scenario.wants.map((want) => ({
+      id: want.id, name: want.name, plannedAmountCents: toCents(want.plannedAmount),
+      paidWith: want.paidWith === 'account' ? 'account' : 'card',
+      includedInCardPlan: want.includedInCardPlan, archivedAt: want.archivedAt,
+    })),
+    payrollDeductions: scenario.deductions.map((deduction) => ({
+      id: deduction.id, name: deduction.name, amountCents: toCents(deduction.value),
+      type: deduction.type, employerContributionCents: toCents(deduction.employerContribution),
+      linkedHoldingId: deduction.linkedHoldingId,
+    })),
+    budgetModel: { selectedId: scenario.selectedModelId, customPercentages: {
+      needs: scenario.customModel.n, wants: scenario.customModel.d,
+      investments: scenario.customModel.i,
+    } },
+    investmentAllocation: scenario.diversification,
+  }
+}
+
 export function repositoryToBackupV7(
   document: RepositoryDocument,
   exportedAt = new Date().toISOString(),
@@ -460,50 +492,7 @@ export function repositoryToBackupV7(
       activePlanningTemplateId: activeScenarioId,
     },
     planning: {
-      templates: scenarios.map((scenario) => ({
-        id: scenario.id,
-        name: scenario.name,
-        createdAt: normalizePersistedInstant(scenario.createdAt),
-        updatedAt: normalizePersistedInstant(scenario.updatedAt),
-        salaryCents: toCents(scenario.salaryNet),
-        salaryInputMode: scenario.salaryInputMode,
-        costs: scenario.costs.map((cost) => ({
-          id: cost.id,
-          name: cost.name,
-          amountCents: toCents(cost.value),
-          category: cost.category,
-          sharedAmountCents:
-            cost.sharedAmount === undefined ? undefined : toCents(cost.sharedAmount),
-          sharedWith: cost.sharedWith,
-          paidWith: cost.paidWith === 'card' ? 'card' : 'account',
-          archivedAt: cost.archivedAt,
-        })),
-        wants: scenario.wants.map((want) => ({
-          id: want.id,
-          name: want.name,
-          plannedAmountCents: toCents(want.plannedAmount),
-          paidWith: want.paidWith === 'account' ? 'account' : 'card',
-          includedInCardPlan: want.includedInCardPlan,
-          archivedAt: want.archivedAt,
-        })),
-        payrollDeductions: scenario.deductions.map((deduction) => ({
-          id: deduction.id,
-          name: deduction.name,
-          amountCents: toCents(deduction.value),
-          type: deduction.type,
-          employerContributionCents: toCents(deduction.employerContribution),
-          linkedHoldingId: deduction.linkedHoldingId,
-        })),
-        budgetModel: {
-          selectedId: scenario.selectedModelId,
-          customPercentages: {
-            needs: scenario.customModel.n,
-            wants: scenario.customModel.d,
-            investments: scenario.customModel.i,
-          },
-        },
-        investmentAllocation: scenario.diversification,
-      })),
+      templates: scenarios.map(scenarioToTemplate),
       cycles: cyclePlans,
     },
     actuals: {
@@ -732,17 +721,8 @@ export function repositoryToBackupV7(
   }
 }
 
-export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocument {
-  const accounts: CreditCardAccount[] = backup.cards.accounts.map((account) => ({
-    id: account.id,
-    name: account.name,
-    closingDay: account.closingDay,
-    dueDay: account.dueDay,
-    limit: fromCents(account.limitCents),
-  }))
-  const accountById = new Map(accounts.map((account) => [account.id, account]))
-  const scenarios: FinanceScenario[] = backup.planning.templates.map((template) =>
-    normalizeScenario({
+function templateToScenario(template: PlanningTemplateV7): FinanceScenario {
+  return normalizeScenario({
       id: template.id,
       name: template.name,
       createdAt: template.createdAt,
@@ -783,8 +763,19 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         i: template.budgetModel.customPercentages.investments,
       },
       diversification: template.investmentAllocation,
-    }),
-  )
+    })
+}
+
+export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocument {
+  const accounts: CreditCardAccount[] = backup.cards.accounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    closingDay: account.closingDay,
+    dueDay: account.dueDay,
+    limit: fromCents(account.limitCents),
+  }))
+  const accountById = new Map(accounts.map((account) => [account.id, account]))
+  const scenarios: FinanceScenario[] = backup.planning.templates.map(templateToScenario)
   const actuals: MonthlyActuals[] = backup.actuals.cycles.map((cycle) => ({
     month: cycle.month,
     costs: Object.fromEntries(
@@ -1113,6 +1104,23 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   }
   const templateIds = ids(backup.planning.templates, 'Planejamento')
   ids(backup.planning.cycles, 'Plano mensal')
+  if (backup.planning.monthlyPlans !== undefined && !Array.isArray(backup.planning.monthlyPlans)) {
+    add('error', 'monthly_plans_invalid', 'Planos operacionais têm formato inválido.')
+  }
+  const fullPlans = Array.isArray(backup.planning.monthlyPlans) ? backup.planning.monthlyPlans : []
+  ids(fullPlans, 'Plano operacional')
+  const fullPlanMonths = new Set<string>()
+  for (const plan of fullPlans) {
+    if (fullPlanMonths.has(plan.month)) add('error', 'monthly_plan_month_duplicate', 'Há dois planos operacionais na mesma competência.', plan.id)
+    fullPlanMonths.add(plan.month)
+    if (!MONTH_RE.test(plan.month) || !Number.isFinite(Date.parse(plan.createdAt)) ||
+      !Number.isFinite(Date.parse(plan.updatedAt)) || !plan.sourceTemplateId ||
+      !plan.data || !Array.isArray(plan.data.costs) || !Array.isArray(plan.data.wants) ||
+      !Array.isArray(plan.data.payrollDeductions) || !Array.isArray(plan.data.investmentAllocation) ||
+      !plan.data.budgetModel) {
+      add('error', 'monthly_plan_invalid', 'Plano operacional está incompleto ou inválido.', plan.id)
+    }
+  }
   const accountIds = ids(backup.cards.accounts, 'Cartão')
   const holdingIds = ids(backup.investments.holdings, 'Posição')
   for (const holding of backup.investments.holdings) {
@@ -1236,6 +1244,9 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   if (!templateIds.has(backup.profile.activePlanningTemplateId)) {
     add('error', 'active_template_missing', 'O planejamento ativo não existe no arquivo.')
   }
+  if (backup.profile.recurringTemplateId && !templateIds.has(backup.profile.recurringTemplateId)) {
+    add('error', 'recurring_template_missing', 'O modelo recorrente não existe no arquivo.')
+  }
   for (const charge of backup.cards.charges) {
     if (!accountIds.has(charge.accountId)) {
       add('error', 'card_reference_missing', 'Cobrança aponta para cartão inexistente.', charge.id)
@@ -1338,6 +1349,7 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     counts: {
       planningTemplates: backup.planning.templates.length,
       cyclePlans: backup.planning.cycles.length,
+      monthlyPlans: fullPlans.length,
       cyclesWithActuals: backup.actuals.cycles.length,
       cardCharges: backup.cards.charges.length,
       holdings: backup.investments.holdings.length,
@@ -1463,8 +1475,21 @@ export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = 
   const base = repositoryToBackupV8(document, exportedAt)
   const holdings = collection<FinancialHolding[]>(document, 'investmentHoldings', []).map(normalizeHolding)
   const currentById = new Map(holdings.map((holding) => [holding.id, toCents(holding.marketValue)]))
+  const monthlyPlans = Array.isArray(document.collections.monthlyPlans)
+    ? (document.collections.monthlyPlans as MonthlyPlan[]).map((raw) => {
+      const plan = normalizeMonthlyPlan(raw)
+      const { id: _id, name: _name, createdAt: _createdAt, updatedAt: _updatedAt, ...data } =
+        scenarioToTemplate(planAsScenario(plan))
+      void _id; void _name; void _createdAt; void _updatedAt
+      return { id: plan.id, month: plan.month, sourceTemplateId: plan.sourceTemplateId,
+        sourceTemplateName: plan.sourceTemplateName, createdAt: plan.createdAt,
+        updatedAt: plan.updatedAt, customized: plan.customized, data }
+    }) : undefined
   return {
     ...base, schemaVersion: 9,
+    profile: { ...base.profile, recurringTemplateId: typeof document.collections.recurringTemplateId === 'string'
+      ? document.collections.recurringTemplateId : base.profile.activePlanningTemplateId },
+    planning: { ...base.planning, monthlyPlans },
     investments: { ...base.investments, holdings: base.investments.holdings.map((holding) => ({
       ...holding,
       currentValueCents: currentById.get(holding.id) ??
@@ -1475,10 +1500,20 @@ export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = 
 
 export function backupV9ToRepository(backup: FinTanoBackupV9): RepositoryDocument {
   const base = backupV8ToRepository({ ...backup, schemaVersion: 8 })
+  base.collections.recurringTemplateId = backup.profile.recurringTemplateId ?? backup.profile.activePlanningTemplateId
   const currentById = new Map(backup.investments.holdings.map((holding) => [holding.id, fromCents(holding.currentValueCents)]))
   base.collections.investmentHoldings = (base.collections.investmentHoldings as FinancialHolding[]).map((holding) => ({
     ...holding, marketValue: currentById.get(holding.id) ?? holding.marketValue,
   }))
+  if (Array.isArray(backup.planning.monthlyPlans)) {
+    base.collections.monthlyPlans = backup.planning.monthlyPlans.map((plan) => normalizeMonthlyPlan({
+      ...templateToScenario({ ...plan.data, id: plan.sourceTemplateId,
+        name: plan.sourceTemplateName, createdAt: plan.createdAt, updatedAt: plan.updatedAt }),
+      id: plan.id, month: plan.month, sourceTemplateId: plan.sourceTemplateId,
+      sourceTemplateName: plan.sourceTemplateName, createdAt: plan.createdAt,
+      updatedAt: plan.updatedAt, customized: plan.customized,
+    }))
+  }
   return base
 }
 

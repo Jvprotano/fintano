@@ -146,7 +146,9 @@ export function createAutoBackupNow(storage: Storage, source?: RepositoryDocumen
     const inspection = inspectBackup(current)
     if (inspection.issues.some((issue) => issue.severity === 'error')) return false
     const backups = listAutoBackups(storage)
-    const next = [{ createdAt: new Date().toISOString(), backup: current }, ...backups].slice(
+    const newest = Math.max(0, ...backups.map((item) => Date.parse(item.createdAt) || 0))
+    const createdAt = new Date(Math.max(Date.now(), newest + 1)).toISOString()
+    const next = [{ createdAt, backup: current }, ...backups].slice(
       0,
       AUTO_BACKUP_KEEP,
     )

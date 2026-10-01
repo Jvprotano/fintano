@@ -375,6 +375,7 @@ export interface BackupInspection {
   counts: {
     planningTemplates: number
     cyclePlans: number
+    monthlyPlans: number
     cyclesWithActuals: number
     cardCharges: number
     holdings: number
@@ -394,7 +395,20 @@ export interface FinTanoBackupV8 extends Omit<FinTanoBackupV7, 'schemaVersion' |
 /** v9 explicita o valor atual sem reduzir o histórico de avaliações aceito no arquivo. */
 export interface FinTanoBackupV9 extends Omit<FinTanoBackupV8, 'schemaVersion' | 'investments'> {
   schemaVersion: 9
+  profile: FinTanoBackupV8['profile'] & { recurringTemplateId?: string }
+  planning: FinTanoBackupV8['planning'] & { monthlyPlans?: MonthlyPlanV9[] }
   investments: Omit<FinTanoBackupV8['investments'], 'holdings'> & {
     holdings: (InvestmentHoldingV7 & { currentValueCents: MoneyCents })[]
   }
+}
+
+export interface MonthlyPlanV9 {
+  id: string
+  month: MonthKey
+  sourceTemplateId: string
+  sourceTemplateName: string
+  createdAt: string
+  updatedAt: string
+  customized: boolean
+  data: Omit<PlanningTemplateV7, 'id' | 'name' | 'createdAt' | 'updatedAt'>
 }

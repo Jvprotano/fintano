@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, Copy, Layers3, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { formatCurrency } from '../lib/format'
+import { formatCurrency, formatMonthKey } from '../lib/format'
 import { useFinancasStore } from '../context/financasStore'
+import { repositoryRevision } from '../data/repositoryCommand'
+import { ConfirmationDialog } from './ui'
 
 export function ScenarioSwitcher() {
   const store = useFinancasStore()
@@ -9,6 +11,11 @@ export function ScenarioSwitcher() {
     scenarios,
     activeScenarioId,
     setActiveScenarioId,
+    applyScenarioToActiveCycle,
+    saveCurrentPlanAsRecurring,
+    currentPlan,
+    recurringTemplateId,
+    setRecurringTemplateId,
     createScenario,
     duplicateScenario,
     renameScenario,
@@ -20,6 +27,9 @@ export function ScenarioSwitcher() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
   const [removeError, setRemoveError] = useState('')
+  const [applyError, setApplyError] = useState('')
+  const [applyReview, setApplyReview] = useState<{ id: string; revision: string | null } | null>(null)
+  const [modelReview, setModelReview] = useState<{ scope: 'model_only' | 'future_unmodified'; revision: string | null } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const activeScenario = scenarios.find((scenario) => scenario.id === activeScenarioId)
 
@@ -50,7 +60,7 @@ export function ScenarioSwitcher() {
         className="flex h-10 items-center gap-2 rounded-xl border border-dark-border bg-dark-surface/80 px-3 text-sm font-medium text-dark-text shadow-sm shadow-black/15 transition-colors hover:border-dark-text-muted/40 hover:bg-dark-hover"
       >
         <Layers3 size={14} className="text-dark-text-muted" />
-        <span className="max-w-36 truncate">{activeScenario?.name ?? 'Cenário'}</span>
+        <span className="max-w-36 truncate">Simular: {activeScenario?.name ?? 'Cenário'}</span>
         <ChevronDown
           size={14}
           className={`text-dark-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
@@ -59,6 +69,9 @@ export function ScenarioSwitcher() {
 
       {open && (
         <div className="app-panel-shadow absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-dark-border bg-dark-card/98">
+          <p className="border-b border-dark-border-subtle px-3 py-2 text-xs leading-relaxed text-dark-text-muted">
+            Plano de {formatMonthKey(store.activeCycle.month)}: {currentPlan.sourceTemplateName}. Selecionar uma simulação só muda a comparação.
+          </p>
           <div className="max-h-72 overflow-y-auto p-1.5">
             {scenarios.map((scenario) => {
               const summary = summaries.find((item) => item.id === scenario.id)
@@ -133,6 +146,12 @@ export function ScenarioSwitcher() {
                     )}
                   </button>
                   <div className="flex shrink-0 gap-0.5 opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100">
+                    <button type="button" onClick={() => { setRecurringTemplateId(scenario.id); setApplyError('') }}
+                      className="rounded-md p-1.5 text-dark-text-muted hover:text-primary-300"
+                      aria-label={`Usar ${scenario.name} como modelo dos próximos ciclos`}
+                      title="Usar como modelo dos próximos ciclos">
+                      <Layers3 size={13} />
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -162,7 +181,25 @@ export function ScenarioSwitcher() {
               )
             })}
           </div>
-          {removeError && <p role="alert" className="px-3 pb-2 text-xs leading-relaxed text-amber-200">{removeError}</p>}
+          {(removeError || applyError) && <p role="alert" className="px-3 pb-2 text-xs leading-relaxed text-amber-200">{removeError || applyError}</p>}
+          <div className="border-t border-dark-border-subtle p-2">
+            <button type="button" disabled={!activeScenario} onClick={() => {
+              setApplyReview({ id: activeScenarioId, revision: repositoryRevision() })
+              setOpen(false)
+            }} className="w-full rounded-lg bg-primary-600 px-3 py-2 text-xs font-semibold text-white hover:bg-primary-500 disabled:opacity-40">
+              Aplicar simulação ao ciclo
+            </button>
+          </div>
+          <div className="border-t border-dark-border-subtle p-2 text-xs text-dark-text-muted">
+            <p>Modelo dos próximos ciclos: {scenarios.find((item) => item.id === recurringTemplateId)?.name ?? 'Recorrente'}</p>
+            <p className="mt-1 leading-relaxed">Depois de editar Planejar, copie o plano deste ciclo para o modelo.</p>
+            <div className="mt-2 flex gap-1.5">
+              <button type="button" onClick={() => { setModelReview({ scope: 'model_only', revision: repositoryRevision() }); setOpen(false) }}
+                className="flex-1 rounded-lg border border-dark-border px-2 py-2 font-medium text-dark-text-secondary hover:bg-dark-hover">Só modelo</button>
+              <button type="button" onClick={() => { setModelReview({ scope: 'future_unmodified', revision: repositoryRevision() }); setOpen(false) }}
+                className="flex-1 rounded-lg border border-dark-border px-2 py-2 font-medium text-dark-text-secondary hover:bg-dark-hover">Modelo + futuros</button>
+            </div>
+          </div>
           <div className="flex gap-1.5 border-t border-dark-border-subtle p-1.5">
             <button
               type="button"
@@ -187,6 +224,24 @@ export function ScenarioSwitcher() {
           </div>
         </div>
       )}
+      <ConfirmationDialog open={applyReview !== null} title="Aplicar esta simulação ao ciclo?"
+        description={<span>O plano de {formatMonthKey(store.activeCycle.month)} receberá os valores e itens de {scenarios.find((item) => item.id === applyReview?.id)?.name ?? 'esta simulação'}. Realizados e histórico permanecem registrados; itens antigos com fatos ficam arquivados no plano.</span>}
+        confirmLabel="Aplicar ao ciclo" onClose={() => setApplyReview(null)} onConfirm={() => {
+          if (!applyReview) return
+          if (!applyScenarioToActiveCycle(applyReview.id, applyReview.revision)) {
+            setApplyError('Os dados mudaram ou a aplicação falhou. Reabra a comparação e confira antes de tentar novamente.')
+            setOpen(true)
+          } else setApplyError('')
+        }} />
+      <ConfirmationDialog open={modelReview !== null} title="Atualizar o modelo recorrente?"
+        description={<span>Os valores e itens do plano de {formatMonthKey(store.activeCycle.month)} serão copiados para {scenarios.find((item) => item.id === recurringTemplateId)?.name ?? 'o modelo'}. {modelReview?.scope === 'future_unmodified' ? 'Planos futuros ainda intactos também serão atualizados; ciclos com edição ou realizado ficam como estão.' : 'Os planos já criados ficam como estão.'}</span>}
+        confirmLabel="Atualizar modelo" onClose={() => setModelReview(null)} onConfirm={() => {
+          if (!modelReview) return
+          if (!saveCurrentPlanAsRecurring(modelReview.scope, modelReview.revision)) {
+            setApplyError('Os dados mudaram ou o modelo não pôde ser salvo. Confira e tente novamente.')
+            setOpen(true)
+          } else setApplyError('')
+        }} />
     </div>
   )
 }

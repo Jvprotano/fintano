@@ -132,4 +132,16 @@ describe('comando financeiro indivisível', () => {
     expect(runRepositoryCommand(command, storage)).toEqual({ ok: true, alreadyApplied: true })
     expect(repositoryRevision(storage)).toBe(after)
   })
+
+  it('fecha pelo plano do ciclo mesmo com outra simulação selecionada', () => {
+    const storage = cardStorage()
+    const seeded = readRepositoryDocument(storage)
+    writeRepositoryDocument({ ...seeded, collections: { ...seeded.collections,
+      activeCycle: { month: '2026-09', salaryHintDay: 30, cardDueHintDay: 5 },
+      activeScenarioId: 'simulation-2',
+      monthlyPlans: [{ month: '2026-09', sourceTemplateId: 'scenario-1' }],
+    } }, storage)
+    const closed = closeCycleInDocument(readRepositoryDocument(storage), closeInput())
+    expect(closed?.collections.history).toEqual([expect.objectContaining({ month: '2026-09', scenarioId: 'scenario-1' })])
+  })
 })

@@ -180,7 +180,7 @@ function BackupReview({ inspection }: { inspection: BackupInspection }) {
   const warnings = inspection.issues.filter((issue) => issue.severity === 'warning')
   const { counts } = inspection
   return <span className="space-y-2">
-    <span className="block">{counts.planningTemplates} modelos, {counts.cyclePlans} planos mensais, {counts.cardCharges} cobranças, {counts.holdings} posições, {counts.valuations} avaliações, {counts.ledgerEntries} movimentos e {counts.closures} fechamentos foram validados.</span>
+    <span className="block">{counts.planningTemplates} modelos, {counts.monthlyPlans} planos operacionais, {counts.cyclePlans} resumos mensais, {counts.cardCharges} cobranças, {counts.holdings} posições, {counts.valuations} avaliações, {counts.ledgerEntries} movimentos e {counts.closures} fechamentos foram validados.</span>
     <span className="block rounded-lg border border-dark-border bg-dark-surface/60 p-2 text-xs">
       <strong className="block text-dark-text">Conferência antes de substituir</strong>
       <span className="block">Patrimônio financeiro: {formatCurrency(current.financialAssetsCents / 100)} atual → {formatCurrency(incoming.financialAssetsCents / 100)} no arquivo</span>

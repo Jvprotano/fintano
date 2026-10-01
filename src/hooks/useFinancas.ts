@@ -33,7 +33,7 @@ export type { ScenarioMetrics } from '../lib/scenario'
  */
 export function useFinancas() {
   const activeCycle = useActiveCycle()
-  const scenarios = useScenarios()
+  const scenarios = useScenarios(activeCycle.month)
   const cards = useCreditCards()
   const assetsState = useAssets()
   const debts = useDebts(scenarios.activeScenarioAll.costs, assetsState.assets, activeCycle.month)

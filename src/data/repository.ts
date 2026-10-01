@@ -39,7 +39,7 @@ export const LEGACY_DOMAIN_KEYS = {
   investmentHoldings: 'uf_investment_holdings_v1',
 } as const
 
-export type RepositoryCollection = keyof typeof LEGACY_DOMAIN_KEYS | 'backupCarryover'
+export type RepositoryCollection = keyof typeof LEGACY_DOMAIN_KEYS | 'backupCarryover' | 'monthlyPlans' | 'recurringTemplateId'
 
 export interface RepositoryDocument {
   schemaVersion: typeof REPOSITORY_SCHEMA_VERSION
@@ -55,7 +55,7 @@ export type RepositoryInspection =
 const ARRAY_COLLECTIONS = new Set<RepositoryCollection>([
   'scenarios', 'actuals', 'assets', 'debts', 'cardAccounts', 'cardEntries',
   'cardPaidInvoices', 'forecastEvents', 'forecastFunds', 'goals', 'history',
-  'investmentClasses', 'investmentHoldings',
+  'investmentClasses', 'investmentHoldings', 'monthlyPlans',
 ])
 const OBJECT_COLLECTIONS = new Set<RepositoryCollection>([
   'cardSettings', 'emergencyFund', 'forecastAssumptions', 'backupCarryover',
@@ -68,7 +68,7 @@ function hasValidCollectionShapes(collections: Record<string, unknown>): boolean
       return value !== null && typeof value === 'object' && !Array.isArray(value)
     }
     if (key === 'activeCycle') return value === null || (typeof value === 'object' && !Array.isArray(value))
-    if (key === 'activeScenarioId') return typeof value === 'string'
+    if (key === 'activeScenarioId' || key === 'recurringTemplateId') return typeof value === 'string'
     return false
   })
 }

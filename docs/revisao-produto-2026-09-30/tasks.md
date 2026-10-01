@@ -51,7 +51,7 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ### FT-06 — Separar plano mensal, modelo recorrente e simulação
 
-- [ ] **P1 · G · depende de FT-03, FT-05 · achados D08, D09.**
+- [x] **P1 · G · depende de FT-03, FT-05 · achados D08, D09.**
 - **Escopo:** plano por competência com identidade dos itens, modelo reutilizável e cenário de comparação. Aplicação explícita de cenário ao ciclo; editar modelo oferece alcance sobre ciclos futuros. Consulta a outro mês não deve trocar silenciosamente a competência operacional.
 - **Referências:** `src/hooks/useScenarios.ts`, `src/hooks/useActiveCycle.ts`, `src/components/ScenarioSwitcher.tsx`, `src/components/CycleSwitcher.tsx`, `src/data/repository.ts`, conversores de backup.
 - **Aceite:** alternar simulações não altera renda recebida, custos pagos, metas realizadas ou histórico. Alterar novembro não muda outubro. Um custo arquivado ainda explica seu realizado anterior. Fechamento usa o plano daquele ciclo.

@@ -23,12 +23,14 @@ import {
   normalizeScenario,
 } from '../lib/scenario'
 import { nowIso, uid } from '../lib/shared'
+import { monthKey } from '../lib/shared'
+import { normalizeMonthlyPlan, planAsScenario, planFromTemplate, type MonthlyPlan } from '../lib/monthlyPlans'
 
 function loadInitialScenarios(): FinanceScenario[] {
   return [createDefaultScenario('Atual')]
 }
 
-export function useScenarios() {
+export function useScenarios(activeCycleMonth = monthKey()) {
   const [storedScenarios, setScenarios] = useRepositoryState<FinanceScenario[]>(
     'scenarios',
     loadInitialScenarios,
@@ -41,6 +43,10 @@ export function useScenarios() {
     'activeScenarioId',
     '',
   )
+  const [recurringTemplateId, setRecurringTemplateId] = useRepositoryState<string>('recurringTemplateId', '')
+  const [storedPlans, setMonthlyPlans] = useRepositoryState<MonthlyPlan[]>('monthlyPlans', [])
+  const monthlyPlans = useMemo(() => Array.isArray(storedPlans)
+    ? storedPlans.map(normalizeMonthlyPlan) : [], [storedPlans])
 
   useEffect(() => {
     const persisted = readRepositoryDocument().collections.scenarios
@@ -67,12 +73,30 @@ export function useScenarios() {
       setActiveScenarioId(scenarios[0].id)
     }
   }, [activeScenarioId, scenarios, setActiveScenarioId])
+  useEffect(() => {
+    if (scenarios.length > 0 && !scenarios.some((scenario) => scenario.id === recurringTemplateId)) {
+      setRecurringTemplateId(scenarios[0].id)
+    }
+  }, [recurringTemplateId, scenarios, setRecurringTemplateId])
 
-  const activeScenarioAll =
+  const selectedScenarioAll =
     scenarios.find((scenario) => scenario.id === activeScenarioId) ??
     scenarios[0] ??
     createDefaultScenario('Atual')
-  const activeId = activeScenarioAll.id
+  const activeId = selectedScenarioAll.id
+  const currentPlan = useMemo(() => {
+    const existing = monthlyPlans.find((plan) => plan.month === activeCycleMonth)
+    if (existing) return existing
+    const source = scenarios.find((scenario) => scenario.id === recurringTemplateId) ??
+      scenarios[0] ?? selectedScenarioAll
+    return planFromTemplate(activeCycleMonth, source)
+  }, [activeCycleMonth, monthlyPlans, recurringTemplateId, scenarios, selectedScenarioAll])
+  useEffect(() => {
+    if (monthlyPlans.some((plan) => plan.month === activeCycleMonth)) return
+    setMonthlyPlans((previous) => previous.some((plan) => plan.month === activeCycleMonth)
+      ? previous : [...previous, currentPlan])
+  }, [activeCycleMonth, currentPlan, monthlyPlans, setMonthlyPlans])
+  const activeScenarioAll = useMemo(() => planAsScenario(currentPlan), [currentPlan])
   const activeScenario = useMemo(() => ({
     ...activeScenarioAll,
     costs: activeScenarioAll.costs.filter((cost) => !cost.archivedAt),
@@ -81,15 +105,18 @@ export function useScenarios() {
 
   const updateActiveScenario = useCallback(
     (updater: (scenario: FinanceScenario) => FinanceScenario) => {
-      return setScenarios((prev) =>
-        prev.map((scenario) =>
-          scenario.id === activeId
-            ? { ...updater(normalizeScenario(scenario)), updatedAt: nowIso() }
-            : scenario,
-        ),
-      )
+      return setMonthlyPlans((previous) => {
+        const current = previous.find((plan) => plan.month === activeCycleMonth) ?? currentPlan
+        const updated = updater(planAsScenario(current))
+        const next: MonthlyPlan = { ...current, ...updated,
+          id: current.id, month: current.month, sourceTemplateId: current.sourceTemplateId,
+          sourceTemplateName: current.sourceTemplateName, createdAt: current.createdAt,
+          updatedAt: nowIso(), customized: true }
+        return [...previous.filter((plan) => plan.month !== activeCycleMonth), next]
+          .sort((a, b) => a.month.localeCompare(b.month))
+      })
     },
-    [activeId, setScenarios],
+    [activeCycleMonth, currentPlan, setMonthlyPlans],
   )
 
   const setScenarioField = useCallback(
@@ -98,6 +125,64 @@ export function useScenarios() {
     },
     [updateActiveScenario],
   )
+
+  const applyScenarioToActiveCycle = useCallback((scenarioId: string, expectedRevision?: string | null) =>
+    runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
+      const templates = Array.isArray(document.collections.scenarios)
+        ? document.collections.scenarios as FinanceScenario[] : []
+      const selected = templates.find((item) => item.id === scenarioId)
+      if (!selected) return null
+      const plans = Array.isArray(document.collections.monthlyPlans)
+        ? document.collections.monthlyPlans as MonthlyPlan[] : []
+      const existing = plans.find((item) => item.month === activeCycleMonth)
+      const next = planFromTemplate(activeCycleMonth, selected)
+      const now = nowIso()
+      const costIds = new Set(next.costs.map((item) => item.id))
+      const wantIds = new Set(next.wants.map((item) => item.id))
+      const updated: MonthlyPlan = { ...next,
+        id: existing?.id ?? next.id, createdAt: existing?.createdAt ?? next.createdAt,
+        updatedAt: now, customized: true,
+        costs: [...next.costs, ...(existing?.costs ?? []).filter((item) => !costIds.has(item.id))
+          .map((item) => ({ ...item, archivedAt: item.archivedAt ?? now }))],
+        wants: [...next.wants, ...(existing?.wants ?? []).filter((item) => !wantIds.has(item.id))
+          .map((item) => ({ ...item, archivedAt: item.archivedAt ?? now }))],
+      }
+      return { ...document, collections: { ...document.collections,
+        monthlyPlans: [...plans.filter((item) => item.month !== activeCycleMonth), updated]
+          .sort((a, b) => a.month.localeCompare(b.month)),
+      } }
+    } }).ok,
+  [activeCycleMonth])
+
+  const saveCurrentPlanAsRecurring = useCallback((scope: 'model_only' | 'future_unmodified', expectedRevision?: string | null) =>
+    runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
+      const templates = Array.isArray(document.collections.scenarios)
+        ? document.collections.scenarios as FinanceScenario[] : []
+      const templateId = document.collections.recurringTemplateId
+      const template = templates.find((item) => item.id === templateId)
+      const plans = Array.isArray(document.collections.monthlyPlans)
+        ? document.collections.monthlyPlans as MonthlyPlan[] : []
+      const current = plans.find((item) => item.month === activeCycleMonth)
+      if (!template || !current) return null
+      const now = nowIso()
+      const updatedModel: FinanceScenario = { ...template, ...planAsScenario(current),
+        id: template.id, name: template.name, createdAt: template.createdAt, updatedAt: now }
+      const actuals = Array.isArray(document.collections.actuals)
+        ? document.collections.actuals as MonthlyActuals[] : []
+      const hasFacts = (month: string) => actuals.some((item) => item.month === month &&
+        (Object.keys(item.costs ?? {}).length > 0 || Object.keys(item.wants ?? {}).length > 0 ||
+          item.extraIncome?.length > 0 || item.extraExpenses?.length > 0))
+      return { ...document, collections: { ...document.collections,
+        scenarios: templates.map((item) => item.id === template.id ? updatedModel : item),
+        monthlyPlans: scope === 'model_only' ? plans : plans.map((plan) => {
+          if (plan.month <= activeCycleMonth || plan.customized ||
+            plan.sourceTemplateId !== template.id || hasFacts(plan.month)) return plan
+          return { ...planFromTemplate(plan.month, updatedModel), id: plan.id,
+            createdAt: plan.createdAt, updatedAt: now, customized: false }
+        }),
+      } }
+    } }).ok,
+  [activeCycleMonth])
 
   // Cenários -----------------------------------------------------------------
 
@@ -164,6 +249,10 @@ export function useScenarios() {
           const current = Array.isArray(document.collections.scenarios)
             ? document.collections.scenarios as FinanceScenario[] : []
           if (current.length <= 1 || !current.some((scenario) => scenario.id === id)) return null
+          const plans = Array.isArray(document.collections.monthlyPlans)
+            ? document.collections.monthlyPlans as MonthlyPlan[] : []
+          if (plans.some((plan) => plan.sourceTemplateId === id) ||
+            document.collections.recurringTemplateId === id) return null
           const removed = current.find((scenario) => scenario.id === id)!
           const remaining = current.filter((scenario) => scenario.id !== id)
           const actuals = Array.isArray(document.collections.actuals)
@@ -237,24 +326,24 @@ export function useScenarios() {
           const debts = Array.isArray(document.collections.debts)
             ? document.collections.debts as Debt[] : []
           if (debts.some((debt) => debt.linkedCostId === id && debt.balance > 0)) return null
-          const current = Array.isArray(document.collections.scenarios)
-            ? document.collections.scenarios as FinanceScenario[] : []
-          if (!current.some((scenario) => scenario.id === activeId && scenario.costs.some((cost) => cost.id === id))) return null
+          const current = Array.isArray(document.collections.monthlyPlans)
+            ? document.collections.monthlyPlans as MonthlyPlan[] : []
+          if (!current.some((plan) => plan.month === activeCycleMonth && plan.costs.some((cost) => cost.id === id))) return null
           return {
             ...document,
             collections: {
               ...document.collections,
-              scenarios: current.map((scenario) => scenario.id === activeId
-                ? { ...scenario, updatedAt: nowIso(), costs: scenario.costs.map((cost) =>
+              monthlyPlans: current.map((plan) => plan.month === activeCycleMonth
+                ? { ...plan, customized: true, updatedAt: nowIso(), costs: plan.costs.map((cost) =>
                     cost.id === id ? { ...cost, archivedAt: nowIso() } : cost,
                   ) }
-                : scenario),
+                : plan),
             },
           }
         },
       }).ok
     },
-    [activeId],
+    [activeCycleMonth],
   )
 
   const restoreCost = useCallback(
@@ -266,7 +355,7 @@ export function useScenarios() {
     })),
     [updateActiveScenario],
   )
-  const deleteUnusedCost = useCallback((id: string) => deleteUnusedCatalog('cost', id, activeId), [activeId])
+  const deleteUnusedCost = useCallback((id: string) => deleteUnusedCatalog('cost', id, activeCycleMonth), [activeCycleMonth])
 
   // Desejos ------------------------------------------------------------------
 
@@ -316,7 +405,7 @@ export function useScenarios() {
     }),
     [updateActiveScenario],
   )
-  const deleteUnusedWant = useCallback((id: string) => deleteUnusedCatalog('want', id, activeId), [activeId])
+  const deleteUnusedWant = useCallback((id: string) => deleteUnusedCatalog('want', id, activeCycleMonth), [activeCycleMonth])
 
   const updateWantAmount = useCallback(
     (id: string, plannedAmount: number) => {
@@ -518,10 +607,16 @@ export function useScenarios() {
 
   return {
     scenarios,
+    monthlyPlans,
+    currentPlan,
     activeScenario,
     activeScenarioAll,
     activeScenarioId: activeId,
+    recurringTemplateId,
+    setRecurringTemplateId,
     setActiveScenarioId,
+    applyScenarioToActiveCycle,
+    saveCurrentPlanAsRecurring,
     createScenario,
     duplicateScenario,
     renameScenario,

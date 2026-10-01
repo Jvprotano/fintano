@@ -2,7 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { AlertTriangle, Download, RotateCcw, Upload } from 'lucide-react'
 import type { RepositoryInspection } from '../data/repository'
 import { REPOSITORY_STORAGE_KEY } from '../data/repository'
-import { bootstrapLedgerKinds } from '../data/ledgerMigration'
+import { bootstrapMonthlyPlans } from '../data/monthlyPlanMigration'
 import { inspectBackup, listAutoBackups, restoreBackup, restoreAutoBackup } from '../lib/backup'
 import { formatDate } from '../lib/format'
 
@@ -99,7 +99,7 @@ export function RecoveryScreen({ inspection }: { inspection: BlockedInspection }
             <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-dark-border bg-dark-card px-3 text-sm font-medium hover:bg-dark-hover">
               <Upload size={16} /> Selecionar arquivo de backup
             </button>
-            <button type="button" onClick={() => { const result = bootstrapLedgerKinds(); if (result.status === 'ready') window.location.reload(); else setError(result.message) }} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-dark-border bg-dark-card px-3 text-sm font-medium hover:bg-dark-hover">
+            <button type="button" onClick={() => { const result = bootstrapMonthlyPlans(); if (result.status === 'ready') window.location.reload(); else setError(result.message) }} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-dark-border bg-dark-card px-3 text-sm font-medium hover:bg-dark-hover">
               <RotateCcw size={16} /> Tentar abrir novamente
             </button>
           </div>
