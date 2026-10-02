@@ -80,7 +80,7 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ### FT-10 — Refazer a hierarquia de Ciclo e Planejar
 
-- [ ] **P1 · G · depende de FT-08, FT-09 · decisão de produto.**
+- [x] **P1 · G · depende de FT-08, FT-09 · decisão de produto.**
 - **Escopo:** Ciclo com decisão principal, pendências e ações; prévia e composição sob demanda. Planejar com distribuição em reais e saldo após o plano, aporte diretamente configurável e modelos percentuais secundários. Envelope de cartão com tipo explícito, preservando inclusão dos filhos. Renda recorrente zero não bloqueia registro de extras e movimentos.
 - **Referências:** `src/App.tsx`, `src/components/ClosingView.tsx`, `src/components/IncomePanel.tsx`, `src/components/CostManager.tsx`, `src/components/WantsManager.tsx`, `src/components/InvestmentPlan.tsx`, `src/lib/scenario.ts`, `src/components/ui.tsx`.
 - **Aceite:** identificar verba, origem das pendências e próxima ação sem percorrer vários resumos. Renomear envelope não muda o total. O plano fecha em reais sem obrigar o usuário a ajustar percentuais. Estados vazios levam à configuração necessária.
@@ -96,7 +96,7 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ### FT-12 — Disponibilizar cadastro e calendário dos cartões
 
-- [ ] **P1 · M · depende de FT-02 · achado D10.**
+- [x] **P1 · M · depende de FT-02 · achado D10.**
 - **Escopo:** configuração acessível de cartão, fechamento, vencimento e fatura ativa. Retirar julho fixo da inicialização. Transformar divergência de calendário em uma ação de conferência/configuração. Diferenciar teto pessoal de limite do banco.
 - **Referências:** `src/components/CreditCardManager.tsx`, `src/hooks/useCreditCards.ts`, `src/lib/creditCards.ts`, `src/components/cards/CardEntryForm.tsx`.
 - **Aceite:** instalação vazia em outubro não cria fatura de julho; cadastrar cartão habilita o lançamento vinculado a evento. Corrigir calendário mostra o efeito antes de reatribuir lançamentos existentes.

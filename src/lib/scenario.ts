@@ -27,9 +27,13 @@ export function personalCostValue(cost: CostItem): number {
 }
 
 export function isCardEnvelopeWant(want: WantItem): boolean {
-  if (want.paidWith === 'account') return false
+  return want.kind === 'card_envelope' && want.paidWith !== 'account'
+}
+
+function legacyCardEnvelope(want: WantItem): boolean {
   const name = normalizeText(want.name)
-  return name === 'cartao' || name === 'cartao de credito' || name === 'cartoes'
+  return want.paidWith !== 'account' &&
+    (name === 'cartao' || name === 'cartao de credito' || name === 'cartoes')
 }
 
 export function isWantIncludedInCardPlan(want: WantItem, wants: WantItem[]): boolean {
@@ -126,6 +130,8 @@ export function normalizeScenario(scenario: FinanceScenario): FinanceScenario {
   return {
     ...rest,
     salaryNet: finiteNumber(scenario.salaryNet),
+    plannedInvestmentAmount: scenario.plannedInvestmentAmount == null ? null :
+      Math.max(0, finiteNumber(scenario.plannedInvestmentAmount)),
     salaryInputMode:
       scenario.salaryInputMode === 'take_home' ? 'take_home' : 'before_payroll_deductions',
     costs: Array.isArray(scenario.costs) ? scenario.costs.map(normalizeCost) : [],
@@ -133,6 +139,8 @@ export function normalizeScenario(scenario: FinanceScenario): FinanceScenario {
       ? scenario.wants.map((want) => ({
           id: want.id || uid(),
           name: want.name || 'Desejo',
+          kind: want.kind === 'card_envelope' || (want.kind === undefined && legacyCardEnvelope(want))
+            ? 'card_envelope' : 'regular',
           plannedAmount: Math.max(0, finiteNumber(want.plannedAmount)),
           // Desejo é o caixa do cartão: comer fora, viagem, assinatura.
           paidWith: want.paidWith === 'account' ? ('account' as const) : ('card' as const),
@@ -176,6 +184,7 @@ export function createDefaultScenario(name = 'Atual'): FinanceScenario {
     createdAt: timestamp,
     updatedAt: timestamp,
     salaryNet: 0,
+    plannedInvestmentAmount: null,
     salaryInputMode: 'before_payroll_deductions',
     costs: [],
     wants: [],
@@ -403,7 +412,9 @@ export function calculateScenario(
   const budgetAllocation: Record<BudgetArea, number> = {
     necessidades: (availableForBudget * selectedModel.necessidades) / 100,
     desejos: (availableForBudget * selectedModel.desejos) / 100,
-    investimentos: (availableForBudget * selectedModel.investimentos) / 100,
+    investimentos: state.plannedInvestmentAmount == null
+      ? (availableForBudget * selectedModel.investimentos) / 100
+      : Math.max(0, state.plannedInvestmentAmount),
   }
 
   const standaloneWants = activeWants.filter((w) => !isWantIncludedInCardPlan(w, activeWants))

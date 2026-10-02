@@ -68,6 +68,7 @@ export interface PlanningTemplateV7 {
   createdAt: string
   updatedAt: string
   salaryCents: MoneyCents
+  investmentTargetCents?: MoneyCents | null
   salaryInputMode: SalaryInputMode
   costs: {
     id: string
@@ -82,6 +83,7 @@ export interface PlanningTemplateV7 {
   wants: {
     id: string
     name: string
+    kind?: 'regular' | 'card_envelope'
     plannedAmountCents: MoneyCents
     paidWith: PaymentMethod
     includedInCardPlan?: boolean

@@ -28,7 +28,7 @@ import {
   X,
 } from 'lucide-react'
 import { FinancasProvider } from './context/FinancasContext'
-import { useScenarioStore } from './context/financasStore'
+import { useMetrics, useScenarioStore } from './context/financasStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePersistenceStatus } from './hooks/usePersistenceStatus'
 import { IncomePanel } from './components/IncomePanel'
@@ -59,6 +59,24 @@ import {
 } from './lib/backup'
 
 type View = 'closing' | 'planning' | 'cards' | 'investments' | 'history' | 'forecast'
+
+function PlanningBalance() {
+  const { balanceAfterPlan, paycheckInAccount, totalCosts, totalWantsAmount, directInvestmentTarget } = useMetrics()
+  return <div className="rounded-xl border border-dark-border bg-dark-card/85 px-4 py-3">
+    <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div>
+        <p className="text-xs uppercase tracking-wider text-dark-text-muted">Saldo após o plano do ciclo</p>
+        <p className="mt-1 text-xs text-dark-text-muted">Renda em conta planejada menos contas, Desejos e aporte direto.</p>
+      </div>
+      <strong className={`text-xl tabular-nums ${balanceAfterPlan < -0.005 ? 'text-rose-300' : 'text-dark-text'}`}>
+        {formatCurrency(balanceAfterPlan)}
+      </strong>
+    </div>
+    <p className="mt-2 text-xs tabular-nums text-dark-text-muted">
+      {formatCurrency(paycheckInAccount)} − {formatCurrency(totalCosts)} contas − {formatCurrency(totalWantsAmount)} Desejos − {formatCurrency(directInvestmentTarget)} aporte
+    </p>
+  </div>
+}
 
 const CreditCardManager = lazy(() =>
   import('./components/CreditCardManager').then((module) => ({ default: module.CreditCardManager })),
@@ -582,16 +600,19 @@ function AppShell() {
         )}
 
         {activeView === 'planning' && (
+          <div className="space-y-4">
+          <PlanningBalance />
           <div className="grid items-start gap-4 xl:grid-cols-2">
             <div className="min-w-0 space-y-4">
               <IncomePanel />
               <CostManager />
             </div>
             <div className="min-w-0 space-y-4">
-              <BudgetModelPicker />
               <WantsManager />
               <InvestmentPlan />
+              <BudgetModelPicker />
             </div>
+          </div>
           </div>
         )}
 

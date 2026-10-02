@@ -4,7 +4,7 @@ import { Card } from './Card'
 import { CurrencyInput } from './CurrencyInput'
 import { HeaderMetric } from './HeaderMetric'
 import { MeterWithMarker, PrimaryButton, SuggestionChip } from './ui'
-import { formatCurrency, inputClass } from '../lib/format'
+import { formatCurrency, inputClass, selectClass } from '../lib/format'
 import {
   isCardEnvelopeWant,
   isWantIncludedInCardPlan,
@@ -51,6 +51,7 @@ export function WantsManager() {
 
   const [newName, setNewName] = useState('')
   const [newAmount, setNewAmount] = useState(0)
+  const [newKind, setNewKind] = useState<'regular' | 'card_envelope'>('regular')
 
   const desejosTarget = budgetAllocation.desejos
   const remaining = desejosTarget - totalWantsAmount
@@ -69,9 +70,10 @@ export function WantsManager() {
 
   const handleAdd = () => {
     if (!newName.trim()) return
-    if (!addWant(newName.trim(), newAmount)) return
+    if (!addWant(newName.trim(), newAmount, 'card', newKind === 'card_envelope' ? 'card_envelope' : undefined)) return
     setNewName('')
     setNewAmount(0)
+    setNewKind('regular')
   }
 
   return (
@@ -178,6 +180,12 @@ export function WantsManager() {
               className={`${inputClass} mt-1.5`}
             /></label>
             <label className="app-form-label w-full sm:w-40">Valor planejado<span className="mt-1.5 block"><CurrencyInput value={newAmount} onChange={setNewAmount} /></span></label>
+            <label className="app-form-label w-full sm:w-40">Tipo<select value={newKind}
+              onChange={(event) => setNewKind(event.target.value as 'regular' | 'card_envelope')}
+              className={`${selectClass} mt-1.5`}>
+              <option value="regular">Desejo</option>
+              <option value="card_envelope" disabled={wants.some(isCardEnvelopeWant)}>Envelope Cartão</option>
+            </select></label>
             <PrimaryButton onClick={handleAdd} disabled={!newName.trim()}>
               <Plus size={15} />
               Adicionar

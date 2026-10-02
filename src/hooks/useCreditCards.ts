@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { useRepositoryState, type RepositoryDocument } from '../data/repository'
+import { readRepositoryDocument, useRepositoryState, type RepositoryDocument } from '../data/repository'
 import { runRepositoryCommand, type CommandResult } from '../data/repositoryCommand'
 import type {
   CreditCardAccount,
@@ -26,8 +26,14 @@ import {
   withCardEntrySpendingMonth,
   type PaidInvoiceSnapshot,
 } from '../lib/cardCycleAccounting'
-import { addMonths, uid } from '../lib/shared'
-const DEFAULT_SETTINGS: CreditCardSettings = { paymentDate: '05/07', personalSpendingLimit: 1500 }
+import { addMonths, monthKey, uid } from '../lib/shared'
+import { normalizeActiveCycle } from '../lib/activeCycle'
+
+function defaultSettingsForCycle(month: string, dueDay = 5): CreditCardSettings {
+  const currentDueMonth = month
+  return { paymentDate: `${String(dueDay).padStart(2, '0')}/${currentDueMonth.slice(5)}`,
+    currentDueMonth, personalSpendingLimit: 1500 }
+}
 
 type EntryWithSpendingMonth = CreditCardEntry & { spendingMonth?: string }
 
@@ -65,8 +71,10 @@ export function payInvoiceInDocument(
   document: RepositoryDocument,
   expectedDueMonth: string,
 ): RepositoryDocument | null {
+  const active = normalizeActiveCycle(document.collections.activeCycle as Parameters<typeof normalizeActiveCycle>[0])
   const settings = normalizeCreditCardSettings(
-    (document.collections.cardSettings as CreditCardSettings | undefined) ?? DEFAULT_SETTINGS,
+    (document.collections.cardSettings as CreditCardSettings | undefined) ??
+      defaultSettingsForCycle(active.month, active.cardDueHintDay),
   )
   const dueMonth = settings.currentDueMonth ?? inferDueMonthFromPaymentDate(settings.paymentDate)
   if (dueMonth !== expectedDueMonth) return null
@@ -108,12 +116,17 @@ export function payInvoiceInDocument(
  * os cartões que já apareciam nos lançamentos são cadastrados herdando o
  * vencimento global antigo — nada se perde e nada precisa ser redigitado.
  */
-export function useCreditCards() {
+export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5) {
   const [storedSettings, setSettingsRaw] = useRepositoryState<CreditCardSettings>(
     'cardSettings',
-    DEFAULT_SETTINGS,
+    () => defaultSettingsForCycle(activeCycleMonth, cardDueHintDay),
   )
   const settings = useMemo(() => normalizeCreditCardSettings(storedSettings), [storedSettings])
+  useEffect(() => {
+    if (readRepositoryDocument().collections.cardSettings === undefined) {
+      setSettingsRaw(defaultSettingsForCycle(activeCycleMonth, cardDueHintDay))
+    }
+  }, [activeCycleMonth, cardDueHintDay, setSettingsRaw])
   const currentDueMonth =
     settings.currentDueMonth ?? inferDueMonthFromPaymentDate(settings.paymentDate)
 
@@ -326,6 +339,23 @@ export function useCreditCards() {
     [setSettingsRaw],
   )
 
+  const setDueMonth = useCallback((month: string, expectedRevision?: string | null) =>
+    runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return null
+      const previous = normalizeCreditCardSettings(
+        (document.collections.cardSettings as CreditCardSettings | undefined) ??
+          defaultSettingsForCycle(activeCycleMonth, cardDueHintDay))
+      const dueDay = Number(previous.paymentDate.slice(0, 2)) || 5
+      const entries = Array.isArray(document.collections.cardEntries)
+        ? document.collections.cardEntries as CreditCardEntry[] : []
+      return { ...document, collections: { ...document.collections,
+        cardSettings: { ...previous, currentDueMonth: month,
+          paymentDate: `${String(dueDay).padStart(2, '0')}/${month.slice(5)}` },
+        cardEntries: normalizeEntriesForDueMonth(entries, month),
+      } }
+    } }).ok,
+  [activeCycleMonth, cardDueHintDay])
+
   const addAccount = useCallback(
     (input: { name: string; closingDay: number; dueDay: number; limit?: number }) => {
       const trimmed = input.name.trim()
@@ -378,5 +408,6 @@ export function useCreditCards() {
     anticipateInstallments,
     payInvoice,
     setSettings,
+    setDueMonth,
   }
 }

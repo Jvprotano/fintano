@@ -23,7 +23,7 @@ export function CardEntryForm({
   const descriptionRef = useRef<HTMLInputElement>(null)
   const [description, setDescription] = useState('')
   const [purchaseDate, setPurchaseDate] = useState(todayShort)
-  const [cardName, setCardName] = useState('Itaú')
+  const [cardName, setCardName] = useState(() => knownCards[0] ?? '')
   const [amount, setAmount] = useState(0)
   const [amountTotalInput, setAmountTotalInput] = useState(0)
   const [amountInputMode, setAmountInputMode] = useState<'installment' | 'total'>('installment')

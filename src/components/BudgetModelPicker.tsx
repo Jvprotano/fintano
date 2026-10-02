@@ -12,8 +12,9 @@ const AREAS: { area: BudgetArea; field: 'n' | 'd' | 'i' }[] = [
 ]
 
 export function BudgetModelPicker() {
-  const { selectedModelId, setSelectedModelId, customModel, setCustomModel } = useScenarioStore()
-  const { availableForBudget, budgetAllocation } = useMetrics()
+  const { selectedModelId, setSelectedModelId, customModel, setCustomModel,
+    plannedInvestmentAmount } = useScenarioStore()
+  const { availableForBudget } = useMetrics()
 
   const isCustom = selectedModelId === 'custom'
   const customTotal = customModel.n + customModel.d + customModel.i
@@ -112,7 +113,7 @@ export function BudgetModelPicker() {
 
         {availableForBudget > 0 && (
           <div className="grid grid-cols-3 gap-2">
-            {AREAS.map(({ area }) => (
+            {AREAS.map(({ area, field }) => (
               <div key={area} className="rounded-lg bg-dark-surface px-3 py-2.5">
                 <span className="flex items-center gap-1.5 text-xs text-dark-text-muted">
                   <span
@@ -122,12 +123,15 @@ export function BudgetModelPicker() {
                   {BUDGET_AREA_LABELS[area]}
                 </span>
                 <strong className="mt-1 block text-sm font-semibold tabular-nums text-dark-text">
-                  {formatCurrency(budgetAllocation[area])}
+                  {formatCurrency(availableForBudget * (isCustom ? customModel[field] : selectedModel[area]) / 100)}
                 </strong>
               </div>
             ))}
           </div>
         )}
+        {plannedInvestmentAmount !== null && <p className="text-xs text-dark-text-muted">
+          Aporte do plano definido em reais: {formatCurrency(plannedInvestmentAmount)}. O percentual acima é apenas referência.
+        </p>}
       </div>
     </Card>
   )

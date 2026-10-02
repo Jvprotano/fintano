@@ -360,16 +360,18 @@ export function useScenarios(activeCycleMonth = monthKey()) {
   // Desejos ------------------------------------------------------------------
 
   const addWant = useCallback(
-    (name: string, plannedAmount = 0, paidWith: PaymentMethod = 'card') => {
+    (name: string, plannedAmount = 0, paidWith: PaymentMethod = 'card', kind?: 'card_envelope') => {
+      if (kind === 'card_envelope' && activeScenario.wants.some(isCardEnvelopeWant)) return false
       return updateActiveScenario((scenario) => ({
         ...scenario,
         wants: [
           ...scenario.wants,
-          { id: uid(), name, plannedAmount: Math.max(0, plannedAmount), paidWith },
+          { id: uid(), name, plannedAmount: Math.max(0, plannedAmount),
+            paidWith: kind === 'card_envelope' ? 'card' : paidWith, kind: kind ?? 'regular' },
         ],
       }))
     },
-    [updateActiveScenario],
+    [activeScenario.wants, updateActiveScenario],
   )
 
   const removeWant = useCallback(
@@ -444,7 +446,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
           w.id === id
             ? {
                 ...w,
-                paidWith,
+                paidWith: w.kind === 'card_envelope' ? 'card' : paidWith,
                 includedInCardPlan:
                   paidWith === 'account' ? false : w.includedInCardPlan,
               }
@@ -628,6 +630,11 @@ export function useScenarios(activeCycleMonth = monthKey()) {
       [setScenarioField],
     ),
     salaryInputMode: activeScenario.salaryInputMode,
+    plannedInvestmentAmount: activeScenario.plannedInvestmentAmount ?? null,
+    setPlannedInvestmentAmount: useCallback(
+      (amount: number | null) => setScenarioField('plannedInvestmentAmount', amount),
+      [setScenarioField],
+    ),
     setSalaryInputMode: useCallback(
       (mode: SalaryInputMode) => setScenarioField('salaryInputMode', mode),
       [setScenarioField],

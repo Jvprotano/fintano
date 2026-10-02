@@ -367,6 +367,8 @@ function scenarioToTemplate(scenario: FinanceScenario): PlanningTemplateV7 {
     createdAt: normalizePersistedInstant(scenario.createdAt),
     updatedAt: normalizePersistedInstant(scenario.updatedAt),
     salaryCents: toCents(scenario.salaryNet), salaryInputMode: scenario.salaryInputMode,
+    investmentTargetCents: scenario.plannedInvestmentAmount == null ? null :
+      toCents(scenario.plannedInvestmentAmount),
     costs: scenario.costs.map((cost) => ({
       id: cost.id, name: cost.name, amountCents: toCents(cost.value), category: cost.category,
       sharedAmountCents: cost.sharedAmount === undefined ? undefined : toCents(cost.sharedAmount),
@@ -375,6 +377,7 @@ function scenarioToTemplate(scenario: FinanceScenario): PlanningTemplateV7 {
     })),
     wants: scenario.wants.map((want) => ({
       id: want.id, name: want.name, plannedAmountCents: toCents(want.plannedAmount),
+      kind: want.kind,
       paidWith: want.paidWith === 'account' ? 'account' : 'card',
       includedInCardPlan: want.includedInCardPlan, archivedAt: want.archivedAt,
     })),
@@ -732,6 +735,8 @@ function templateToScenario(template: PlanningTemplateV7): FinanceScenario {
       updatedAt: template.updatedAt,
       salaryNet: fromCents(template.salaryCents),
       salaryInputMode: template.salaryInputMode,
+      plannedInvestmentAmount: template.investmentTargetCents == null ? null :
+        fromCents(template.investmentTargetCents),
       costs: template.costs.map((cost) => ({
         id: cost.id,
         name: cost.name,
@@ -746,6 +751,7 @@ function templateToScenario(template: PlanningTemplateV7): FinanceScenario {
       wants: template.wants.map((want) => ({
         id: want.id,
         name: want.name,
+        kind: want.kind,
         plannedAmount: fromCents(want.plannedAmountCents),
         paidWith: want.paidWith,
         includedInCardPlan: want.includedInCardPlan,
@@ -1124,6 +1130,10 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   ids(fullPlans, 'Plano operacional')
   const fullPlanMonths = new Set<string>()
   for (const plan of fullPlans) {
+    if (plan.data?.investmentTargetCents != null &&
+      (!Number.isSafeInteger(plan.data.investmentTargetCents) || plan.data.investmentTargetCents < 0)) {
+      add('error', 'investment_target_invalid', 'Aporte planejado inválido.', plan.id)
+    }
     if (fullPlanMonths.has(plan.month)) add('error', 'monthly_plan_month_duplicate', 'Há dois planos operacionais na mesma competência.', plan.id)
     fullPlanMonths.add(plan.month)
     if (!MONTH_RE.test(plan.month) || !Number.isFinite(Date.parse(plan.createdAt)) ||
@@ -1190,6 +1200,10 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const template of backup.planning.templates) {
+    if (template.investmentTargetCents != null &&
+      (!Number.isSafeInteger(template.investmentTargetCents) || template.investmentTargetCents < 0)) {
+      add('error', 'investment_target_invalid', 'Aporte planejado inválido.', template.id)
+    }
     for (const cost of template.costs) {
       if (cost.archivedAt && !Number.isFinite(Date.parse(cost.archivedAt))) {
         add('error', 'cost_archive_invalid', 'Custo tem data de arquivamento inválida.', cost.id)

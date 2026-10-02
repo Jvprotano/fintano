@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Scale, Target, Trash2 } from 'lucide-react'
 import { Card } from './Card'
+import { CurrencyInput } from './CurrencyInput'
 import { HeaderMetric } from './HeaderMetric'
 import { PrimaryButton, SecondaryButton, SuggestionChip } from './ui'
 import { formatCurrency, inputClass } from '../lib/format'
@@ -24,6 +25,8 @@ export function InvestmentPlan() {
     removeDiversificationSlice,
     normalizeDiversification,
     assignRemainingToSlice,
+    plannedInvestmentAmount,
+    setPlannedInvestmentAmount,
   } = useScenarioStore()
   const {
     investmentAllocation,
@@ -69,7 +72,7 @@ export function InvestmentPlan() {
           <HeaderMetric
             amount={totalPlannedInvestment}
             baseAmount={availableForBudget}
-            targetShare={selectedModel.investimentos}
+            targetShare={plannedInvestmentAmount === null ? selectedModel.investimentos : undefined}
             label="Investimento"
             tone="primary"
           />
@@ -77,6 +80,25 @@ export function InvestmentPlan() {
       }
     >
       <div className="space-y-4">
+        <div className="rounded-lg border border-dark-border bg-dark-surface p-3">
+          <label className="app-form-label">Aporte total planejado neste ciclo
+            <span className="mt-1.5 block max-w-xs"><CurrencyInput
+              value={plannedInvestmentAmount ?? 0}
+              showZero={plannedInvestmentAmount !== null}
+              onEmpty={() => setPlannedInvestmentAmount(null)}
+              onChange={setPlannedInvestmentAmount}
+              placeholder={formatCurrency(Math.max(0, availableForBudget * selectedModel.investimentos / 100))}
+            /></span>
+          </label>
+          <p className="mt-2 text-xs text-dark-text-muted">
+            {plannedInvestmentAmount === null
+              ? `Usando a sugestão de ${selectedModel.investimentos}% (${formatCurrency(investmentTarget)}). Informe um valor para decidir em reais.`
+              : `Valor definido em reais. ${formatCurrency(investmentDeductions)} vêm da folha; o restante sai da conta.`}
+          </p>
+          {plannedInvestmentAmount !== null && <button type="button"
+            className="mt-2 text-xs text-primary-300 hover:underline"
+            onClick={() => setPlannedInvestmentAmount(null)}>Usar sugestão percentual</button>}
+        </div>
         {investmentTarget > 0 && (
           <dl className="space-y-1.5 rounded-lg border border-dark-border bg-dark-surface p-3 text-sm">
             <div className="flex justify-between">

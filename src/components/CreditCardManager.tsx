@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { CardImportPanel } from './cards/CardImportPanel'
+import { CardAccountsPanel } from './cards/CardAccountsPanel'
 import { CardSummaryPanels } from './cards/CardSummaryPanels'
 import { CardAreaCell } from './cards/CardAreaCell'
 import { CardEntryForm } from './cards/CardEntryForm'
@@ -47,7 +48,6 @@ type View = CreditCardCycle | 'import'
 type SortKey = 'description' | 'purchaseDate' | 'cardName' | 'amount'
 type SortState = { key: SortKey; dir: 'asc' | 'desc' }
 
-const KNOWN_CARDS = ['Itaú', 'XP', 'Inter', 'Nu']
 const TABLE_COLS =
   'grid-cols-[minmax(140px,1.4fr)_84px_64px_92px_128px_104px_104px_104px_minmax(72px,0.8fr)_56px]'
 
@@ -61,6 +61,7 @@ function dateSortValue(raw: string) {
 export function CreditCardManager() {
   const {
     entries,
+    accounts,
     settings,
     summary,
     addEntry,
@@ -185,7 +186,7 @@ export function CreditCardManager() {
       : 0
 
   const knownCards = Array.from(
-    new Set([...KNOWN_CARDS, ...entries.map((entry) => entry.cardName).filter(Boolean)]),
+    new Set([...accounts.map((account) => account.name), ...entries.map((entry) => entry.cardName).filter(Boolean)]),
   )
   const knownOwners = Array.from(
     new Set(
@@ -280,6 +281,7 @@ export function CreditCardManager() {
 
   return (
     <div className="space-y-4">
+      <CardAccountsPanel />
       {dueLooksUnexpected && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-4 py-3 text-sm leading-relaxed text-amber-100/90">
           <strong className="font-semibold text-amber-200">Confira o calendário do cartão.</strong>{' '}

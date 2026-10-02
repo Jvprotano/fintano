@@ -4,6 +4,8 @@ import type { SalaryInputMode } from './core'
 export interface FinanceScenarioData {
   salaryNet: number
   salaryInputMode: SalaryInputMode
+  /** Valor total de aporte escolhido em reais; null usa a sugestão percentual. */
+  plannedInvestmentAmount?: number | null
   costs: CostItem[]
   wants: WantItem[]
   deductions: DeductionItem[]

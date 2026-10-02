@@ -25,6 +25,7 @@ export interface CostItem {
 export interface WantItem {
   id: string
   name: string
+  kind?: 'regular' | 'card_envelope'
   plannedAmount: number
   paidWith?: PaymentMethod
   includedInCardPlan?: boolean
