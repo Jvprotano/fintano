@@ -503,14 +503,17 @@ export function repositoryToBackupV7(
         month: cycle.month,
         ...(cycle.paycheck ? { paycheck: { amountCents: toCents(cycle.paycheck.amount),
           payrollInvestmentCents: toCents(cycle.paycheck.payrollInvestment),
-          employerInvestmentCents: toCents(cycle.paycheck.employerInvestment) } } : {}),
+          employerInvestmentCents: toCents(cycle.paycheck.employerInvestment),
+          origin: cycle.paycheck.origin } } : {}),
         costPayments: Object.entries(cycle.costs).map(([planItemId, amount]) => ({
           planItemId,
           amountCents: toCents(amount),
+          origin: cycle.costOrigins?.[planItemId] ?? 'manual',
         })),
         wantPayments: Object.entries(cycle.wants).map(([planItemId, amount]) => ({
           planItemId,
           amountCents: toCents(amount),
+          origin: cycle.wantOrigins?.[planItemId] ?? 'manual',
         })),
         cashMovements: [
           ...cycle.extraIncome.map((entry) => ({
@@ -789,13 +792,18 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     month: cycle.month,
     ...(cycle.paycheck ? { paycheck: { amount: fromCents(cycle.paycheck.amountCents),
       payrollInvestment: fromCents(cycle.paycheck.payrollInvestmentCents),
-      employerInvestment: fromCents(cycle.paycheck.employerInvestmentCents) } } : {}),
+      employerInvestment: fromCents(cycle.paycheck.employerInvestmentCents),
+      origin: cycle.paycheck.origin ?? 'manual' } } : {}),
     costs: Object.fromEntries(
       cycle.costPayments.map((item) => [item.planItemId, fromCents(item.amountCents)]),
     ),
+    costOrigins: Object.fromEntries(cycle.costPayments.map((item) =>
+      [item.planItemId, item.origin ?? 'manual'])),
     wants: Object.fromEntries(
       cycle.wantPayments.map((item) => [item.planItemId, fromCents(item.amountCents)]),
     ),
+    wantOrigins: Object.fromEntries(cycle.wantPayments.map((item) =>
+      [item.planItemId, item.origin ?? 'manual'])),
     extraIncome: cycle.cashMovements
       .filter((item) => item.kind === 'income')
       .map((item) => ({

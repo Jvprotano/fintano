@@ -182,7 +182,8 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
           </div>
           <SecondaryButton onClick={() => actuals.setPaycheck({ amount: metrics.paycheckInAccount,
             payrollInvestment: metrics.investmentDeductions,
-            employerInvestment: metrics.employerInvestmentContributions })}>
+            employerInvestment: metrics.employerInvestmentContributions,
+            origin: 'confirmed_from_plan' })}>
             <Check size={14} /> Confirmar como no plano
           </SecondaryButton>
         </div>
@@ -192,20 +193,24 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
               showZero={summary.paycheck !== null} onEmpty={() => actuals.setPaycheck(null)}
               onChange={(amount) => actuals.setPaycheck({ amount,
                 payrollInvestment: summary.paycheck?.payrollInvestment ?? 0,
-                employerInvestment: summary.paycheck?.employerInvestment ?? 0 })} /></span>
+                employerInvestment: summary.paycheck?.employerInvestment ?? 0, origin: 'manual' })} /></span>
           </label>
           <label className="app-form-label">Previdência descontada
             <span className="mt-1 block"><CurrencyInput value={summary.paycheck?.payrollInvestment ?? 0}
               onChange={(payrollInvestment) => actuals.setPaycheck({ amount: summary.paycheck?.amount ?? 0,
-                payrollInvestment, employerInvestment: summary.paycheck?.employerInvestment ?? 0 })} /></span>
+                payrollInvestment, employerInvestment: summary.paycheck?.employerInvestment ?? 0,
+                origin: 'manual' })} /></span>
           </label>
           <label className="app-form-label">Contrapartida recebida
             <span className="mt-1 block"><CurrencyInput value={summary.paycheck?.employerInvestment ?? 0}
               onChange={(employerInvestment) => actuals.setPaycheck({ amount: summary.paycheck?.amount ?? 0,
-                payrollInvestment: summary.paycheck?.payrollInvestment ?? 0, employerInvestment })} /></span>
+                payrollInvestment: summary.paycheck?.payrollInvestment ?? 0, employerInvestment,
+                origin: 'manual' })} /></span>
           </label>
         </div>
-        <p className="mt-2 text-xs text-dark-text-muted">{summary.paycheck ? 'Folha confirmada neste ciclo.' : 'Folha ainda não confirmada.'}</p>
+        <p className="mt-2 text-xs text-dark-text-muted">{summary.paycheck
+          ? summary.paycheck.origin === 'confirmed_from_plan' ? 'Folha confirmada com os valores do plano.' : 'Folha informada manualmente neste ciclo.'
+          : 'Folha ainda não confirmada.'}</p>
       </div>
 
       {cycleEvents.length > 0 && <details className="mt-4 rounded-lg border border-dark-border-subtle px-3 py-2.5">
@@ -289,7 +294,7 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                       <p className="truncate text-sm font-medium text-dark-text">{row.want.name}</p>
                       <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
                         <span>plano {formatCurrency(row.planned)}</span>
-                        <Tag>fora do cartão</Tag>
+                        <Tag>{row.origin === 'confirmed_from_plan' ? 'confirmado do plano' : 'fora do cartão'}</Tag>
                       </p>
                     </div>
                     {off && (
@@ -315,7 +320,7 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                       />
                     </div>
                     {row.actual === null && <button type="button"
-                      onClick={() => actuals.setWantActual(row.want.id, row.planned)}
+                      onClick={() => actuals.setWantActual(row.want.id, row.planned, summary.month, 'confirmed_from_plan')}
                       className="rounded-md px-2 py-1 text-xs text-primary-300 hover:bg-primary-500/10">
                       Confirmar plano
                     </button>}
@@ -394,6 +399,7 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                     <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
                       {COST_CATEGORY_LABELS[row.cost.category]}
                       <span>plano {formatCurrency(row.planned)}</span>
+                      {row.origin === 'confirmed_from_plan' && <Tag>confirmado do plano</Tag>}
                       {row.cost.paidWith === 'card' && <Tag>no cartão</Tag>}
                     </p>
                   </div>
@@ -421,7 +427,7 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                       />
                     </div>
                     {row.actual === null && <button type="button"
-                      onClick={() => actuals.setActual(row.cost.id, row.planned)}
+                      onClick={() => actuals.setActual(row.cost.id, row.planned, summary.month, 'confirmed_from_plan')}
                       className="rounded-md px-2 py-1 text-xs text-primary-300 hover:bg-primary-500/10">
                       Confirmar plano
                     </button>}

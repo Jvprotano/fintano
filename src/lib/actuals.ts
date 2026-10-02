@@ -33,6 +33,11 @@ export function normalizeActuals(raw: Partial<MonthlyActuals> | undefined): Mont
 
   const costs = normalizeAmounts(raw?.costs)
   const wants = normalizeAmounts(raw?.wants)
+  const normalizeOrigins = (source: unknown, amounts: Record<string, number>) =>
+    Object.fromEntries(Object.keys(amounts).map((id) => [id,
+      source && typeof source === 'object' &&
+      (source as Record<string, unknown>)[id] === 'confirmed_from_plan'
+        ? 'confirmed_from_plan' : 'manual'])) as Record<string, 'manual' | 'confirmed_from_plan'>
 
   const extraIncome = normalizeExtraIncomeEntries(raw?.extraIncome)
   const extraExpenses = normalizeExtraIncomeEntries(raw?.extraExpenses)
@@ -43,10 +48,13 @@ export function normalizeActuals(raw: Partial<MonthlyActuals> | undefined): Mont
       Number.isFinite(raw.paycheck.amount) && raw.paycheck.amount >= 0
       ? { paycheck: { amount: raw.paycheck.amount,
         payrollInvestment: Math.max(0, finiteNumber(raw.paycheck.payrollInvestment)),
-        employerInvestment: Math.max(0, finiteNumber(raw.paycheck.employerInvestment)) } }
+        employerInvestment: Math.max(0, finiteNumber(raw.paycheck.employerInvestment)),
+        origin: raw.paycheck.origin === 'confirmed_from_plan' ? 'confirmed_from_plan' : 'manual' } }
       : {}),
     costs,
+    ...(Object.keys(costs).length ? { costOrigins: normalizeOrigins(raw?.costOrigins, costs) } : {}),
     wants,
+    ...(Object.keys(wants).length ? { wantOrigins: normalizeOrigins(raw?.wantOrigins, wants) } : {}),
     extraIncome,
     extraExpenses,
   }
@@ -83,7 +91,9 @@ export function summarizeActuals(
 
     byCategory.set(cost.category, (byCategory.get(cost.category) ?? 0) + effective)
 
-    return { cost, planned, actual, effective, variance: effective - planned }
+    return { cost, planned, actual,
+      origin: actual === null ? null : actuals?.costOrigins?.[cost.id] ?? 'manual' as const,
+      effective, variance: effective - planned }
   })
 
   const effectiveCosts = rows.reduce((sum, row) => sum + row.effective, 0)
@@ -112,6 +122,7 @@ export function summarizeActuals(
         want,
         planned,
         actual,
+        origin: actual === null ? null : actuals?.wantOrigins?.[want.id] ?? 'manual' as const,
         effective,
         variance: effective - planned,
       }

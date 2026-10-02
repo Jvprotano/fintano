@@ -96,6 +96,9 @@ export function ClosingView({
 
   const missingActualRows = actuals.summary.rows.filter((row) => row.actual === null)
   const missingWantActualRows = actuals.summary.wantRows.filter((row) => row.actual === null)
+  const confirmedFromPlan = actuals.summary.rows.filter((row) => row.origin === 'confirmed_from_plan').length +
+    actuals.summary.wantRows.filter((row) => row.origin === 'confirmed_from_plan').length +
+    (actuals.summary.paycheck?.origin === 'confirmed_from_plan' ? 1 : 0)
   const closingInvoiceDue = cardCycleAccounting.invoiceFormedByCycle.personalTotal
   const closingInvoiceTotal = cardCycleAccounting.invoiceFormedByCycle.total
   const invoiceKnown = cardCycleAccounting.invoiceFormedByCycle.amountKnown
@@ -476,6 +479,10 @@ export function ClosingView({
 
             {actuals.summary.paycheck === null && <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2.5 text-xs text-amber-100/85">
               Confirme a folha recebida em Realizado, inclusive se o valor foi zero.
+            </div>}
+            {confirmedFromPlan > 0 && <div className="mt-3 rounded-lg border border-primary-500/20 bg-primary-500/[0.05] px-3 py-2.5 text-xs text-dark-text-secondary">
+              {confirmedFromPlan} {confirmedFromPlan === 1 ? 'valor foi confirmado' : 'valores foram confirmados'} a partir do plano.
+              Essa origem permanece registrada no Realizado e no backup.
             </div>}
 
             {missingActualRows.length > 0 && (

@@ -15,10 +15,13 @@ export type ExtraExpenseEntry = ExtraIncomeEntry
 export interface MonthlyActuals {
   month: string
   /** Folha efetivamente recebida; ausente significa que ainda não foi confirmada. */
-  paycheck?: { amount: number; payrollInvestment: number; employerInvestment: number }
+  paycheck?: { amount: number; payrollInvestment: number; employerInvestment: number;
+    origin?: 'manual' | 'confirmed_from_plan' }
   costs: Record<string, number>
+  costOrigins?: Record<string, 'manual' | 'confirmed_from_plan'>
   /** Valor efetivamente destinado a cada item de Desejos neste ciclo. */
   wants: Record<string, number>
+  wantOrigins?: Record<string, 'manual' | 'confirmed_from_plan'>
   extraIncome: ExtraIncomeEntry[]
   extraExpenses: ExtraExpenseEntry[]
 }
@@ -41,6 +44,7 @@ export interface ActualsSummary {
     cost: CostItem
     planned: number
     actual: number | null
+    origin: 'manual' | 'confirmed_from_plan' | null
     effective: number
     variance: number
   }[]
@@ -54,6 +58,7 @@ export interface ActualsSummary {
     want: WantItem
     planned: number
     actual: number | null
+    origin: 'manual' | 'confirmed_from_plan' | null
     effective: number
     variance: number
   }[]

@@ -74,12 +74,14 @@ export function useActuals(
 
   /** Informa o valor pago de um custo. `null` volta ao estado pendente. */
   const setActual = useCallback(
-    (costId: string, amount: number | null, targetMonth = month) => {
+    (costId: string, amount: number | null, targetMonth = month,
+      origin: 'manual' | 'confirmed_from_plan' = 'manual') => {
       return updateMonth(targetMonth, (current) => {
         const nextCosts = { ...current.costs }
-        if (amount === null) delete nextCosts[costId]
-        else nextCosts[costId] = Math.max(0, amount)
-        return { ...current, costs: nextCosts }
+        const costOrigins = { ...current.costOrigins }
+        if (amount === null) { delete nextCosts[costId]; delete costOrigins[costId] }
+        else { nextCosts[costId] = Math.max(0, amount); costOrigins[costId] = origin }
+        return { ...current, costs: nextCosts, costOrigins }
       })
     },
     [month, updateMonth],
@@ -87,12 +89,14 @@ export function useActuals(
 
   /** Informa quanto foi efetivamente destinado a um item de Desejos. */
   const setWantActual = useCallback(
-    (wantId: string, amount: number | null, targetMonth = month) => {
+    (wantId: string, amount: number | null, targetMonth = month,
+      origin: 'manual' | 'confirmed_from_plan' = 'manual') => {
       return updateMonth(targetMonth, (current) => {
         const nextWants = { ...current.wants }
-        if (amount === null) delete nextWants[wantId]
-        else nextWants[wantId] = Math.max(0, amount)
-        return { ...current, wants: nextWants }
+        const wantOrigins = { ...current.wantOrigins }
+        if (amount === null) { delete nextWants[wantId]; delete wantOrigins[wantId] }
+        else { nextWants[wantId] = Math.max(0, amount); wantOrigins[wantId] = origin }
+        return { ...current, wants: nextWants, wantOrigins }
       })
     },
     [month, updateMonth],
@@ -103,30 +107,34 @@ export function useActuals(
     (targetMonth = month) => {
       return updateMonth(targetMonth, (current) => {
         const filled = { ...current.costs }
+        const costOrigins = { ...current.costOrigins }
         for (const row of summary.rows) {
           if (costs.some((cost) => cost.id === row.cost.id && cost.paidWith !== 'card') && !Object.hasOwn(filled, row.cost.id)) {
             filled[row.cost.id] = row.planned
+            costOrigins[row.cost.id] = 'confirmed_from_plan'
           }
         }
         const filledWants = { ...current.wants }
+        const wantOrigins = { ...current.wantOrigins }
         for (const row of summary.wantRows) {
           if (wants.some((want) => want.id === row.want.id) && !Object.hasOwn(filledWants, row.want.id)) {
             filledWants[row.want.id] = row.planned
+            wantOrigins[row.want.id] = 'confirmed_from_plan'
           }
         }
-        return { ...current, costs: filled, wants: filledWants }
+        return { ...current, costs: filled, costOrigins, wants: filledWants, wantOrigins }
       })
     },
     [costs, month, summary.rows, summary.wantRows, updateMonth, wants],
   )
 
   const clearCosts = useCallback(
-    (targetMonth = month) => updateMonth(targetMonth, (current) => ({ ...current, costs: {} })),
+    (targetMonth = month) => updateMonth(targetMonth, (current) => ({ ...current, costs: {}, costOrigins: {} })),
     [month, updateMonth],
   )
 
   const clearWants = useCallback(
-    (targetMonth = month) => updateMonth(targetMonth, (current) => ({ ...current, wants: {} })),
+    (targetMonth = month) => updateMonth(targetMonth, (current) => ({ ...current, wants: {}, wantOrigins: {} })),
     [month, updateMonth],
   )
 

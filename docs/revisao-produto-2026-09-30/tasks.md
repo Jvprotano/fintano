@@ -87,7 +87,7 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ### FT-11 — Fechar o ciclo com revisão explícita
 
-- [ ] **P1 · M · depende de FT-02, FT-07, FT-08 · achado D03.**
+- [x] **P1 · M · depende de FT-02, FT-07, FT-08 · achado D03.**
 - **Escopo:** revisão com confirmados, estimativas aceitas e desconhecidos. Remover preenchimento silencioso. Fatura desconhecida deve ser resolvida, declarada zero ou mantida como incompletude explícita permitida pelo modelo; nunca gravada implicitamente como zero. Separar revisão histórica de refechar com dados atuais.
 - **Referências:** `src/components/ClosingView.tsx`, `src/hooks/useFinancas.ts`, `src/hooks/useHistory.ts`.
 - **Aceite:** confirmar fecha e avança uma única vez; toda estimativa conservada possui marca de origem. Cancelar não altera realizados. Revisão de um mês antigo não substitui seus valores pelo patrimônio/salário atuais.
