@@ -5,6 +5,8 @@ export type CreditCardCycle = 'current' | 'next'
 export interface CreditCardEntry {
   id: string
   cycle: CreditCardCycle
+  accountId?: string
+  dueMonth?: string
   description: string
   purchaseDate: string
   cardName: string
@@ -36,6 +38,8 @@ export interface CreditCardSettings {
 export interface CreditCardAccount {
   id: string
   name: string
+  currentDueMonth?: string
+  confirmedEmptyDueMonths?: string[]
   closingDay: number
   dueDay: number
   limit: number
@@ -51,6 +55,7 @@ export interface CardCycleStatus extends CreditCardAccount {
 }
 
 export interface CardTotal {
+  accountId?: string
   cardName: string
   totalAmount: number
   personalAmount: number

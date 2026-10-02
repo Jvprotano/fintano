@@ -189,8 +189,10 @@ function ensureAccounts(
 ): CreditCardAccount[] {
   const accounts = stored.map(normalizeCardAccount)
   const names = new Set(accounts.map((account) => normalizeText(account.name)))
+  const accountIds = new Set(accounts.map((account) => account.id))
   const dueDay = Number(settings.paymentDate.match(/\d{1,2}/)?.[0] ?? 5)
   for (const entry of entries) {
+    if (entry.accountId && accountIds.has(entry.accountId)) continue
     if (names.has(normalizeText(entry.cardName))) continue
     accounts.push(
       normalizeCardAccount({
@@ -543,13 +545,15 @@ export function repositoryToBackupV7(
       accounts: accounts.map<CardAccountV7>((account) => ({
         id: account.id,
         name: account.name,
+        currentDueMonth: account.currentDueMonth ?? currentDueMonth,
+        confirmedEmptyDueMonths: account.confirmedEmptyDueMonths,
         closingDay: account.closingDay,
         dueDay: account.dueDay,
         limitCents: toCents(account.limit),
       })),
       charges: entries.map((entry) => {
-        const account = accountByName.get(normalizeText(entry.cardName)) ?? accounts[0]
-        const dueMonth = entry.cycle === 'current' ? currentDueMonth : addMonths(currentDueMonth, 1)
+        const account = accounts.find((item) => item.id === entry.accountId) ?? accountByName.get(normalizeText(entry.cardName)) ?? accounts[0]
+        const dueMonth = entry.dueMonth ?? (entry.cycle === 'current' ? account?.currentDueMonth ?? currentDueMonth : addMonths(account?.currentDueMonth ?? currentDueMonth, 1))
         return {
           id: entry.id,
           accountId: account?.id ?? '',
@@ -581,16 +585,31 @@ export function repositoryToBackupV7(
       statements: normalizePaidInvoiceSnapshots(
         collection<PaidInvoiceSnapshot[]>(document, 'cardPaidInvoices', []),
       ).map((statement) => ({
-        id: `statement-${statement.dueMonth}`,
-        accountId: null,
+        id: statement.id ?? `statement-${statement.dueMonth}`,
+        accountId: statement.accountId ?? null,
         dueMonth: statement.dueMonth,
         totalCents: statement.total === null ? null : toCents(statement.total),
         personalTotalCents: toCents(statement.personalTotal),
         paidAt: normalizePersistedInstant(statement.paidAt),
+        charges: statement.entries?.map((entry) => ({
+          id: entry.id,
+          accountId: entry.accountId ?? statement.accountId ?? '',
+          description: entry.description,
+          purchaseDate: entry.purchaseDate,
+          spendingMonth: cardEntrySpendingMonth(entry, statement.dueMonth),
+          dueMonth: entry.dueMonth ?? statement.dueMonth,
+          amountCents: toCents(entry.amount), personalAmountCents: toCents(entry.personalAmount),
+          remainingAmountCents: toCents(entry.remainingAmount), budgetArea: entry.budgetArea,
+          ownerName: entry.ownerName, ownerNote: entry.ownerNote,
+          installmentNumber: entry.installmentCurrent, installmentCount: entry.installmentTotal,
+          recurring: entry.isRecurring, prepaid: entry.isPrepaid, generatedFromChargeId: entry.sourceEntryId,
+          entryType: entry.entryType, creditSource: entry.creditSource, cashCycleMonth: entry.cashCycleMonth,
+          originCreditId: entry.originCreditId, sourceForecastOccurrenceId: entry.sourceForecastOccurrenceId,
+        })),
         forecastOccurrences: statement.forecastOccurrences?.map((item) => ({ id: item.id, amountCents: toCents(item.amount) })),
         credits: statement.credits?.map((credit) => ({
           id: credit.id,
-          accountId: accountByName.get(normalizeText(credit.cardName))?.id ?? accounts[0]?.id ?? '',
+          accountId: credit.accountId ?? accountByName.get(normalizeText(credit.cardName))?.id ?? accounts[0]?.id ?? '',
           description: credit.description,
           date: credit.purchaseDate,
           amountCents: toCents(credit.amount),
@@ -782,6 +801,8 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
   const accounts: CreditCardAccount[] = backup.cards.accounts.map((account) => ({
     id: account.id,
     name: account.name,
+    currentDueMonth: account.currentDueMonth ?? backup.cards.currentDueMonth,
+    confirmedEmptyDueMonths: account.confirmedEmptyDueMonths,
     closingDay: account.closingDay,
     dueDay: account.dueDay,
     limit: fromCents(account.limitCents),
@@ -880,10 +901,12 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
   const paymentDate = `${String(firstDueDay).padStart(2, '0')}/${backup.cards.currentDueMonth.slice(5)}`
   const cardEntries: CreditCardEntry[] = backup.cards.charges.map((charge) => {
     const account = accountById.get(charge.accountId)
-    const cycle = charge.dueMonth === backup.cards.currentDueMonth ? 'current' : 'next'
+    const cycle = charge.dueMonth === (account?.currentDueMonth ?? backup.cards.currentDueMonth) ? 'current' : 'next'
     return {
       id: charge.id,
       cycle,
+      accountId: charge.accountId,
+      dueMonth: charge.dueMonth,
       description: charge.description,
       purchaseDate: charge.purchaseDate,
       cardName: account?.name ?? 'Cartão',
@@ -934,13 +957,29 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
       cardAccounts: accounts,
       cardEntries,
       cardPaidInvoices: backup.cards.statements.map<PaidInvoiceSnapshot>((statement) => ({
+        id: statement.id,
+        accountId: statement.accountId,
         dueMonth: statement.dueMonth,
         total: statement.totalCents === null ? null : fromCents(statement.totalCents),
         personalTotal: fromCents(statement.personalTotalCents),
         paidAt: statement.paidAt,
+        entries: statement.charges?.map((charge) => ({
+          id: charge.id, accountId: charge.accountId, dueMonth: charge.dueMonth,
+          cycle: 'current', description: charge.description, purchaseDate: charge.purchaseDate,
+          cardName: accountById.get(charge.accountId)?.name ?? 'Cartão',
+          amount: fromCents(charge.amountCents), personalAmount: fromCents(charge.personalAmountCents),
+          remainingAmount: fromCents(charge.remainingAmountCents), budgetArea: charge.budgetArea,
+          ownerName: charge.ownerName, ownerNote: charge.ownerNote,
+          installmentCurrent: charge.installmentNumber, installmentTotal: charge.installmentCount,
+          isRecurring: charge.recurring, isPrepaid: charge.prepaid,
+          sourceEntryId: charge.generatedFromChargeId, entryType: charge.entryType,
+          creditSource: charge.creditSource, cashCycleMonth: charge.cashCycleMonth,
+          originCreditId: charge.originCreditId, sourceForecastOccurrenceId: charge.sourceForecastOccurrenceId,
+        })),
         forecastOccurrences: statement.forecastOccurrences?.map((item) => ({ id: item.id, amount: fromCents(item.amountCents) })),
         credits: statement.credits?.map((credit) => ({
           id: credit.id,
+          accountId: credit.accountId,
           cardName: accountById.get(credit.accountId)?.name ?? 'Cartão',
           description: credit.description,
           purchaseDate: credit.date,
@@ -1288,6 +1327,14 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const statement of backup.cards.statements) {
+    if (statement.accountId && !accountIds.has(statement.accountId)) {
+      add('error', 'card_statement_reference_missing', 'Fatura aponta para cartão inexistente.', statement.id)
+    }
+    for (const charge of statement.charges ?? []) {
+      if (!accountIds.has(charge.accountId)) {
+        add('error', 'card_statement_charge_reference_missing', 'Detalhe da fatura aponta para cartão inexistente.', charge.id)
+      }
+    }
     for (const credit of statement.credits ?? []) {
       if (!accountIds.has(credit.accountId)) {
         add('error', 'card_credit_reference_missing', 'Abatimento aponta para cartão inexistente.', credit.id)

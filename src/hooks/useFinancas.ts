@@ -99,6 +99,7 @@ export function useFinancas() {
     () =>
       calculateCardCycleAccounting({
         entries: cards.entries,
+        accounts: cards.accounts,
         currentDueMonth: cards.settings.currentDueMonth ?? activeCycle.month,
         activeCycleMonth: activeCycle.month,
         currentTotal: cards.summary.currentTotal,
@@ -368,6 +369,7 @@ export function useFinancas() {
       forecast.events,
       actuals.months,
       cards.entries,
+      cards.accounts,
       cards.paidInvoices,
       investments.summary.financialAssets,
       monthlyContribution,

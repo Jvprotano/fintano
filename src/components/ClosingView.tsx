@@ -107,8 +107,9 @@ export function ClosingView({
   const incomeKnown = actuals.summary.paycheck !== null
   const closingReady = actuals.summary.paycheck !== null && missingActualRows.length === 0 &&
     missingWantActualRows.length === 0 && invoiceKnown && currentInvoiceKnown
-  const currentDueMonth = cards.settings.currentDueMonth ?? activeCycle.month
+  const currentDueMonth = cards.accounts[0]?.currentDueMonth ?? cards.settings.currentDueMonth ?? activeCycle.month
   const canPayClosingInvoiceTogether =
+    cards.accounts.length === 1 &&
     invoiceKnown &&
     !closingInvoiceAlreadyPaid &&
     currentDueMonth === cardCycleAccounting.invoiceFormedByCycle.dueMonth

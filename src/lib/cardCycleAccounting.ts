@@ -1,4 +1,4 @@
-import type { BudgetArea, CreditCardCycle, CreditCardEntry } from '../types'
+import type { BudgetArea, CreditCardAccount, CreditCardCycle, CreditCardEntry } from '../types'
 import { BUDGET_AREAS } from '../types/constants'
 import { addMonths, finiteNumber } from './shared'
 
@@ -16,6 +16,8 @@ export interface PaidInvoiceMonthSummary {
 }
 
 export interface PaidInvoiceSnapshot {
+  id?: string
+  accountId?: string | null
   dueMonth: string
   /** Total cheio da fatura, incluindo terceiros. null em snapshots antigos. */
   total: number | null
@@ -25,7 +27,8 @@ export interface PaidInvoiceSnapshot {
   /** Composição preservada no instante do pagamento. */
   spending: PaidInvoiceMonthSummary[]
   forecastOccurrences?: { id: string; amount: number }[]
-  credits?: { id: string; cardName: string; description: string; purchaseDate: string; amount: number; source: 'payment' | 'reward'; cashCycleMonth?: string; originCreditId?: string }[]
+  credits?: { id: string; accountId?: string; cardName: string; description: string; purchaseDate: string; amount: number; source: 'payment' | 'reward'; cashCycleMonth?: string; originCreditId?: string }[]
+  entries?: CreditCardEntry[]
 }
 
 export interface CardMonthSpending {
@@ -99,6 +102,8 @@ export function normalizePaidInvoiceSnapshot(
     : []
 
   return {
+    id: raw.id,
+    accountId: raw.accountId ?? null,
     dueMonth: raw.dueMonth,
     total:
       typeof raw.total === 'number' && Number.isFinite(raw.total)
@@ -115,6 +120,7 @@ export function normalizePaidInvoiceSnapshot(
       typeof credit.id === 'string' && typeof credit.cardName === 'string' &&
       typeof credit.description === 'string' && Number.isFinite(credit.amount) && credit.amount > 0,
     ).map((credit) => ({ ...credit, source: credit.source === 'reward' ? 'reward' as const : 'payment' as const })) : [],
+    entries: Array.isArray(raw.entries) ? raw.entries : undefined,
   }
 }
 
@@ -135,7 +141,7 @@ export function normalizePaidInvoiceSnapshots(raw: unknown): PaidInvoiceSnapshot
  * 31/07. `purchaseDate` continua sendo informação da transação, não a fronteira do ciclo.
  */
 export function cardEntrySpendingMonth(entry: CreditCardEntry, currentDueMonth: string): string {
-  return entry.cycle === 'current' ? addMonths(currentDueMonth, -1) : currentDueMonth
+  return addMonths(entry.dueMonth ?? (entry.cycle === 'current' ? currentDueMonth : addMonths(currentDueMonth, 1)), -1)
 }
 
 export function withCardEntrySpendingMonth(
@@ -198,6 +204,7 @@ export function createPaidInvoiceSnapshot(input: {
   currentDueMonth: string
   total: number
   personalTotal: number
+  accountId?: string | null
   paidAt?: string
 }): PaidInvoiceSnapshot {
   const currentEntries = input.entries.filter((entry) => entry.cycle === 'current' && entry.entryType !== 'invoiceCredit')
@@ -223,16 +230,20 @@ export function createPaidInvoiceSnapshot(input: {
   }
 
   return {
+    id: input.accountId ? `invoice-${input.accountId}-${input.currentDueMonth}` : undefined,
+    accountId: input.accountId ?? null,
     dueMonth: input.currentDueMonth,
     total: Math.max(0, finiteNumber(input.total)),
     personalTotal: Math.max(0, finiteNumber(input.personalTotal)),
     paidAt: input.paidAt ?? new Date().toISOString(),
+    entries: input.accountId ? input.entries.map((entry) => ({ ...entry })) : undefined,
     spending: Array.from(months.values()).sort((a, b) => a.spendingMonth.localeCompare(b.spendingMonth)),
     forecastOccurrences: currentEntries.filter((entry) => entry.sourceForecastOccurrenceId).map((entry) => ({
       id: entry.sourceForecastOccurrenceId!, amount: entry.personalAmount,
     })),
     credits: input.entries.filter((entry) => entry.cycle === 'current' && entry.entryType === 'invoiceCredit').map((entry) => ({
       id: entry.id,
+      accountId: entry.accountId,
       cardName: entry.cardName,
       description: entry.description,
       purchaseDate: entry.purchaseDate,
@@ -345,6 +356,7 @@ function resolveInvoice(input: {
  */
 export function calculateCardCycleAccounting(input: {
   entries: CreditCardEntry[]
+  accounts?: CreditCardAccount[]
   currentDueMonth: string
   activeCycleMonth: string
   currentTotal: number
@@ -363,6 +375,77 @@ export function calculateCardCycleAccounting(input: {
     nextPersonalTotal,
   } = input
   const paidInvoices = normalizePaidInvoiceSnapshots(input.paidInvoices ?? [])
+  if (input.accounts?.length) {
+    const dueFor = (month: string): CycleInvoiceCash => {
+      let total = 0
+      let personalTotal = 0
+      let amountKnown = true
+      let paidCount = 0
+      for (const account of input.accounts!) {
+        const snapshot = paidInvoices.find((item) => item.accountId === account.id && item.dueMonth === month)
+        if (snapshot) {
+          total += snapshot.total ?? 0
+          personalTotal += snapshot.personalTotal
+          amountKnown &&= snapshot.total !== null
+          paidCount++
+          continue
+        }
+        const openMonth = account.currentDueMonth ?? currentDueMonth
+        if (month !== openMonth && month !== addMonths(openMonth, 1)) {
+          // Faturas legadas agregadas não permitem inferir a parte de cada cartão.
+          amountKnown = false
+          continue
+        }
+        const accountEntries = entries.filter((entry) => entry.accountId === account.id && entry.dueMonth === month)
+        if (accountEntries.length === 0 && !account.confirmedEmptyDueMonths?.includes(month)) {
+          amountKnown = false
+          continue
+        }
+        const statement = summarizeInvoiceEntries(accountEntries)
+        total += statement.total
+        personalTotal += statement.personalTotal
+      }
+      const legacy = paidInvoices.find((item) => !item.accountId && item.dueMonth === month)
+      if (legacy) {
+        // Um agregado legado é conhecido no total; a composição por cartão permanece desconhecida.
+        return { dueMonth: month, total: legacy.total, personalTotal: legacy.personalTotal,
+          paid: true, amountKnown: legacy.total !== null }
+      }
+      return { dueMonth: month, total: amountKnown ? total : null, personalTotal,
+        paid: paidCount === input.accounts!.length, amountKnown }
+    }
+    const spendingMonth = activeCycleMonth
+    const dueMonth = addMonths(spendingMonth, 1)
+    const rows: CardMonthSpending[] = []
+    let known = true
+    for (const account of input.accounts) {
+      const snapshot = paidInvoices.find((item) => item.accountId === account.id && item.dueMonth === dueMonth)
+      if (snapshot) {
+        const row = snapshot.spending.find((item) => item.spendingMonth === spendingMonth)
+        if (row) rows.push({ ...row, dueMonth, sourceCycle: null, paid: true, amountKnown: true })
+        continue
+      }
+      const openMonth = account.currentDueMonth ?? currentDueMonth
+      if (dueMonth !== openMonth && dueMonth !== addMonths(openMonth, 1)) { known = false; continue }
+      const matching = entries.filter((entry) => entry.accountId === account.id && entry.dueMonth === dueMonth)
+      if (matching.length === 0 && !account.confirmedEmptyDueMonths?.includes(dueMonth)) known = false
+      rows.push(summarizeEntriesForMonth(matching, dueMonth === openMonth ? 'current' : 'next',
+        spendingMonth, dueMonth, openMonth))
+    }
+    const personalByArea = emptyAreaMap()
+    for (const row of rows) for (const area of BUDGET_AREAS) personalByArea[area] += row.personalByArea[area]
+    const legacy = paidInvoices.find((item) => !item.accountId && item.dueMonth === dueMonth)
+    const legacyRow = legacy?.spending.find((item) => item.spendingMonth === spendingMonth)
+    const spendingThisCycle = legacyRow && !rows.length
+      ? { ...legacyRow, dueMonth, sourceCycle: null, paid: true, amountKnown: true }
+      : { spendingMonth, dueMonth, sourceCycle: null,
+          spentPersonalTotal: rows.reduce((sum, row) => sum + row.spentPersonalTotal, 0),
+          duePersonalTotal: rows.reduce((sum, row) => sum + row.duePersonalTotal, 0),
+          personalByArea, unclassifiedPersonal: rows.reduce((sum, row) => sum + row.unclassifiedPersonal, 0),
+          paid: rows.length > 0 && rows.every((row) => row.paid), amountKnown: known }
+    return { invoiceThisCycle: dueFor(activeCycleMonth),
+      invoiceFormedByCycle: dueFor(dueMonth), spendingThisCycle }
+  }
 
   const invoiceThisCycle = resolveInvoice({
     dueMonth: activeCycleMonth,
@@ -419,4 +502,13 @@ export function calculateCardCycleAccounting(input: {
   }
 
   return { invoiceThisCycle, invoiceFormedByCycle, spendingThisCycle }
+}
+
+export function summarizeInvoiceEntries(entries: CreditCardEntry[]) {
+  const due = entries.filter((entry) => entry.entryType !== 'invoiceCredit' && !entry.isPrepaid)
+  const credits = entries.filter((entry) => entry.entryType === 'invoiceCredit')
+  const applied = Math.min(due.reduce((sum, entry) => sum + entry.personalAmount, 0),
+    credits.reduce((sum, entry) => sum + Math.max(0, entry.amount), 0))
+  return { total: due.reduce((sum, entry) => sum + entry.amount, 0) - applied,
+    personalTotal: due.reduce((sum, entry) => sum + entry.personalAmount, 0) - applied }
 }

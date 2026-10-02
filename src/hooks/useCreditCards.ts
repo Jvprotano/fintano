@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readRepositoryDocument, useRepositoryState, type RepositoryDocument } from '../data/repository'
 import { runRepositoryCommand, type CommandResult } from '../data/repositoryCommand'
 import type {
@@ -8,7 +8,6 @@ import type {
   CreditCardSettings,
 } from '../types'
 import {
-  advanceCreditCardSettingsCycle,
   buildRemainingInstallmentsAmount,
   calculateCreditCardSummary,
   carryUnappliedCredits,
@@ -23,11 +22,14 @@ import {
 import {
   createPaidInvoiceSnapshot,
   normalizePaidInvoiceSnapshots,
+  summarizeInvoiceEntries,
   withCardEntrySpendingMonth,
   type PaidInvoiceSnapshot,
 } from '../lib/cardCycleAccounting'
 import { addMonths, monthKey, uid } from '../lib/shared'
 import { normalizeActiveCycle } from '../lib/activeCycle'
+import { createAutoBackupNow } from '../lib/backup'
+import { normalizeText } from '../lib/shared'
 
 function defaultSettingsForCycle(month: string, dueDay = 5): CreditCardSettings {
   const currentDueMonth = month
@@ -38,7 +40,7 @@ function defaultSettingsForCycle(month: string, dueDay = 5): CreditCardSettings 
 type EntryWithSpendingMonth = CreditCardEntry & { spendingMonth?: string }
 
 function expectedSpendingMonth(entry: CreditCardEntry, currentDueMonth: string) {
-  return entry.cycle === 'current' ? addMonths(currentDueMonth, -1) : currentDueMonth
+  return addMonths(entry.dueMonth ?? (entry.cycle === 'current' ? currentDueMonth : addMonths(currentDueMonth, 1)), -1)
 }
 
 function hasExpectedSpendingMonth(entry: CreditCardEntry, currentDueMonth: string) {
@@ -48,10 +50,39 @@ function hasExpectedSpendingMonth(entry: CreditCardEntry, currentDueMonth: strin
 function normalizeEntryForDueMonth(entry: CreditCardEntry, currentDueMonth: string): CreditCardEntry {
   const spendingMonth = (entry as EntryWithSpendingMonth).spendingMonth
   const normalized = normalizeCreditCardEntry(entry)
-  const withStoredMonth = spendingMonth
-    ? ({ ...normalized, spendingMonth } as CreditCardEntry)
-    : normalized
+  const withStoredMonth = { ...normalized,
+    dueMonth: normalized.dueMonth ?? (normalized.cycle === 'current' ? currentDueMonth : addMonths(currentDueMonth, 1)),
+    ...(spendingMonth ? { spendingMonth } : {}),
+  }
   return withCardEntrySpendingMonth(withStoredMonth, currentDueMonth)
+}
+
+export function migrateCardIdentityInDocument(document: RepositoryDocument): RepositoryDocument {
+  const active = normalizeActiveCycle(document.collections.activeCycle as Parameters<typeof normalizeActiveCycle>[0])
+  const settings = normalizeCreditCardSettings((document.collections.cardSettings as CreditCardSettings | undefined) ??
+    defaultSettingsForCycle(active.month, active.cardDueHintDay))
+  const dueMonth = settings.currentDueMonth ?? active.month
+  const entries = Array.isArray(document.collections.cardEntries) ? document.collections.cardEntries as CreditCardEntry[] : []
+  const stored = Array.isArray(document.collections.cardAccounts) ? document.collections.cardAccounts as CreditCardAccount[] : []
+  const accounts: CreditCardAccount[] = stored.map((account) => ({ ...normalizeCardAccount(account),
+    currentDueMonth: account.currentDueMonth ?? dueMonth }))
+  const byName = new Map(accounts.map((account) => [normalizeText(account.name), account]))
+  const migrated = entries.map((entry) => {
+    let account = accounts.find((item) => item.id === entry.accountId)
+    if (!account) account = byName.get(normalizeText(entry.cardName))
+    if (!account) {
+      const name = entry.cardName?.trim() || 'Cartão'
+      const created = normalizeCardAccount({ id: uid(), name, closingDay: 30,
+        dueDay: Number(settings.paymentDate.slice(0, 2)) || 5, limit: 0, currentDueMonth: dueMonth })
+      account = created
+      accounts.push(created)
+      byName.set(normalizeText(name), created)
+    }
+    return normalizeEntryForDueMonth({ ...entry, accountId: account.id,
+      dueMonth: entry.dueMonth ?? (entry.cycle === 'current' ? account.currentDueMonth ?? dueMonth : addMonths(account.currentDueMonth ?? dueMonth, 1)) }, dueMonth)
+  })
+  return { ...document, collections: { ...document.collections,
+    cardAccounts: accounts, cardEntries: migrated } }
 }
 
 function normalizeEntriesForDueMonth(entries: CreditCardEntry[], currentDueMonth: string) {
@@ -70,53 +101,38 @@ function syncEntriesForDueMonth(entries: CreditCardEntry[], currentDueMonth: str
 export function payInvoiceInDocument(
   document: RepositoryDocument,
   expectedDueMonth: string,
+  accountId?: string,
 ): RepositoryDocument | null {
-  const active = normalizeActiveCycle(document.collections.activeCycle as Parameters<typeof normalizeActiveCycle>[0])
-  const settings = normalizeCreditCardSettings(
-    (document.collections.cardSettings as CreditCardSettings | undefined) ??
-      defaultSettingsForCycle(active.month, active.cardDueHintDay),
-  )
-  const dueMonth = settings.currentDueMonth ?? inferDueMonthFromPaymentDate(settings.paymentDate)
-  if (dueMonth !== expectedDueMonth) return null
-  const rawEntries = document.collections.cardEntries
-  const entries = normalizeEntriesForDueMonth(
-    Array.isArray(rawEntries) ? rawEntries as CreditCardEntry[] : [], dueMonth,
-  )
-  const paidInvoices = normalizePaidInvoiceSnapshots(document.collections.cardPaidInvoices)
-  if (paidInvoices.some((item) => item.dueMonth === dueMonth)) return null
-  const paidSummary = calculateCreditCardSummary(entries, settings)
-  const snapshot = createPaidInvoiceSnapshot({
-    entries, currentDueMonth: dueMonth,
-    total: paidSummary.currentTotal, personalTotal: paidSummary.currentPersonalTotal,
-  })
-  const nextSettings = advanceCreditCardSettingsCycle(settings)
-  const nextDueMonth = nextSettings.currentDueMonth ?? inferDueMonthFromPaymentDate(nextSettings.paymentDate)
-  const syncedEntries = syncEntriesForDueMonth(entries, dueMonth)
-  const carriedCredits = carryUnappliedCredits(syncedEntries).map((credit) =>
-    normalizeEntryForDueMonth(credit, nextDueMonth),
-  )
-  const newCurrentEntries = syncedEntries
-    .filter((entry) => entry.cycle === 'next')
-    .map((entry) => normalizeEntryForDueMonth({
-      ...entry, id: uid(), cycle: 'current', autoGenerated: false, sourceEntryId: undefined,
-    }, nextDueMonth))
-  return {
-    ...document,
-    collections: {
-      ...document.collections,
-      cardPaidInvoices: [...paidInvoices, snapshot].sort((a, b) => a.paidAt.localeCompare(b.paidAt)),
-      cardEntries: syncEntriesForDueMonth([...newCurrentEntries, ...carriedCredits], nextDueMonth),
-      cardSettings: nextSettings,
-    },
-  }
+  const migrated = migrateCardIdentityInDocument(document)
+  const accounts = migrated.collections.cardAccounts as CreditCardAccount[]
+  const account = accountId ? accounts.find((item) => item.id === accountId) : accounts.length === 1 ? accounts[0] : undefined
+  if (!account || account.currentDueMonth !== expectedDueMonth) return null
+  const accountEntries = migrated.collections.cardEntries as CreditCardEntry[]
+  const matching = accountEntries.filter((entry) => entry.accountId === account.id)
+  const current = matching.filter((entry) => entry.dueMonth === expectedDueMonth)
+  const existing = normalizePaidInvoiceSnapshots(migrated.collections.cardPaidInvoices)
+  if (existing.some((item) => item.accountId === account.id && item.dueMonth === expectedDueMonth)) return null
+  const totals = summarizeInvoiceEntries(current)
+  const snapshot = createPaidInvoiceSnapshot({ entries: current.map((entry) => ({ ...entry, cycle: 'current' })),
+    currentDueMonth: expectedDueMonth, accountId: account.id,
+    total: totals.total, personalTotal: totals.personalTotal })
+  const nextDueMonth = addMonths(expectedDueMonth, 1)
+  const normalized = syncEntriesForDueMonth(matching.map((entry) => ({ ...entry,
+    cycle: entry.dueMonth === expectedDueMonth ? 'current' : 'next' })), expectedDueMonth)
+  const next = normalized.filter((entry) => entry.dueMonth === nextDueMonth).map((entry) =>
+    normalizeEntryForDueMonth({ ...entry, id: uid(), cycle: 'current',
+      autoGenerated: false, sourceEntryId: undefined }, nextDueMonth))
+  const carried = carryUnappliedCredits(normalized.filter((entry) => entry.dueMonth === expectedDueMonth))
+    .map((entry) => normalizeEntryForDueMonth({ ...entry, accountId: account.id, dueMonth: nextDueMonth }, nextDueMonth))
+  return { ...migrated, collections: { ...migrated.collections,
+    cardAccounts: accounts.map((item) => item.id === account.id ? { ...item, currentDueMonth: nextDueMonth } : item),
+    cardEntries: [...accountEntries.filter((entry) => entry.accountId !== account.id), ...next, ...carried],
+    cardPaidInvoices: [...existing, snapshot].sort((a, b) => a.paidAt.localeCompare(b.paidAt)),
+  } }
 }
 
-/**
- * Cada cartão passou a ter fechamento e vencimento próprios. Na primeira carga,
- * os cartões que já apareciam nos lançamentos são cadastrados herdando o
- * vencimento global antigo — nada se perde e nada precisa ser redigitado.
- */
 export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5) {
+  const [migrationError, setMigrationError] = useState('')
   const [storedSettings, setSettingsRaw] = useRepositoryState<CreditCardSettings>(
     'cardSettings',
     () => defaultSettingsForCycle(activeCycleMonth, cardDueHintDay),
@@ -148,6 +164,23 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
     [storedAccounts],
   )
 
+  useEffect(() => {
+    const document = readRepositoryDocument()
+    const rawAccounts = Array.isArray(document.collections.cardAccounts) ? document.collections.cardAccounts as CreditCardAccount[] : []
+    const rawEntries = Array.isArray(document.collections.cardEntries) ? document.collections.cardEntries as CreditCardEntry[] : []
+    if (!rawAccounts.some((account) => !account.currentDueMonth) &&
+      !rawEntries.some((entry) => !entry.accountId || !entry.dueMonth)) {
+      setMigrationError('')
+      return
+    }
+    if (!createAutoBackupNow(window.localStorage)) {
+      setMigrationError('Não foi possível guardar a cópia anterior dos cartões. Nenhuma migração foi aplicada; exporte um backup antes de continuar.')
+      return
+    }
+    const result = runRepositoryCommand({ id: 'card-identity-v2', apply: migrateCardIdentityInDocument })
+    if (!result.ok) setMigrationError(result.message)
+  }, [storedAccounts, storedEntries])
+
   const [storedPaidInvoices] = useRepositoryState<PaidInvoiceSnapshot[]>(
     'cardPaidInvoices',
     [],
@@ -162,10 +195,8 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
   // pela data da compra. A fronteira correta é o bucket da fatura: current = ciclo
   // anterior ao vencimento; next = ciclo do vencimento atual.
   useEffect(() => {
-    if (
-      !Array.isArray(storedEntries) ||
-      storedEntries.every((entry) => hasExpectedSpendingMonth(entry, currentDueMonth))
-    ) {
+    if (!Array.isArray(storedEntries) || storedEntries.some((entry) => !entry.accountId || !entry.dueMonth) ||
+      storedEntries.every((entry) => hasExpectedSpendingMonth(entry, currentDueMonth))) {
       return
     }
     setEntries((prev) => normalizeEntriesForDueMonth(prev, currentDueMonth))
@@ -175,24 +206,29 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
   // prontos (backup importado, outro dispositivo) nunca passaram por uma.
   const syncedOnMount = useRef(false)
   useEffect(() => {
-    if (syncedOnMount.current || entries.length === 0) return
+    if (syncedOnMount.current || entries.length === 0 || entries.some((entry) => !entry.accountId)) return
     syncedOnMount.current = true
     setEntries((prev) => syncEntriesForDueMonth(prev, currentDueMonth))
   }, [currentDueMonth, entries.length, setEntries])
 
   const addEntry = useCallback(
     (entry: Omit<CreditCardEntry, 'id'>) => {
+      const account = accounts.find((item) => item.id === entry.accountId) ??
+        accounts.find((item) => normalizeText(item.name) === normalizeText(entry.cardName))
+      if (!account) return false
       return setEntries((prev) => {
         const nextEntries = [
           ...normalizeEntriesForDueMonth(prev, currentDueMonth),
-          normalizeEntryForDueMonth({ ...entry, id: uid() }, currentDueMonth),
+          normalizeEntryForDueMonth({ ...entry, id: uid(), accountId: account.id,
+            cardName: account.name, dueMonth: entry.dueMonth ?? (entry.cycle === 'current' ?
+              account.currentDueMonth ?? currentDueMonth : addMonths(account.currentDueMonth ?? currentDueMonth, 1)) }, currentDueMonth),
         ]
         return entry.cycle === 'current'
           ? syncEntriesForDueMonth(nextEntries, currentDueMonth)
           : nextEntries
       })
     },
-    [currentDueMonth, setEntries],
+    [accounts, currentDueMonth, setEntries],
   )
 
   const updateEntry = useCallback(
@@ -208,18 +244,27 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
           target.cycle === 'next' && target.autoGenerated
             ? { ...patch, autoGenerated: false }
             : patch
-        const nextEntries = normalizedPrev.map((entry) =>
-          entry.id === id
-            ? normalizeEntryForDueMonth({ ...entry, ...effectivePatch }, currentDueMonth)
-            : entry,
-        )
+        const nextEntries = normalizedPrev.map((entry) => {
+          if (entry.id !== id) return entry
+          const chosen = effectivePatch.accountId
+            ? accounts.find((item) => item.id === effectivePatch.accountId)
+            : effectivePatch.cardName && effectivePatch.cardName !== entry.cardName
+              ? accounts.find((item) => normalizeText(item.name) === normalizeText(effectivePatch.cardName ?? ''))
+              : accounts.find((item) => item.id === entry.accountId)
+          return normalizeEntryForDueMonth({ ...entry, ...effectivePatch,
+            accountId: chosen?.id ?? entry.accountId,
+            cardName: chosen?.name ?? entry.cardName,
+            dueMonth: chosen?.id !== entry.accountId && chosen
+              ? (entry.cycle === 'current' ? chosen.currentDueMonth ?? currentDueMonth : addMonths(chosen.currentDueMonth ?? currentDueMonth, 1))
+              : entry.dueMonth }, currentDueMonth)
+        })
 
         return target.cycle === 'current'
           ? syncEntriesForDueMonth(nextEntries, currentDueMonth)
           : nextEntries
       })
     },
-    [currentDueMonth, setEntries],
+    [accounts, currentDueMonth, setEntries],
   )
 
   const removeEntry = useCallback(
@@ -241,7 +286,7 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
       return setEntries((prev) => {
         const nextEntries = [
           ...normalizeEntriesForDueMonth(prev, currentDueMonth).filter(
-            (entry) => entry.cycle !== cycle,
+            (entry) => entry.cycle !== cycle || !incoming.some((item) => item.accountId === entry.accountId),
           ),
           ...incoming.map((entry) =>
             normalizeEntryForDueMonth({ ...entry, cycle, id: uid() }, currentDueMonth),
@@ -322,15 +367,33 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
     [currentDueMonth, setEntries],
   )
 
-  const payInvoice = useCallback((expectedRevision?: string | null): CommandResult => {
+  const payInvoice = useCallback((accountId?: string, expectedRevision?: string | null): CommandResult => {
+    const account = accountId ? accounts.find((item) => item.id === accountId) : accounts.length === 1 ? accounts[0] : undefined
+    if (!account) return { ok: false, reason: 'rejected', message: 'Escolha um cartão para pagar.' }
+    const dueMonth = account.currentDueMonth ?? currentDueMonth
     return runRepositoryCommand({
-      id: `pay-invoice:${currentDueMonth}`,
+      id: `pay-invoice:${account.id}:${dueMonth}`,
       expectedRevision,
-      apply: (document) => payInvoiceInDocument(document, currentDueMonth),
+      apply: (document) => payInvoiceInDocument(document, dueMonth, account.id),
     })
   }, [
-    currentDueMonth,
+    accounts, currentDueMonth,
   ])
+
+  const confirmEmptyInvoice = useCallback((accountId: string, dueMonth: string): CommandResult =>
+    runRepositoryCommand({ id: `confirm-empty-invoice:${accountId}:${dueMonth}`, apply: (document) => {
+      const migrated = migrateCardIdentityInDocument(document)
+      const rawAccounts = migrated.collections.cardAccounts as CreditCardAccount[]
+      const account = rawAccounts.find((item) => item.id === accountId)
+      if (!account || (dueMonth !== account.currentDueMonth && dueMonth !== addMonths(account.currentDueMonth!, 1))) return null
+      const rawEntries = migrated.collections.cardEntries as CreditCardEntry[]
+      if (rawEntries.some((entry) => entry.accountId === accountId && entry.dueMonth === dueMonth)) return null
+      return { ...migrated, collections: { ...migrated.collections,
+        cardAccounts: rawAccounts.map((item) => item.id === accountId
+          ? { ...item, confirmedEmptyDueMonths: [...new Set([...(item.confirmedEmptyDueMonths ?? []), dueMonth])] }
+          : item),
+      } }
+    } }), [])
 
   const setSettings = useCallback(
     (next: CreditCardSettings) => {
@@ -339,22 +402,26 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
     [setSettingsRaw],
   )
 
-  const setDueMonth = useCallback((month: string, expectedRevision?: string | null) =>
+  const setDueMonth = useCallback((month: string, accountId: string, expectedRevision?: string | null) =>
     runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return null
-      const previous = normalizeCreditCardSettings(
-        (document.collections.cardSettings as CreditCardSettings | undefined) ??
-          defaultSettingsForCycle(activeCycleMonth, cardDueHintDay))
-      const dueDay = Number(previous.paymentDate.slice(0, 2)) || 5
-      const entries = Array.isArray(document.collections.cardEntries)
-        ? document.collections.cardEntries as CreditCardEntry[] : []
-      return { ...document, collections: { ...document.collections,
-        cardSettings: { ...previous, currentDueMonth: month,
-          paymentDate: `${String(dueDay).padStart(2, '0')}/${month.slice(5)}` },
-        cardEntries: normalizeEntriesForDueMonth(entries, month),
+      const migrated = migrateCardIdentityInDocument(document)
+      const rawAccounts = migrated.collections.cardAccounts as CreditCardAccount[]
+      const account = rawAccounts.find((item) => item.id === accountId)
+      if (!account) return null
+      if (normalizePaidInvoiceSnapshots(migrated.collections.cardPaidInvoices)
+        .some((invoice) => invoice.accountId === accountId && invoice.dueMonth === month)) return null
+      const entries = migrated.collections.cardEntries as CreditCardEntry[]
+      return { ...migrated, collections: { ...migrated.collections,
+        cardEntries: entries.map((entry) => entry.accountId === accountId
+          ? normalizeEntryForDueMonth({ ...entry,
+              dueMonth: entry.cycle === 'current' ? month : addMonths(month, 1) }, month)
+          : entry),
+        cardAccounts: rawAccounts.map((item) => item.id === accountId
+          ? { ...item, currentDueMonth: month } : item),
       } }
     } }).ok,
-  [activeCycleMonth, cardDueHintDay])
+  [])
 
   const addAccount = useCallback(
     (input: { name: string; closingDay: number; dueDay: number; limit?: number }) => {
@@ -362,26 +429,35 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
       if (!trimmed) return
       setStoredAccounts((prev) => [
         ...(Array.isArray(prev) ? prev : []),
-        normalizeCardAccount({ ...input, name: trimmed, id: uid() }),
+        normalizeCardAccount({ ...input, name: trimmed, id: uid(), currentDueMonth: activeCycleMonth }),
       ])
     },
-    [setStoredAccounts],
+    [activeCycleMonth, setStoredAccounts],
   )
 
   const updateAccount = useCallback(
     (id: string, patch: Partial<Omit<CreditCardAccount, 'id'>>) => {
-      setStoredAccounts((prev) =>
-        prev.map((account) =>
-          account.id === id ? normalizeCardAccount({ ...account, ...patch }) : account,
-        ),
-      )
+      runRepositoryCommand({ id: uid(), apply: (document) => {
+        const rawAccounts = Array.isArray(document.collections.cardAccounts) ? document.collections.cardAccounts as CreditCardAccount[] : []
+        const account = rawAccounts.find((item) => item.id === id)
+        if (!account) return null
+        const updated = normalizeCardAccount({ ...account, ...patch })
+        const rawEntries = Array.isArray(document.collections.cardEntries) ? document.collections.cardEntries as CreditCardEntry[] : []
+        return { ...document, collections: { ...document.collections,
+          cardAccounts: rawAccounts.map((item) => item.id === id ? updated : item),
+          cardEntries: rawEntries.map((entry) => entry.accountId === id ? { ...entry, cardName: updated.name } : entry),
+        } }
+      } })
     },
-    [setStoredAccounts],
+    [],
   )
 
   const removeAccount = useCallback(
-    (id: string) => setStoredAccounts((prev) => prev.filter((account) => account.id !== id)),
-    [setStoredAccounts],
+    (id: string) => {
+      if (entries.some((entry) => entry.accountId === id) || paidInvoices.some((invoice) => invoice.accountId === id)) return false
+      return setStoredAccounts((prev) => prev.filter((account) => account.id !== id))
+    },
+    [entries, paidInvoices, setStoredAccounts],
   )
 
   const summary = useMemo(() => calculateCreditCardSummary(entries, settings), [entries, settings])
@@ -390,6 +466,7 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
 
   return {
     entries,
+    migrationError,
     settings,
     accounts,
     cycles,
@@ -407,6 +484,7 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
     appendEntries,
     anticipateInstallments,
     payInvoice,
+    confirmEmptyInvoice,
     setSettings,
     setDueMonth,
   }

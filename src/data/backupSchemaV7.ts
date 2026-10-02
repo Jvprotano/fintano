@@ -144,6 +144,8 @@ export interface CycleActualsV7 {
 export interface CardAccountV7 {
   id: string
   name: string
+  currentDueMonth?: MonthKey
+  confirmedEmptyDueMonths?: MonthKey[]
   closingDay: number
   dueDay: number
   limitCents: MoneyCents
@@ -181,6 +183,7 @@ export interface CardStatementV7 {
   totalCents: MoneyCents | null
   personalTotalCents: MoneyCents
   paidAt: string
+  charges?: CardChargeV7[]
   forecastOccurrences?: { id: string; amountCents: MoneyCents }[]
   credits?: { id: string; accountId: string; description: string; date: string; amountCents: MoneyCents; source: 'payment' | 'reward'; cashCycleMonth?: MonthKey; originCreditId?: string }[]
   spending: {
