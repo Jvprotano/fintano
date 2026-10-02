@@ -9,7 +9,7 @@ Cada versão abaixo deve poder ser usada isoladamente após a entrega. Uma vers�
 | Versão | Situação | Resultado utilizável | Escopo principal | Depende de |
 | --- | --- | --- | --- | --- |
 | V1 — base confiável do ciclo | Entregue | Recuperação de dados, plano por competência, realizado, verba para Desejos, fechamento e cadastro/calendário de cartões. | FT-01–FT-12 | — |
-| V2 — fatura por cartão | Pendente | Escolher, consultar e pagar a fatura de um cartão sem alterar a de outro; Ciclo, Planejar e Histórico usam a mesma competência. | FT-13 | V1 |
+| V2 — fatura por cartão | Entregue em 02/10/2026 | Escolher, consultar e pagar a fatura de um cartão sem alterar a de outro; Ciclo, Planejar e Histórico usam a mesma competência. | FT-13 | V1 |
 | V3 — conferência de compras e terceiros | Pendente | Importar lançamentos com prévia de diferenças e registrar reembolso parcial ou integral sem inflar renda pessoal. | FT-14–FT-15 | V2 |
 | V4 — movimentos e saldos patrimoniais | Pendente | Aporte, resgate, transferência e amortização produzem um fato financeiro rastreável; avaliações datadas mudam saldo, não aporte. | FT-16–FT-17 | V1; pode começar enquanto V2/V3 avançam, mas integrar com os contratos atuais antes de entregar |
 | V5 — aporte com destino | Pendente | Reserva e metas disputam explicitamente a mesma capacidade de aporte mensal, sem duplicar patrimônio. | FT-18 | V4 |
@@ -64,7 +64,7 @@ Cada versão abaixo deve poder ser usada isoladamente após a entrega. Uma vers�
 
 ## Ritmo de execução e validação
 
-1. Começar pela primeira versão pendente, V2. A ordem da tabela é a ordem de publicação; trabalho interno de versões independentes pode avançar antes, desde que a integração e a entrega respeitem as dependências.
+1. Começar pela primeira versão pendente, V3. A ordem da tabela é a ordem de publicação; trabalho interno de versões independentes pode avançar antes, desde que a integração e a entrega respeitem as dependências.
 2. Implementar o fluxo completo da versão, inclusive persistência, migração/backup quando aplicável, cálculo e interface. Não encerrar uma entrega por compilação ou tela isolada.
 3. **Não gastar tempo de execução nem tokens criando, ampliando ou rodando testes unitários, suítes completas ou testes sem risco concreto associado à mudança.** A prioridade é implementar as funcionalidades. Fazer somente a conferência manual curta da jornada indicada, com dados sintéticos, e olhar o registro persistido quando houver alteração financeira ou migração. Rodar build uma vez quando necessário para verificar a integração do código; lint ou outra verificação apenas se uma falha concreta ou requisito do repositório justificar.
 4. Nas telas alteradas, conferir apenas se a ação essencial funciona em 390 px sem rolagem horizontal nem dependência de hover, conforme `AGENTS.md`; isso não abre uma campanha de responsividade ou de testes visuais gerais.

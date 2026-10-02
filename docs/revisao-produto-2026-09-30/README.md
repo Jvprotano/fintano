@@ -30,10 +30,11 @@ As etapas agrupam temas. As fronteiras das entregas publicáveis e a ordem atual
 - [x] Leitura das telas no navegador e confronto com componentes, hooks e cálculos.
 - [x] Diagnóstico, direção de produto, plano e tarefas registrados.
 - [x] Primeira versão utilizável concluída em FT-12: preservação de dados, plano por competência, distinção entre planejado e realizado, prévia, fechamento e cadastro/calendário dos cartões. Evidências e limites estão em `tasks.md`.
-- [ ] V2: FT-13, identidade e pagamento de faturas por cartão. FT-14 e FT-15 ficam em V3; as demais pendências foram distribuídas até V9.
+- [x] V2: FT-13, identidade e pagamento de faturas por cartão. Evidência e limites em [ft13-faturas.md](ft13-faturas.md).
+- [ ] Próxima entrega V3: FT-14 e FT-15, importação conferível e reembolso de terceiros. As demais pendências foram distribuídas até V9.
 
 Base do diagnóstico original: commit `7d6f998`, incluindo as alterações locais então existentes em Futuro. Estado usado para dividir as versões: `504afc9` em 02/10/2026, com FT-01–FT-12 concluídas e FT-13–FT-26 pendentes.
 
 A pedido do usuário, as próximas versões não devem consumir tempo ou tokens com testes unitários, suítes completas ou verificações sem risco concreto. A validação será a jornada funcional curta de cada entrega, com build apenas quando necessário. Nas telas alteradas, observar o mínimo de 390 px exigido por `AGENTS.md`. Evidências técnicas obtidas antes dessa orientação não constituem aprovação de todos os fluxos. Os exemplos dos documentos são sintéticos e não reproduzem o cadastro financeiro pessoal.
 
-Para retomar: ler [versões entregáveis](versoes-entregaveis.md), conferir o estado atual do repositório, começar por V2 e registrar cada resultado em `tasks.md`. Não marcar uma tarefa como concluída apenas por compilar.
+Para retomar: ler [versões entregáveis](versoes-entregaveis.md), conferir o estado atual do repositório, começar por V3 e registrar cada resultado em `tasks.md`. Não marcar uma tarefa como concluída apenas por compilar.

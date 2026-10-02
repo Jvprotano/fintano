@@ -1,6 +1,6 @@
 # Tarefas de execução
 
-Estado em 02/10/2026: FT-01–FT-12 concluídas; FT-13–FT-26 pendentes. Este arquivo é o ponto de retomada da implementação. Ver [diagnóstico](diagnostico.md) para evidências D01–D20, [plano](plano-execucao.md) para contratos financeiros e [versões entregáveis](versoes-entregaveis.md) para as fronteiras de V1–V9.
+Estado em 02/10/2026: FT-01–FT-13 concluídas; FT-14–FT-26 pendentes. Este arquivo é o ponto de retomada da implementação. Ver [diagnóstico](diagnostico.md) para evidências D01–D20, [plano](plano-execucao.md) para contratos financeiros e [versões entregáveis](versoes-entregaveis.md) para as fronteiras de V1–V9.
 
 Prioridades: **P0** preserva fatos; **P1** corrige decisão/operação; **P2** consolida a experiência. Porte: **P** alteração localizada, **M** um fluxo com integrações, **G** mudança de contrato em vários domínios. Porte não é estimativa de dias.
 
@@ -103,7 +103,7 @@ Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir
 
 ### FT-13 — Identificar faturas e pagamentos por cartão
 
-- [ ] **P1 · G · depende de FT-04, FT-05, FT-12 · achados D11, D13.**
+- [x] **P1 · G · depende de FT-04, FT-05, FT-12 · achados D11, D13.**
 - **Escopo:** substituir nomes/buckets como identidade por cartão, fatura, competência e vencimento. Pagamento independente com data e referência; preservar lançamentos e retirar descarte automático de snapshots após 24. Manter recorrência, parcelas e créditos. Planejar/Ciclo/Histórico consultam a mesma competência.
 - **Referências:** `src/types/cards.ts`, `src/lib/creditCards.ts`, `src/lib/cardCycleAccounting.ts`, `src/hooks/useCreditCards.ts`, `src/components/cards/InvoicePaymentReview.tsx`, `src/components/WantsManager.tsx`, backup.
 - **Aceite:** pagar cartão A não paga nem gira B; renomear A conserva compras antigas; voltar a uma fatura paga permite conferir sua composição. Crédito excedente atravessa faturas sem repetir saída de caixa. Área de Desejos compara o ciclo correto.
@@ -223,6 +223,7 @@ Registrar a jornada e seus limites a cada entrega funcional.
 | FT-03 | 01/10/2026 · detalhes em [ft03-integridade.md](ft03-integridade.md) | Em documento sintético, arquivar posição com aporte antigo manteve o realizado de setembro e o patrimônio; arquivar custo/Desejo retirou o plano e manteve o realizado e seu nome. Exclusões com saldo, movimento ou vínculo foram recusadas. No navegador local, bem de R$ 200 foi arquivado, consultado após recarga com patrimônio preservado e restaurado. Backup v8 conservou estado, IDs e movimentos; leitura de v7 anterior permaneceu coberta. | Build, lint e suíte completa passaram (379 testes, 3 ignorados). Consulta visual por captura não ficou disponível; a jornada do navegador foi conferida pela árvore de acessibilidade. Nenhum dado pessoal foi usado. | FT-04: tipos, origem e competência dos movimentos. |
 | FT-04 | 01/10/2026 · detalhes em [ft04-movimentos.md](ft04-movimentos.md) | Posição sintética com saldo anterior de R$ 100 e aporte de R$ 200: realizado do ciclo R$ 200 e patrimônio R$ 300. Nota “Aporte inicial” não mudou o tipo. Mudança de competência preservou a data real; amortização e backup foram conferidos. Migração legada ambígua ocorreu uma vez, com cópia anterior e confirmação explícita. | Suíte completa, build e lint passaram. A migração bloqueia a abertura caso a cópia prévia falhe, conservando o original. Navegador indisponível nesta retomada; revisão renderizada a 390 px permanece. | FT-05: contrato de backup, reconciliação e caminho de recuperação. |
 | FT-05 | 01/10/2026 · detalhes em [ft05-backup.md](ft05-backup.md) | V8 sintético com avaliações históricas e planos mensais distintos foi importado e reexportado em v9 sem perder IDs, datas, centavos ou totais. Plano ativo ficou intacto até edição do cenário; atualização de valor criou nova avaliação. Restauração com falha conservou o documento anterior. | Suíte completa (388 passaram, 3 ignorados), build e lint passaram. Importação e restauração automática mostram avisos e totais antes de substituir; o menu registra exportação solicitada e oferece o bruto pré-migração. Navegador indisponível, revisão visual a 390 px pendente. | FT-06: separar plano por ciclo, modelo e simulação. |
+| FT-13 | 02/10/2026 · `924fe76` · detalhes em [ft13-faturas.md](ft13-faturas.md) | Dois cartões sintéticos, R$ 100 em A e R$ 200 em B; pagar A preservou sua composição e não girou B. Renomear A persistiu após recarga. Conversão integrada v9 preservou ambas as competências, B aberto e snapshot legado agregado. | Build e checagem de tipos passaram. Lint focado interrompido por demora sem resultado. O download do backup pelo navegador expirou; a conversão foi verificada por uma jornada pontual com dados sintéticos. Sem revisão visual renderizada em 390 px e sem uso de dados pessoais na jornada. | V3: FT-14 e FT-15. |
 
 ## Regra para ampliar o backlog
 

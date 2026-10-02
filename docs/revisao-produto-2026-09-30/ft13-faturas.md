@@ -14,4 +14,12 @@ Lançamentos persistem nome e bucket global (`current`/`next`). `payInvoiceInDoc
 
 ## Limites de execução
 
-Fazer as mudanças por transação de dados e fluxo de interface, validando build/lint e uma jornada integrada determinística de pagamento A/B. Evitar ampliar testes unitários de apresentação.
+Fazer as mudanças por transação de dados e fluxo de interface, conferindo a jornada integrada de pagamento A/B e a conversão de backup. Build quando necessário para integrar o código; evitar suítes e testes unitários sem risco concreto.
+
+## Entrega V2 — 02/10/2026 · `924fe76`
+
+- Lançamentos e abatimentos abertos agora conservam `accountId` e `dueMonth`; cada cadastro mantém a competência da sua fatura aberta. Pagar uma conta congela valor, data e composição, gera as parcelas/assinaturas e carrega crédito excedente apenas nela. O pagamento e o avanço da conta são uma gravação única.
+- A migração dos lançamentos antigos vincula nomes a IDs uma vez, cria contas para nomes sem cadastro e exige uma cópia automática anterior. Se a cópia falhar, Cartões informa o erro e bloqueia a operação. Snapshots agregados antigos permanecem agregados e são mostrados como sem cartão identificado.
+- O backup v9 exporta/importa competência por conta, referência dos lançamentos, confirmação explícita de fatura vazia, pagamentos e composição paga. Cartões permite consultar a fatura paga por conta/mês; Ciclo e Planejar somam as faturas pertinentes à competência.
+- Jornada sintética no navegador local isolado: duas contas com R$ 100 e R$ 200, pagamento de A, composição de A consultável, B ainda aberto em agosto e renomeação de A persistida após recarga. A prévia/fechamento passou a sinalizar fatura sem dados como desconhecida. Uma verificação pontual de ida e volta v9 preservou A, B, a composição paga e um snapshot legado agregado.
+- `npm run build`, checagem de tipos posterior e `git diff --check` passaram. Um lint focado foi interrompido por demora sem resultado. A captura do arquivo de backup pelo navegador expirou; a ida e volta foi conferida pela conversão integrada com dados sintéticos. Não houve conferência visual renderizada em 390 px nem uso de dados pessoais na jornada.

@@ -111,7 +111,7 @@ Os detalhes devem abrir no contexto do item. Links entre abas carregam destino e
 
 ## Etapas e portões de entrega
 
-Estas etapas descrevem a evolução por tema. Para executar e publicar em incrementos utilizáveis, seguir a divisão V1–V9 de [versões entregáveis](versoes-entregaveis.md). Em 02/10/2026, V1 (FT-01–FT-12) está concluída e V2–V9 (FT-13–FT-26) estão pendentes. FT-24 deve acompanhar as telas alteradas e FT-26 a documentação de cada versão; ambas encerram em V9.
+Estas etapas descrevem a evolução por tema. Para executar e publicar em incrementos utilizáveis, seguir a divisão V1–V9 de [versões entregáveis](versoes-entregaveis.md). Em 02/10/2026, V1 e V2 (FT-01–FT-13) estão concluídas; V3–V9 (FT-14–FT-26) estão pendentes. FT-24 deve acompanhar as telas alteradas e FT-26 a documentação de cada versão; ambas encerram em V9.
 
 ### Etapa 1 — integridade, recuperação e semântica persistida
 
