@@ -7,6 +7,7 @@
 1. [Diagnóstico](diagnostico.md): funcionalidades, problemas comprovados, lacunas e proposta para cada aba.
 2. [Plano de execução](plano-execucao.md): decisões de produto, contratos financeiros, etapas, migração e validação.
 3. [Tarefas](tasks.md): backlog executável, com IDs, dependências, arquivos de referência e critérios de conclusão.
+4. [FT-13 — Faturas por cartão](ft13-faturas.md): contrato de dados e ordem de implementação da próxima versão.
 
 ## Ordem de implementação
 
@@ -27,7 +28,8 @@ As etapas são incrementais. FT-04 e FT-06 definem o contrato de dados usado nas
 - [x] Análise das seis abas, subáreas patrimoniais, persistência, backup e exportação para IA.
 - [x] Leitura das telas no navegador e confronto com componentes, hooks e cálculos.
 - [x] Diagnóstico, direção de produto, plano e tarefas registrados.
-- [ ] Implementação das tarefas abaixo — FT-01 a FT-12 concluídas; FT-13 a FT-26 pendentes. Evidências e limites estão em `tasks.md`.
+- [x] Primeira versão utilizável concluída em FT-12: preservação de dados, plano por competência, distinção entre planejado e realizado, prévia, fechamento e cadastro/calendário dos cartões. Evidências e limites estão em `tasks.md`.
+- [ ] Próxima versão: FT-13 a FT-26. Começar pela identidade e pagamento de faturas por cartão em FT-13; FT-14 e FT-15 dependem desse contrato. As etapas seguintes permanecem no plano de execução.
 
 Base: commit `7d6f998`, incluindo as alterações locais já existentes em `ForecastView`, `ForecastCommitments`, `useForecast`, no teste de compromissos e em `docs/futuro-eventos-plano.md`. Essas alterações retiram grupos de Futuro; a proposta respeita essa direção. Não foram modificadas nesta revisão.
 
