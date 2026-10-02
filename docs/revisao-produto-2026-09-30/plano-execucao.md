@@ -111,6 +111,8 @@ Os detalhes devem abrir no contexto do item. Links entre abas carregam destino e
 
 ## Etapas e portões de entrega
 
+Estas etapas descrevem a evolução por tema. Para executar e publicar em incrementos utilizáveis, seguir a divisão V1–V9 de [versões entregáveis](versoes-entregaveis.md). Em 02/10/2026, V1 (FT-01–FT-12) está concluída e V2–V9 (FT-13–FT-26) estão pendentes. FT-24 deve acompanhar as telas alteradas e FT-26 a documentação de cada versão; ambas encerram em V9.
+
 ### Etapa 1 — integridade, recuperação e semântica persistida
 
 Executar FT-01–FT-05. Primeiro corrigir abertura de documento inválido e operações parciais. Depois preservar fatos ao arquivar e consolidar tipos de movimento no runtime e no backup.
@@ -157,7 +159,7 @@ FT-24 acompanha as telas anteriores; FT-25 utiliza os contratos já reconciliado
 
 - Conferir o estado atual antes de cada etapa. Não reverter as alterações locais de Futuro para reproduzir planos históricos.
 - Trabalhar primeiro com uma cópia de dados. Guardar o documento bruto original antes de converter; em erro de leitura, preservá-lo sem normalização destrutiva.
-- Versionar mudanças incompatíveis. O backup público observado é v8; escolher a próxima versão a partir do estado real no momento da implementação.
+- Versionar mudanças incompatíveis. FT-05 entregou o backup público v9; escolher a próxima versão a partir do estado real no momento de cada implementação.
 - Manter uma tabela por campo: preservado, transformado com regra explícita, desconhecido ou legado. Não inventar pagamento, origem, conta, dia ou competência ausente.
 - Não confundir contrato público e armazenamento interno. Alinhar entidades canônicas progressivamente, sem obrigar uma troca de persistência em bloco.
 - Restaurar deve conferir conteúdo e referências, não apenas o número de versão. Mostrar avisos relevantes antes de aplicar.
@@ -165,9 +167,9 @@ FT-24 acompanha as telas anteriores; FT-25 utiliza os contratos já reconciliado
 
 ## Validação objetiva
 
-Priorizar jornadas completas na aplicação com dados sintéticos e comparação dos registros persistidos. Não transformar este plano em campanha de testes unitários ou responsividade. Build e verificações de integração cabem conforme o código alterado; repetir suites genéricas não substitui conferir a decisão financeira.
+Priorizar a jornada funcional curta de cada versão na aplicação, com dados sintéticos, e comparar os registros persistidos quando houver efeito financeiro ou migração. Não criar, ampliar ou executar testes unitários, suítes completas ou testes sem risco concreto: o tempo de execução e os tokens devem ir para implementar as funcionalidades. Rodar build uma vez somente quando necessário para conferir integração do código; lint ou outra verificação apenas diante de falha concreta ou requisito do repositório. Nas telas alteradas, verificar o mínimo de 390 px de `AGENTS.md` sem abrir uma campanha de responsividade. O roteiro de cada versão está em [versões entregáveis](versoes-entregaveis.md).
 
-Jornadas mínimas por entrega relevante:
+Exemplos de jornadas: conferir apenas a correspondente à versão em execução, conforme [versões entregáveis](versoes-entregaveis.md), sem repetir as demais a cada entrega.
 
 1. Abrir/restaurar documento, lidar com falha de gravação e recuperar sem perda.
 2. Planejar um ciclo, simular outro, confirmar renda/contas e verificar que fatos não mudaram.

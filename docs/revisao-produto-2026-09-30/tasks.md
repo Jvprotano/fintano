@@ -1,10 +1,10 @@
 # Tarefas de execução
 
-Estado inicial: todas pendentes. Este arquivo é o ponto de retomada da implementação. Ver [diagnóstico](diagnostico.md) para evidências D01–D20 e [plano](plano-execucao.md) para contratos financeiros.
+Estado em 02/10/2026: FT-01–FT-12 concluídas; FT-13–FT-26 pendentes. Este arquivo é o ponto de retomada da implementação. Ver [diagnóstico](diagnostico.md) para evidências D01–D20, [plano](plano-execucao.md) para contratos financeiros e [versões entregáveis](versoes-entregaveis.md) para as fronteiras de V1–V9.
 
 Prioridades: **P0** preserva fatos; **P1** corrige decisão/operação; **P2** consolida a experiência. Porte: **P** alteração localizada, **M** um fluxo com integrações, **G** mudança de contrato em vários domínios. Porte não é estimativa de dias.
 
-Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir a jornada observada. Não marcar como concluída apenas porque o build passou. Não há requisito de campanha de testes unitários ou de responsividade; priorizar funcionamento integrado no desktop, conforme a orientação desta revisão.
+Para concluir uma tarefa: marcar a caixa, registrar os arquivos/commit e resumir a jornada observada. Não marcar como concluída apenas porque o build passou. **Não criar, ampliar ou executar testes unitários, suítes completas ou testes sem risco concreto.** Priorizar a funcionalidade e conferir apenas a jornada curta da versão com dados sintéticos, mais o estado persistido quando pertinente. Build apenas quando necessário à integração; lint diante de falha concreta ou requisito do repositório. Nas telas tocadas, observar o mínimo de 390 px sem campanha de responsividade.
 
 ## Etapa 1 — preservar dados
 

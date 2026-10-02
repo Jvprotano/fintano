@@ -8,8 +8,9 @@
 2. [Plano de execução](plano-execucao.md): decisões de produto, contratos financeiros, etapas, migração e validação.
 3. [Tarefas](tasks.md): backlog executável, com IDs, dependências, arquivos de referência e critérios de conclusão.
 4. [FT-13 — Faturas por cartão](ft13-faturas.md): contrato de dados e ordem de implementação da próxima versão.
+5. [Versões entregáveis](versoes-entregaveis.md): entregas independentes, situação, dependências e jornadas mínimas de V1 a V9.
 
-## Ordem de implementação
+## Ordem de implementação original
 
 | Etapa | Resultado | Tarefas |
 | --- | --- | --- |
@@ -21,7 +22,7 @@
 | 6. Aprender com o passado | Histórico explica desvios e correções sem concorrer com outras abas | FT-22 a FT-23 |
 | 7. Consolidar a experiência | Interação consistente, contexto correto e documentação coerente | FT-24 a FT-26 |
 
-As etapas são incrementais. FT-04 e FT-06 definem o contrato de dados usado nas demais; isso não exige uma reescrita integral antes de entregar correções.
+As etapas agrupam temas. As fronteiras das entregas publicáveis e a ordem atual estão em [versões entregáveis](versoes-entregaveis.md). FT-04 e FT-06 definem o contrato de dados usado nas demais; isso não exige uma reescrita integral antes de entregar correções.
 
 ## Estado e limites
 
@@ -29,10 +30,10 @@ As etapas são incrementais. FT-04 e FT-06 definem o contrato de dados usado nas
 - [x] Leitura das telas no navegador e confronto com componentes, hooks e cálculos.
 - [x] Diagnóstico, direção de produto, plano e tarefas registrados.
 - [x] Primeira versão utilizável concluída em FT-12: preservação de dados, plano por competência, distinção entre planejado e realizado, prévia, fechamento e cadastro/calendário dos cartões. Evidências e limites estão em `tasks.md`.
-- [ ] Próxima versão: FT-13 a FT-26. Começar pela identidade e pagamento de faturas por cartão em FT-13; FT-14 e FT-15 dependem desse contrato. As etapas seguintes permanecem no plano de execução.
+- [ ] V2: FT-13, identidade e pagamento de faturas por cartão. FT-14 e FT-15 ficam em V3; as demais pendências foram distribuídas até V9.
 
-Base: commit `7d6f998`, incluindo as alterações locais já existentes em `ForecastView`, `ForecastCommitments`, `useForecast`, no teste de compromissos e em `docs/futuro-eventos-plano.md`. Essas alterações retiram grupos de Futuro; a proposta respeita essa direção. Não foram modificadas nesta revisão.
+Base do diagnóstico original: commit `7d6f998`, incluindo as alterações locais então existentes em Futuro. Estado usado para dividir as versões: `504afc9` em 02/10/2026, com FT-01–FT-12 concluídas e FT-13–FT-26 pendentes.
 
-A pedido do usuário, a revisão deixou de investir tempo em testes unitários e responsividade. Evidências técnicas obtidas antes dessa orientação estão no diagnóstico; não constituem aprovação de todos os fluxos. Os exemplos dos documentos são sintéticos e não reproduzem o cadastro financeiro pessoal.
+A pedido do usuário, as próximas versões não devem consumir tempo ou tokens com testes unitários, suítes completas ou verificações sem risco concreto. A validação será a jornada funcional curta de cada entrega, com build apenas quando necessário. Nas telas alteradas, observar o mínimo de 390 px exigido por `AGENTS.md`. Evidências técnicas obtidas antes dessa orientação não constituem aprovação de todos os fluxos. Os exemplos dos documentos são sintéticos e não reproduzem o cadastro financeiro pessoal.
 
-Para retomar: ler o plano, conferir o estado atual do repositório, escolher a primeira tarefa pendente com dependências satisfeitas e registrar seu resultado em `tasks.md`. Não marcar uma tarefa como concluída apenas por compilar.
+Para retomar: ler [versões entregáveis](versoes-entregaveis.md), conferir o estado atual do repositório, começar por V2 e registrar cada resultado em `tasks.md`. Não marcar uma tarefa como concluída apenas por compilar.
