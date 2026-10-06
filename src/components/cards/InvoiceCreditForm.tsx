@@ -22,7 +22,7 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
   const [purchaseDate, setPurchaseDate] = useState(todayShort)
   const [amount, setAmount] = useState(0)
   const [saveError, setSaveError] = useState('')
-  const valid = description.trim().length > 0 && cardName.trim().length > 0 && Number.isFinite(amount) && amount > 0
+  const valid = description.trim().length > 0 && knownCards.length > 0 && Number.isFinite(amount) && amount > 0
 
   return (
     <form
@@ -35,7 +35,7 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
           creditSource,
           cashCycleMonth,
           description: description.trim(),
-          cardName: cardName.trim(),
+          cardName: knownCards.includes(cardName) ? cardName : knownCards[0],
           purchaseDate: purchaseDate.trim(),
           amount,
           personalAmount: amount,
@@ -64,8 +64,7 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
       </label>
       <label className="block min-w-0 text-xs font-medium text-dark-text-secondary">
         Cartão
-        <input value={knownCards.length === 1 ? knownCards[0] : cardName} readOnly={knownCards.length === 1} onChange={(event) => setCardName(event.target.value)} list="invoice-credit-card-names" placeholder="Ex.: Itaú" className="mt-1.5 w-full rounded-md border border-dark-border bg-dark-input px-2.5 py-2 text-sm text-dark-text" />
-        <datalist id="invoice-credit-card-names">{knownCards.map((card) => <option key={card} value={card} />)}</datalist>
+        <select value={knownCards.includes(cardName) ? cardName : knownCards[0] ?? ''} onChange={(event) => setCardName(event.target.value)} className="app-field mt-1.5 w-full px-2.5 py-2 text-sm">{knownCards.map((card) => <option key={card} value={card}>{card}</option>)}</select>
       </label>
       <label className="block min-w-0 text-xs font-medium text-dark-text-secondary">
         Data real

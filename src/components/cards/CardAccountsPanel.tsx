@@ -29,9 +29,9 @@ export function CardAccountsPanel() {
     setName(''); setLimit(0); setError('')
   }
   const currentDueMonth = settings.currentDueMonth ?? ''
-  return <Card title="Cadastro e calendário" icon={<CreditCard size={17} />} collapsible storageKey="card-accounts">
+  return <Card title="Configurar cartões e vencimentos" icon={<CreditCard size={17} />} collapsible storageKey={accounts.length > 0 ? 'card-accounts-settings' : undefined} defaultCollapsed={accounts.length > 0}>
     <div className="space-y-4">
-      <p className="text-xs leading-relaxed text-dark-text-muted">Cada cartão tem sua competência de fatura aberta. O pagamento avança somente o cartão escolhido.</p>
+      <p className="text-xs leading-relaxed text-dark-text-muted">Os dias de fechamento e vencimento são referências do cartão. A competência identifica a fatura aberta para os lançamentos; ao pagar, somente esse cartão avança para o mês seguinte.</p>
       {accounts.length > 0 && <ul className="space-y-2">
         {accounts.map((account) => <li key={account.id}
           className="grid gap-2 rounded-lg border border-dark-border bg-dark-surface/60 p-3 sm:grid-cols-[minmax(0,1fr)_5rem_5rem_8rem]">

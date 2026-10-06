@@ -77,7 +77,7 @@ export function CardEntryForm({
       cycle,
       description: cleanDescription,
       purchaseDate,
-      cardName: cardName.trim() || 'Cartão',
+      cardName: knownCards.includes(cardName) ? cardName : knownCards[0] ?? 'Cartão',
       amount,
       personalAmount,
       remainingAmount: remainingAmount || buildRemainingAmount(amount, current, total),
@@ -127,8 +127,7 @@ export function CardEntryForm({
         )}
       </div></div>
       <label className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Data real</span><input placeholder="Ex.: 28/09" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} aria-label="Data da compra" className="app-field w-full px-2 py-2 text-center text-sm md:py-1.5" /></label>
-      <label className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Cartão</span><input placeholder="Ex.: Itaú" list="credit-card-names" value={knownCards.length === 1 ? knownCards[0] : cardName} readOnly={knownCards.length === 1} onChange={(event) => setCardName(event.target.value)} aria-label="Cartão" className="app-field w-full px-2 py-2 text-center text-sm md:py-1.5" /></label>
-      <datalist id="credit-card-names">{knownCards.map((card) => <option key={card} value={card} />)}</datalist>
+      <label className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Cartão</span><select value={knownCards.includes(cardName) ? cardName : knownCards[0] ?? ''} onChange={(event) => setCardName(event.target.value)} aria-label="Cartão" className="app-field w-full px-2 py-2 text-sm md:py-1.5">{knownCards.map((card) => <option key={card} value={card}>{card}</option>)}</select></label>
       <div className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Área do orçamento</span><CardAreaCell value={area} onChange={setArea} /></div>
       <div className="min-w-0"><span className="app-form-label mb-1 block md:sr-only">Valor da fatura</span>
         <CurrencyInput value={amountInputValue} onChange={changeAmountInput} className="!border-dark-border/60 !bg-dark-input !py-1.5 !pl-7 !pr-2.5 text-sm" />

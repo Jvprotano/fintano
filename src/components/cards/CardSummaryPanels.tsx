@@ -1,4 +1,3 @@
-import { CreditCard } from 'lucide-react'
 import type { CardCycleAccounting } from '../../lib/cardCycleAccounting'
 import { formatCurrency, formatMonthLong } from '../../lib/format'
 import type { BudgetArea, BudgetBucket, CreditCardSummary } from '../../types'
@@ -9,14 +8,12 @@ export function CardSummaryPanels({
   summary,
   accounting,
   activeMonth,
-  nextDueMonth,
   budgetComparison,
   plannedOnCard,
 }: {
   summary: CreditCardSummary
   accounting: CardCycleAccounting
   activeMonth: string
-  nextDueMonth: string
   budgetComparison: Record<BudgetArea, BudgetBucket>
   plannedOnCard: number
 }) {
@@ -26,27 +23,7 @@ export function CardSummaryPanels({
   )
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <Panel>
-        <PanelHeader title="Totais por cartão" icon={<CreditCard size={15} />} />
-        {summary.totalsByCard.length > 0 ? (
-          <div className="mt-3 space-y-1.5">
-            {summary.totalsByCard.map((card) => (
-              <div key={card.cardName} className="flex items-center justify-between gap-3 rounded-lg bg-dark-surface px-3 py-2 text-sm">
-                <span className="font-medium text-dark-text-secondary">{card.cardName}</span>
-                <span className="text-right">
-                  <strong className="block tabular-nums text-dark-text">{formatCurrency(card.totalAmount)}</strong>
-                  <span className="text-xs tabular-nums text-dark-text-muted">meu: {formatCurrency(card.personalAmount)}</span>
-                  <span className="block text-xs tabular-nums text-dark-text-muted">não meu: {formatCurrency(card.thirdPartyAmount)}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-dark-text-muted">Sem cartões na fatura atual.</p>
-        )}
-      </Panel>
-
+    <div className="grid gap-4 lg:grid-cols-2">
       <Panel>
         <PanelHeader
           title={`Área do orçamento · ${formatMonthLong(activeMonth)}`}
@@ -88,7 +65,7 @@ export function CardSummaryPanels({
         <PanelHeader title="Resumo do futuro" />
         <dl className="mt-3 space-y-1.5 text-sm">
           {[
-            { label: `Próxima (${formatMonthLong(nextDueMonth)})`, value: summary.nextTotal },
+            { label: 'Próximas faturas', value: summary.nextTotal },
             { label: 'Minha parte próxima', value: summary.nextPersonalTotal },
             { label: 'Parcelas restantes', value: summary.remainingInstallmentsTotal },
             { label: 'Minhas parcelas restantes', value: summary.remainingPersonalInstallmentsTotal },
