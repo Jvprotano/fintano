@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { PrimaryButton, SecondaryButton } from './ui'
 import { formatCurrency, inputClass } from '../lib/format'
@@ -141,20 +141,20 @@ export function ActualCashEntries({
   }
 
   return (
-    <section
-      className={`rounded-xl border p-4 ${
+    <details
+      className={`group rounded-xl border p-4 ${
         income
           ? 'border-primary-500/20 bg-primary-500/[0.04]'
           : 'border-dark-border bg-dark-surface/40'
       }`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0 flex-1">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-dark-text">
             <span className={income ? 'text-primary-300' : 'text-dark-text-secondary'}>{icon}</span>
             {title}
           </h3>
-          <p className="mt-1 text-xs leading-relaxed text-dark-text-muted">{description}</p>
+          {expected.length > 0 && <p className="mt-1 text-xs text-dark-text-muted">{expected.length} {expected.length === 1 ? 'previsão pendente' : 'previsões pendentes'}</p>}
         </div>
         <strong
           className={`text-lg font-semibold tabular-nums ${
@@ -163,7 +163,9 @@ export function ActualCashEntries({
         >
           {formatCurrency(total)}
         </strong>
-      </div>
+        <ChevronDown size={15} className="shrink-0 text-dark-text-muted transition-transform group-open:rotate-180" />
+      </summary>
+      <p className="mt-3 text-xs leading-relaxed text-dark-text-muted">{description}</p>
 
       {entries.length > 0 && (
         <ul className="mt-3 space-y-1.5">
@@ -207,6 +209,6 @@ export function ActualCashEntries({
         </PrimaryButton>
       </div>
       {saveError && <p role="alert" className="mt-2 text-xs text-rose-200">Não foi possível salvar. Confira o armazenamento e tente novamente.</p>}
-    </section>
+    </details>
   )
 }

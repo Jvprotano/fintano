@@ -87,7 +87,6 @@ export function CreditCardManager() {
   const afterClosingPaymentDueMonth = addMonths(activeCycle.month, 2)
   const summary = useMemo(() => calculateCreditCardSummary(entries, settings), [entries, settings])
   const paymentSummary = useMemo(() => calculateCreditCardSummary(entries.filter((entry) => entry.accountId === paymentAccountId), settings), [entries, paymentAccountId, settings])
-  const legacyPaidInvoices = paidInvoices.filter((invoice) => !invoice.accountId)
   // Agosto + fatura de Setembro é o estado normal. Se a fatura de Setembro já
   // foi paga antes de fechar Agosto, Outubro + ciclo Agosto também é esperado.
   const unexpectedDueAccounts = accounts.filter((account) => {
@@ -327,14 +326,6 @@ export function CreditCardManager() {
             </section>
           })}
         </div>
-      </Panel>}
-      {legacyPaidInvoices.length > 0 && <Panel>
-        <PanelHeader title="Faturas antigas sem cartão identificado" description="Os pagamentos agregados anteriores foram preservados. Não há dados suficientes para atribuir sua composição a cada cartão." />
-        <div className="mt-3 space-y-2">{legacyPaidInvoices.map((invoice) =>
-          <div key={invoice.id ?? `legacy-${invoice.dueMonth}`} className="flex flex-wrap justify-between gap-2 rounded-lg bg-dark-surface p-3 text-sm text-dark-text-secondary">
-            <span>{formatMonthLong(invoice.dueMonth)} · pago em {invoice.paidAt.slice(0, 10)}</span>
-            <span className="tabular-nums">{invoice.total === null ? 'Total desconhecido' : formatCurrency(invoice.total)} · minha parte {formatCurrency(invoice.personalTotal)}</span>
-          </div>)}</div>
       </Panel>}
       {unexpectedDueAccounts.length > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-4 py-3 text-sm leading-relaxed text-amber-100/90">

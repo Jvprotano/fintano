@@ -2,6 +2,9 @@
 
 ## Autonomia de produto
 
+- So o proprietario usa esta aplicacao. Decisoes de produto devem atender ao seu cenario pessoal e ajudar a decidir e analisar seus dados; nao projetar para outros usuarios hipoteticos.
+- Regra maxima: KISS. Em codigo, modelo de dados, telas e fluxos, escolher a solucao mais simples que resolva o problema com dados corretos. Mostrar apenas informacao que ajuda a decidir ou agir.
+- Gastar tempo e tokens somente com validacoes estritamente necessarias ao risco da mudanca. Cobertura de testes nao e objetivo; normalmente nao criar nem executar testes. Quando houver risco financeiro ou de persistencia concreto, conferir apenas a jornada afetada e os dados resultantes.
 - Esta aplicacao e pessoal e tem um unico usuario. Ao trabalhar nela, existe autorizacao para repensar qualquer aba, fluxo, estrutura visual ou modelo de dados quando isso produzir uma decisao financeira mais clara, confiavel e util.
 - Nao preserve uma estrutura apenas por ela ja existir. Mudancas amplas e inovacao sao bem-vindas dentro do problema solicitado, inclusive recriar uma aba quando a arquitetura atual limitar o resultado.
 - Antes de introduzir uma biblioteca ou recurso externo, verifique documentacao atual, compatibilidade, custo e ganho concreto. Prefira comportamento integrado e dados corretos a melhorias apenas cosmeticas.
@@ -14,6 +17,7 @@
 - Historico e leitura do passado. Fechamento do mes corrente e uma acao operacional separada, executada na aba Ciclo.
 - O ciclo ativo e a competencia financeira padrao dos lancamentos. A data real serve para auditoria e calculos de tempo; so use outro ciclo quando o usuario o escolher explicitamente.
 - O envelope Cartao inclui seus itens filhos; nunca some esses detalhes novamente.
+- Fixar o plano do ciclo guarda uma referencia independente para comparar com o realizado. Ajustes posteriores continuam permitidos e nao alteram essa referencia. Fixar plano nao fecha o ciclo nem confirma pagamentos.
 
 ## Sistema visual
 

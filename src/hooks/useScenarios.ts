@@ -126,6 +126,23 @@ export function useScenarios(activeCycleMonth = monthKey()) {
     [updateActiveScenario],
   )
 
+  const fixCurrentPlan = useCallback((expectedRevision?: string | null) =>
+    runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
+      const plans = Array.isArray(document.collections.monthlyPlans)
+        ? document.collections.monthlyPlans as MonthlyPlan[] : []
+      const plan = plans.find((item) => item.month === activeCycleMonth)
+      const history = Array.isArray(document.collections.history)
+        ? document.collections.history as { month: string }[] : []
+      if (!plan || plan.fixedReference || history.some((item) => item.month === plan.month)) return null
+      const fixedAt = nowIso()
+      return { ...document, collections: { ...document.collections,
+        monthlyPlans: plans.map((item) => item.id === plan.id ? { ...item,
+          fixedReference: { fixedAt, scenario: structuredClone(planAsScenario(plan)) },
+        } : item),
+      } }
+    } }).ok,
+  [activeCycleMonth])
+
   const applyScenarioToActiveCycle = useCallback((scenarioId: string, expectedRevision?: string | null) =>
     runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
       const templates = Array.isArray(document.collections.scenarios)
@@ -142,6 +159,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
       const updated: MonthlyPlan = { ...next,
         id: existing?.id ?? next.id, createdAt: existing?.createdAt ?? next.createdAt,
         updatedAt: now, customized: true,
+        fixedReference: existing?.fixedReference,
         costs: [...next.costs, ...(existing?.costs ?? []).filter((item) => !costIds.has(item.id))
           .map((item) => ({ ...item, archivedAt: item.archivedAt ?? now }))],
         wants: [...next.wants, ...(existing?.wants ?? []).filter((item) => !wantIds.has(item.id))
@@ -175,7 +193,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
       return { ...document, collections: { ...document.collections,
         scenarios: templates.map((item) => item.id === template.id ? updatedModel : item),
         monthlyPlans: scope === 'model_only' ? plans : plans.map((plan) => {
-          if (plan.month <= activeCycleMonth || plan.customized ||
+          if (plan.month <= activeCycleMonth || plan.customized || plan.fixedReference ||
             plan.sourceTemplateId !== template.id || hasFacts(plan.month)) return plan
           return { ...planFromTemplate(plan.month, updatedModel), id: plan.id,
             createdAt: plan.createdAt, updatedAt: now, customized: false }
@@ -611,6 +629,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
     scenarios,
     monthlyPlans,
     currentPlan,
+    fixCurrentPlan,
     activeScenario,
     activeScenarioAll,
     activeScenarioId: activeId,

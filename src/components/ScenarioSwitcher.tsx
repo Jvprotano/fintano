@@ -60,7 +60,7 @@ export function ScenarioSwitcher() {
         className="flex h-10 items-center gap-2 rounded-xl border border-dark-border bg-dark-surface/80 px-3 text-sm font-medium text-dark-text shadow-sm shadow-black/15 transition-colors hover:border-dark-text-muted/40 hover:bg-dark-hover"
       >
         <Layers3 size={14} className="text-dark-text-muted" />
-        <span className="max-w-36 truncate">Simular: {activeScenario?.name ?? 'Cenário'}</span>
+        <span className="max-w-36 truncate">Plano do ciclo</span>
         <ChevronDown
           size={14}
           className={`text-dark-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
@@ -68,10 +68,12 @@ export function ScenarioSwitcher() {
       </button>
 
       {open && (
-        <div className="app-panel-shadow absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-dark-border bg-dark-card/98">
+        <div className="app-panel-shadow absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-dark-border bg-dark-card/98 max-sm:fixed max-sm:inset-x-4 max-sm:top-14 max-sm:w-auto">
           <p className="border-b border-dark-border-subtle px-3 py-2 text-xs leading-relaxed text-dark-text-muted">
-            Plano de {formatMonthKey(store.activeCycle.month)}: {currentPlan.sourceTemplateName}. Selecionar uma simulação só muda a comparação.
+            Plano de {formatMonthKey(store.activeCycle.month)} · {currentPlan.fixedReference ? 'referência fixada' : 'em edição'}. Origem: {currentPlan.sourceTemplateName}.
           </p>
+          <p className="px-3 pt-3 text-xs font-semibold text-dark-text-secondary">Simulações</p>
+          <p className="px-3 py-1 text-xs leading-relaxed text-dark-text-muted">Selecionar não altera o plano do ciclo. Use “Aplicar” para copiar os valores.</p>
           <div className="max-h-72 overflow-y-auto p-1.5">
             {scenarios.map((scenario) => {
               const summary = summaries.find((item) => item.id === scenario.id)

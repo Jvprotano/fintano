@@ -11,6 +11,7 @@ export interface MonthlyPlan extends FinanceScenarioData {
   createdAt: string
   updatedAt: string
   customized: boolean
+  fixedReference?: { fixedAt: string; scenario: FinanceScenario }
 }
 
 export function planFromTemplate(month: string, source: FinanceScenario): MonthlyPlan {
@@ -60,5 +61,9 @@ export function normalizeMonthlyPlan(raw: Partial<MonthlyPlan>): MonthlyPlan {
     createdAt: raw.createdAt || nowIso(),
     updatedAt: raw.updatedAt || nowIso(),
     customized: raw.customized === true,
+    fixedReference: raw.fixedReference ? {
+      fixedAt: raw.fixedReference.fixedAt,
+      scenario: normalizeScenario(raw.fixedReference.scenario),
+    } : undefined,
   }
 }

@@ -417,5 +417,6 @@ export interface MonthlyPlanV9 {
   createdAt: string
   updatedAt: string
   customized: boolean
+  fixedReference?: { fixedAt: string; template: PlanningTemplateV7 }
   data: Omit<PlanningTemplateV7, 'id' | 'name' | 'createdAt' | 'updatedAt'>
 }

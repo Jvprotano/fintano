@@ -39,6 +39,7 @@ import { InvestmentPlan } from './components/InvestmentPlan'
 import { ClosingView } from './components/ClosingView'
 import { AIAnalysisDialog } from './components/AIAnalysisDialog'
 import { ScenarioSwitcher } from './components/ScenarioSwitcher'
+import { CyclePlanReference } from './components/CyclePlanReference'
 import { CycleSwitcher } from './components/CycleSwitcher'
 import { ConfirmationDialog } from './components/ui'
 import { formatCurrency, formatDate } from './lib/format'
@@ -75,6 +76,7 @@ function PlanningBalance() {
     <p className="mt-2 text-xs tabular-nums text-dark-text-muted">
       {formatCurrency(paycheckInAccount)} − {formatCurrency(totalCosts)} contas − {formatCurrency(totalWantsAmount)} Desejos − {formatCurrency(directInvestmentTarget)} aporte
     </p>
+    <div className="mt-3"><CyclePlanReference /></div>
   </div>
 }
 

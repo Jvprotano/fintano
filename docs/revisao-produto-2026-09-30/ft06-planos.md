@@ -26,6 +26,8 @@ O seletor do cabeçalho agora pede confirmação antes de ativar outra competên
 
 ## Riscos a controlar
 
+Extensao de 06/10/2026: [plano fixado e consulta do passado](../plano-fixado-2026-10-06.md). Planejar permite fixar uma copia independente do plano por competencia, uma unica vez, mantendo ajustes posteriores. O backup v9 conserva `monthlyPlans[].fixedReference` (data e modelo completo em centavos). A comparacao de fechamento e os valores planejados do Historico usam essa referencia; os compromissos operacionais continuam usando o plano ajustado. Planos sem referencia preservam o comportamento anterior.
+
 - Um item do plano pode ter realizado mesmo se for arquivado ou se o modelo for trocado. A identidade do item e o fato devem permanecer pesquisáveis.
 - A mesma mudança de competência não pode substituir um plano já editado pelo modelo atual.
 - Simulação não pode disparar `useActuals` com outra lista operacional nem reescrever renda, cartão ou patrimônio.

@@ -16,7 +16,7 @@ import {
   formatSignedCurrency,
   inputClass,
 } from '../lib/format'
-import { useHistoryStore, useInvestmentsStore } from '../context/financasStore'
+import { useHistoryStore, useInvestmentsStore, useScenarioStore } from '../context/financasStore'
 import type { HistoryPoint, SnapshotPatch } from '../types'
 import {
   BUDGET_AREA_LABELS,
@@ -25,6 +25,7 @@ import {
 } from '../types/constants'
 import { HistoryOverview } from './history/HistoryOverview'
 import { HistoryTrendExplorer } from './history/HistoryTrendExplorer'
+import { LegacyInvoices } from './history/LegacyInvoices'
 
 /**
  * Correção de um mês já fechado. Refechar substituiria tudo pelos números de
@@ -272,7 +273,7 @@ function WantAllocationDetails({
   )
 }
 
-function LatestMonthComparison({ points }: { points: HistoryPoint[] }) {
+function LatestMonthComparison({ points, fixedAt }: { points: HistoryPoint[]; fixedAt?: string }) {
   const latest = points.at(-1)
   if (!latest) return null
   const previous = points.at(-2)
@@ -316,7 +317,7 @@ function LatestMonthComparison({ points }: { points: HistoryPoint[] }) {
       <PanelHeader
         title={`${formatMonthKey(latest.month)}: fechamento contra o plano`}
         icon={<ChartColumn size={16} />}
-        description="O sinal mostra realizado menos planejado. Em gastos, positivo e vermelho significa estouro; em investimentos, superar a meta é favorável."
+        description={fixedAt ? 'Comparação com a referência fixada antes dos ajustes. O sinal mostra realizado menos planejado.' : 'Comparação com o plano registrado no fechamento. O sinal mostra realizado menos planejado.'}
       />
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <PlanVariance label="Custos" planned={latest.costsPlanned} actual={latest.costs} />
@@ -366,6 +367,7 @@ function LatestMonthComparison({ points }: { points: HistoryPoint[] }) {
 export function HistoryView() {
   const history = useHistoryStore()
   const investments = useInvestmentsStore()
+  const { monthlyPlans } = useScenarioStore()
   const { points, stats } = history
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -377,11 +379,14 @@ export function HistoryView() {
 
   if (points.length === 0) {
     return (
-      <EmptyState icon={<History size={26} />} title="Nenhum mês fechado ainda">
-        O histórico só mostra o que você já fechou. Vá em Ciclo para registrar o mês
-        corrente — a partir do segundo fechamento aparecem comparações entre ciclos e o custo
-        médio real.
-      </EmptyState>
+      <div className="space-y-4">
+        <EmptyState icon={<History size={26} />} title="Nenhum mês fechado ainda">
+          O histórico só mostra o que você já fechou. Vá em Ciclo para registrar o mês
+          corrente — a partir do segundo fechamento aparecem comparações entre ciclos e o custo
+          médio real.
+        </EmptyState>
+        <LegacyInvoices />
+      </div>
     )
   }
 
@@ -426,7 +431,7 @@ export function HistoryView() {
         />
       </div>
 
-      <LatestMonthComparison points={points} />
+      <LatestMonthComparison points={points} fixedAt={monthlyPlans.find((plan) => plan.month === latestPoint?.month)?.fixedReference?.fixedAt} />
 
       <HistoryOverview
         points={points}
@@ -681,6 +686,7 @@ export function HistoryView() {
           </p>
         )}
       </Panel>
+      <LegacyInvoices />
     </div>
   )
 }

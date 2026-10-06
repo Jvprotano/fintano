@@ -89,6 +89,20 @@ export function useFinancas() {
 
   const { emergencyFund } = investments
   const { activeScenario } = scenarios
+  const planComparison = useMemo(() => {
+    const reference = scenarios.currentPlan.fixedReference
+    const scenario = reference?.scenario ?? activeScenario
+    const comparison = calculateScenario(scenario, emergencyFund)
+    return {
+      fixedAt: reference?.fixedAt,
+      costs: comparison.costsOnAccount,
+      wants: comparison.wantsOnAccount,
+      card: comparison.plannedOnCard,
+      invested: comparison.totalPlannedInvestment,
+      paycheck: comparison.paycheckInAccount,
+      wantItems: scenario.wants.filter((want) => !want.archivedAt && want.paidWith === 'account'),
+    }
+  }, [scenarios.currentPlan.fixedReference, activeScenario, emergencyFund])
 
   /**
    * O cartão mantém o calendário de vencimento separado do ciclo financeiro.
@@ -416,17 +430,23 @@ export function useFinancas() {
         extraExpense: actuals.summary.extraExpenseTotal,
         extraExpenseEntries: actuals.summary.extraExpenses,
         costs,
-        costsPlanned: actuals.summary.plannedCosts,
+        costsPlanned: planComparison.costs,
         wants: actuals.summary.effectiveWants,
-        wantsPlanned: actuals.summary.plannedWants,
-        wantAllocations: actuals.summary.wantRows.map((row) => ({
+        wantsPlanned: planComparison.wants,
+        wantAllocations: [...actuals.summary.wantRows.map((row) => ({
           id: row.want.id,
           name: row.want.name,
-          planned: row.planned,
+          planned: planComparison.fixedAt
+            ? planComparison.wantItems.find((want) => want.id === row.want.id)?.plannedAmount ?? 0
+            : row.planned,
           actual: row.effective,
           paidWith: row.want.paidWith,
           includedInCardPlan: false,
-        })),
+        })), ...planComparison.wantItems.filter((want) =>
+          !actuals.summary.wantRows.some((row) => row.want.id === want.id)).map((want) => ({
+          id: want.id, name: want.name, planned: want.plannedAmount, actual: 0,
+          paidWith: want.paidWith, includedInCardPlan: false,
+        }))],
         payrollInvested: investmentActuals.payroll,
         employerInvested: investmentActuals.employer,
         employerInvestmentKnown: true,
@@ -435,7 +455,7 @@ export function useFinancas() {
         investmentProjectionVersion: 1,
         invested: investmentActuals.total,
         investmentPlanCaptured: true,
-        investedPlanned: metrics.totalPlannedInvestment,
+        investedPlanned: planComparison.invested,
         balance,
         savingsRate: investmentActuals.savingsRate,
         costsByCategory,
@@ -448,7 +468,7 @@ export function useFinancas() {
         // Para o ciclo operacional, Cartão = a minha parte da fatura usada para
         // encerrar o mês. Antecipados já removidos da fatura não são somados de novo.
         cardPersonalTotal: cardCycleAccounting.invoiceFormedByCycle.personalTotal,
-        cardPlanned: metrics.plannedOnCard,
+        cardPlanned: planComparison.card,
         cardByArea,
         cashLeftover: currentCycleFacts.cash.leftover,
         note,
@@ -482,12 +502,13 @@ export function useFinancas() {
       emergencyFund,
       investmentActuals,
       investments.summary,
-      metrics,
+      planComparison,
     ],
   )
 
   return {
     activeCycle,
+    planComparison,
     scenarios,
     cards,
     cardCycleAccounting,

@@ -13,7 +13,7 @@ import {
   SecondaryButton,
   StatTile,
 } from './ui'
-import { formatCurrency, formatMonthLong, inputClass } from '../lib/format'
+import { formatCurrency, formatDate, formatMonthLong, inputClass } from '../lib/format'
 import { useFinancasStore } from '../context/financasStore'
 import { cycleSalaryMonth } from '../lib/activeCycle'
 import { usePersistenceStatus } from '../hooks/usePersistenceStatus'
@@ -75,7 +75,7 @@ export function ClosingView({
   const {
     activeCycle,
     history,
-    metrics,
+    planComparison,
     cashFlow,
     financialCycle,
     actuals,
@@ -145,16 +145,16 @@ export function ClosingView({
   const allocationTone = nextCycleAllocation.shortfall > 0.005 ? 'negative' : 'accent'
   const allocationPlanDelta = nextCycleAllocation.afterPlannedWants
   const costsStatus = evaluateBudgetCeiling(
-    actuals.summary.plannedCosts,
+    planComparison.costs,
     actuals.summary.effectiveCosts,
   )
-  const invoiceStatus = evaluateBudgetCeiling(metrics.plannedOnCard, closingInvoiceDue)
+  const invoiceStatus = evaluateBudgetCeiling(planComparison.card, closingInvoiceDue)
   const wantsStatus = evaluateBudgetCeiling(
-    actuals.summary.plannedWants,
+    planComparison.wants,
     actuals.summary.effectiveWants,
   )
   const investmentStatus = evaluateGoalProgress(
-    metrics.totalPlannedInvestment,
+    planComparison.invested,
     investmentActuals.total,
   )
 
@@ -330,6 +330,7 @@ export function ClosingView({
         />
         {closeError && isCurrentMonthClosed && <p role="alert" className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{closeError}</p>}
 
+        {planComparison.fixedAt && <p className="mt-4 text-xs text-dark-text-muted">Comparação com o plano fixado em {formatDate(planComparison.fixedAt)}.</p>}
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           <StatTile
             label="Movimentos extraordinários"
@@ -351,7 +352,7 @@ export function ClosingView({
             detail={
               <PlanComparisonDetail
                 comparison={formatPlanComparison(
-                  actuals.summary.plannedCosts,
+                  planComparison.costs,
                   actuals.summary.effectiveCosts,
                 )}
                 status={costsStatus}
@@ -370,7 +371,7 @@ export function ClosingView({
             detail={
               <PlanComparisonDetail
                 comparison={formatPlanComparison(
-                  actuals.summary.plannedWants,
+                  planComparison.wants,
                   actuals.summary.effectiveWants,
                 )}
                 status={wantsStatus}
@@ -390,7 +391,7 @@ export function ClosingView({
               invoiceKnown
                 ? (
                     <PlanComparisonDetail
-                      comparison={formatPlanComparison(metrics.plannedOnCard, closingInvoiceDue)}
+                      comparison={formatPlanComparison(planComparison.card, closingInvoiceDue)}
                       status={invoiceStatus}
                       suffix={` · pagar em ${formatMonthLong(cardCycleAccounting.invoiceFormedByCycle.dueMonth)}`}
                     />
@@ -405,7 +406,7 @@ export function ClosingView({
             detail={
               <PlanComparisonDetail
                 comparison={formatPlanComparison(
-                  metrics.totalPlannedInvestment,
+                  planComparison.invested,
                   investmentActuals.total,
                 )}
                 status={investmentStatus}

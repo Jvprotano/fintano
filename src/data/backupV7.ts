@@ -1177,6 +1177,16 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   ids(fullPlans, 'Plano operacional')
   const fullPlanMonths = new Set<string>()
   for (const plan of fullPlans) {
+    if (plan.fixedReference !== undefined) {
+      const reference = plan.fixedReference
+      const template = reference?.template
+      if (!reference || !Number.isFinite(Date.parse(reference.fixedAt)) || !template ||
+        !template.id || !Array.isArray(template.costs) || !Array.isArray(template.wants) ||
+        !Array.isArray(template.payrollDeductions) || !Array.isArray(template.investmentAllocation) ||
+        !template.budgetModel) {
+        add('error', 'fixed_plan_invalid', 'Referência do plano fixado está incompleta ou inválida.', plan.id)
+      }
+    }
     if (plan.data?.investmentTargetCents != null &&
       (!Number.isSafeInteger(plan.data.investmentTargetCents) || plan.data.investmentTargetCents < 0)) {
       add('error', 'investment_target_invalid', 'Aporte planejado inválido.', plan.id)
@@ -1246,7 +1256,9 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
       add('error', 'debt_archive_invalid', 'Dívida tem data de arquivamento inválida.', debt.id)
     }
   }
-  for (const template of backup.planning.templates) {
+  for (const template of [...backup.planning.templates, ...fullPlans.flatMap((plan) =>
+    plan.fixedReference?.template && Array.isArray(plan.fixedReference.template.costs) &&
+    Array.isArray(plan.fixedReference.template.wants) ? [plan.fixedReference.template] : [])]) {
     if (template.investmentTargetCents != null &&
       (!Number.isSafeInteger(template.investmentTargetCents) || template.investmentTargetCents < 0)) {
       add('error', 'investment_target_invalid', 'Aporte planejado inválido.', template.id)
@@ -1565,7 +1577,9 @@ export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = 
       void _id; void _name; void _createdAt; void _updatedAt
       return { id: plan.id, month: plan.month, sourceTemplateId: plan.sourceTemplateId,
         sourceTemplateName: plan.sourceTemplateName, createdAt: plan.createdAt,
-        updatedAt: plan.updatedAt, customized: plan.customized, data }
+        updatedAt: plan.updatedAt, customized: plan.customized, data,
+        fixedReference: plan.fixedReference ? { fixedAt: plan.fixedReference.fixedAt,
+          template: scenarioToTemplate(plan.fixedReference.scenario) } : undefined }
     }) : undefined
   return {
     ...base, schemaVersion: 9,
@@ -1594,6 +1608,8 @@ export function backupV9ToRepository(backup: FinTanoBackupV9): RepositoryDocumen
       id: plan.id, month: plan.month, sourceTemplateId: plan.sourceTemplateId,
       sourceTemplateName: plan.sourceTemplateName, createdAt: plan.createdAt,
       updatedAt: plan.updatedAt, customized: plan.customized,
+      fixedReference: plan.fixedReference ? { fixedAt: plan.fixedReference.fixedAt,
+        scenario: templateToScenario(plan.fixedReference.template) } : undefined,
     }))
   }
   return base
