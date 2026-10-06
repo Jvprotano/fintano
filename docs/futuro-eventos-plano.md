@@ -38,7 +38,7 @@ Fontes principais: `src/types/forecast.ts`, `src/lib/forecast.ts`, `src/componen
 - Abrir com **Próximos compromissos**: primeiro vencimento, valor ainda sem cobertura, quanto separar por mês e origem considerada. Um estado “coberto” explica por quais recursos; um estado de risco aponta o primeiro déficit, não apenas o saldo líquido do ano.
 - Oferecer consulta por **data ou mês**. Para data exata, mostrar eventos datados e recursos explicitamente disponíveis até aquele dia; valores de recorrência sem data aparecem como “em algum momento do mês”. Uma projeção integral de saldo bancário fica para uma etapa posterior, se houver dados de abertura e calendário de fluxos.
 - Mostrar agenda cronológica agrupável por viagem/projeto, com total, cobertura acumulada, pendências e detalhe das entradas e saídas. Filtros: período, tipo, grupo e situação. Destacar alterações em uma ocorrência sem esconder a série.
-- Deixar a curva patrimonial em seção própria. Um gráfico de cobertura pode mostrar recursos reservados, entradas previstas e pagamentos por mês; evitar empilhar patrimônio com fluxo mensal na mesma escala. Cada ponto deve abrir a composição; uma tabela/lista equivalente atende teclado e telas pequenas.
+- Deixar a curva patrimonial em seção própria. Um gráfico de cobertura pode mostrar recursos reservados, entradas previstas e pagamentos por mês; evitar empilhar patrimônio com fluxo mensal na mesma escala. Cada ponto deve abrir a composição; uma tabela/lista equivalente permite consulta por teclado.
 - Formulário com rótulos persistentes: descrição, valor, dia ou somente mês, recorrência, competência, forma de pagamento, já previsto no orçamento?, grupo e observação. Valor e data editáveis depois da criação. Não exigir associação a meta para registrar uma cobrança simples.
 
 ### Ciclo
@@ -82,7 +82,7 @@ Apresentar dois resultados quando houver entrada futura incerta: **base sem essa
 ### 5. Revisão visual e validação integrada
 
 - Ajustar primeiro tokens e componentes compartilhados necessários; reutilizar a linguagem escura do FinTano e reservar cor de alerta para déficit ou atraso real.
-- Conferir Futuro e Ciclo em 390 px e desktop, toque, teclado, foco, estados vazios e gráficos com resumo textual. Executar build, lint e testes focados de cálculo, backup e jornada.
+- Conferir Futuro e Ciclo em telas grandes de notebook e computador, com mouse e teclado, foco, estados vazios e gráficos com resumo textual. Usar build ou outras verificações somente quando houver risco concreto na mudança.
 - Entrega verificável: nenhuma rolagem horizontal da página, agenda utilizável sem hover, números de plano/realizado/projeção identificados e totais consistentes nas duas abas.
 
 ## Limite e ordem recomendada
@@ -97,8 +97,8 @@ Prioridade é **vencimento → cobertura → mensalidade necessária → execuç
 - [x] Implementação da etapa 2: ocorrências, exceções e conciliação com realizados e fatura.
 - [x] Implementação da etapa 3: cobertura cronológica, grupos, metas de aporte e depósito mensal.
 - [x] Implementação da etapa 4: eventos agrupados em Futuro, ocorrências sob cada evento, compromissos recolhidos no Ciclo e registro vinculado.
-- [x] Implementação da etapa 5: componentes responsivos e validação automatizada.
-- [x] Conferência de estrutura e geometria no navegador local em larguras estreita, intermediária e ampla, sem rolagem horizontal da página.
+- [x] Implementação da etapa 5: revisão visual e validação automatizada.
+- [x] Conferência de estrutura e geometria no navegador local, sem rolagem horizontal da página.
 - [x] Correção da grade de registro do Ciclo: os campos de entradas e saídas mantêm rótulos legíveis e botões dentro dos cartões lado a lado.
 - [ ] Conferência por captura de tela: o comando de captura do navegador expirou; a revisão de aparência por imagem segue pendente.
 

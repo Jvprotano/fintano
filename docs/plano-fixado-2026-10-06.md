@@ -23,4 +23,4 @@ A referencia guarda o plano completo e a data em `monthlyPlans[].fixedReference`
 
 Build de producao e jornada focada em `monthlyPlansJourney.test.tsx` passaram (3 casos, incluindo o novo percurso de fixar, ajustar, aplicar simulacao, exportar/restaurar e fechar). A jornada tambem recusou valores fracionarios em centavos na referencia. Nenhuma suite completa ou campanha de cobertura foi executada.
 
-No navegador local, foram conferidos a acao em Planejar, os extras recolhidos, as faturas antigas no Historico e sua ausencia em Cartoes. A revisao em 390px encontrou o menu ultrapassando a borda esquerda; a posicao foi corrigida e reconferida sem rolagem horizontal. Fixacao e fechamento foram executados apenas sobre dados sinteticos; o backup pessoal foi consultado sem alteracao.
+No navegador local, foram conferidos a acao em Planejar, os extras recolhidos, as faturas antigas no Historico e sua ausencia em Cartoes. A posicao do menu foi corrigida e reconferida. Fixacao e fechamento foram executados apenas sobre dados sinteticos; o backup pessoal foi consultado sem alteracao.

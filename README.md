@@ -2,6 +2,8 @@
 
 Planejamento financeiro pessoal: orçamento do mês, patrimônio, cartões e o histórico do que realmente aconteceu — tudo em uma única aplicação, 100% no navegador.
 
+Uso exclusivo do proprietário em notebook e computador, em telas grandes, com mouse e teclado. Esse contexto orienta a interface e sua validação.
+
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)

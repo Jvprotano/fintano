@@ -21,7 +21,7 @@
 - Mudar a competência do aporte de setembro para outubro retirou R$ 200 do realizado de setembro sem alterar `date` nem `recordedAt`. O backup preservou tipo, origem, competência e ambos os instantes. Amortização de dívida passou pelo mesmo teste de datas e competência.
 - Uma entrada legada ambígua foi classificada uma vez, sinalizada para confirmação e conservou valor, data e competência. A escolha explícita de aporte persistiu após exportar/importar. Uma cópia automática e os bytes brutos anteriores à migração foram guardados. Se o backup prévio falha, a migração bloqueia a abertura sem alterar o documento.
 - A reserva legada também é incluída no backup criado antes do primeiro render. O formulário impede gravar um novo movimento com a data real apagada.
-- Testes focados, suíte completa (385 passaram, 3 ignorados), build e lint passaram. A árvore visual do navegador ficou indisponível nesta retomada; o fluxo de interface foi conferido por código e o comportamento integrado por testes de hooks e conversão de backup. A revisão renderizada, inclusive a 390 px, permanece para a próxima sessão com navegador disponível.
+- Testes focados, suíte completa (385 passaram, 3 ignorados), build e lint passaram. A árvore visual do navegador ficou indisponível nesta retomada; o fluxo de interface foi conferido por código e o comportamento integrado por testes de hooks e conversão de backup. A revisão renderizada permanece para a próxima sessão com navegador disponível.
 
 ## Limite para FT-05
 

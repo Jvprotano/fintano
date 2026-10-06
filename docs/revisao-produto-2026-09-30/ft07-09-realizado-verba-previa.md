@@ -12,4 +12,4 @@
 
 - A identificação de fatura e do dia real de cada cartão depende de FT-12/FT-13. O aviso de datas usa o dia de vencimento indicado no ciclo até essa integração.
 - A leitura e a correção de snapshots antigos com estimativas legadas permanecem em FT-23.
-- A conferência visual renderizada a 390 px segue pendente porque o navegador integrado está indisponível nesta sessão.
+- A conferência visual renderizada segue pendente porque o navegador integrado está indisponível nesta sessão.

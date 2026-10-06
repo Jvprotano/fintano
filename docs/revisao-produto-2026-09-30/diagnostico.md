@@ -159,4 +159,4 @@ Antes da orientação para parar testes: a suíte existente terminou com **353 t
 
 A primeira tentativa das reproduções expirou ao iniciar worker; a execução com um worker de threads concluiu. Uma referência incorreta ao formato do backup no próprio script foi corrigida antes da execução final. Não houve mudança funcional no aplicativo.
 
-Captura de tela expirou; a tentativa de medição em 390 px foi interrompida por perda da conexão de depuração do navegador. Não há aprovação visual por imagens ou de responsividade. Essa investigação foi encerrada conforme pedido. Não foram usados esses limites para adiar o diagnóstico ou a entrega do plano.
+Captura de tela expirou por perda da conexão de depuração do navegador. Não há aprovação visual por imagens. Essa investigação foi encerrada conforme pedido. Não foram usados esses limites para adiar o diagnóstico ou a entrega do plano.

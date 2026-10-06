@@ -2,6 +2,8 @@
 
 ## Resultado esperado
 
+Uso exclusivo em notebook e computador, em telas grandes, com mouse e teclado. As tarefas pendentes aguardam a seleção de escopo do proprietário iniciada em 06/10/2026.
+
 O FinTano deve permitir planejar um ciclo, executar seus movimentos e entender o resultado sem digitar o mesmo fato em dois módulos. Cada número precisa indicar se representa plano, fato, compromisso restante ou projeção. O usuário deve conseguir abrir sua composição e chegar ao registro que o explica.
 
 O trabalho é uma evolução do produto existente. As seis abas continuam como áreas de responsabilidade; conteúdo, hierarquia e fluxos podem ser reconstruídos conforme este plano.
@@ -167,7 +169,7 @@ FT-24 acompanha as telas anteriores; FT-25 utiliza os contratos já reconciliado
 
 ## Validação objetiva
 
-Priorizar a jornada funcional curta de cada versão na aplicação, com dados sintéticos, e comparar os registros persistidos quando houver efeito financeiro ou migração. Não criar, ampliar ou executar testes unitários, suítes completas ou testes sem risco concreto: o tempo de execução e os tokens devem ir para implementar as funcionalidades. Rodar build uma vez somente quando necessário para conferir integração do código; lint ou outra verificação apenas diante de falha concreta ou requisito do repositório. Nas telas alteradas, verificar o mínimo de 390 px de `AGENTS.md` sem abrir uma campanha de responsividade. O roteiro de cada versão está em [versões entregáveis](versoes-entregaveis.md).
+Priorizar a jornada funcional curta de cada versão na aplicação, com dados sintéticos, e comparar os registros persistidos quando houver efeito financeiro ou migração. Não criar, ampliar ou executar testes unitários, suítes completas ou testes sem risco concreto: o tempo de execução e os tokens devem ir para implementar as funcionalidades. Rodar build uma vez somente quando necessário para conferir integração do código; lint ou outra verificação apenas diante de falha concreta ou requisito do repositório. Nas telas alteradas, conferir o uso em notebook e computador, com mouse e teclado. O roteiro de cada versão está em [versões entregáveis](versoes-entregaveis.md).
 
 Exemplos de jornadas: conferir apenas a correspondente à versão em execução, conforme [versões entregáveis](versoes-entregaveis.md), sem repetir as demais a cada entrega.
 

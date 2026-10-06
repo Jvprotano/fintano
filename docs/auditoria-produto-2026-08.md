@@ -66,7 +66,7 @@ Recomendação: um único resumo compacto no topo com `entrou`, `comprometido`, 
 
 ### 7. Ter um único seletor de ciclo
 
-O mês pode ser alterado no cabeçalho e novamente dentro da própria tela Ciclo. Em mobile os dois controles aparecem em sequência. Manter somente o seletor global reduz ruído e elimina a dúvida sobre qual deles muda o quê.
+O mês pode ser alterado no cabeçalho e novamente dentro da própria tela Ciclo. Manter somente o seletor global reduz ruído e elimina a dúvida sobre qual deles muda o quê.
 
 ### 8. Quebrar componentes por responsabilidade, não por aparência
 
@@ -92,10 +92,6 @@ Não é necessário adicionar uma biblioteca imediatamente. Primeiro separe cont
 
 ## Prioridade 1 — experiência e acessibilidade
 
-### 11. Deixar ações essenciais visíveis no toque
-
-No Histórico, corrigir e apagar usam `opacity-0` e aparecem por `group-hover`. Em telas touch não existe hover confiável. As ações devem ficar visíveis abaixo de `sm` e podem continuar discretas no desktop.
-
 ### 12. Unificar confirmações
 
 Há um `ConfirmButton` próprio, mas backup/reset ainda usam `window.confirm` e `window.alert`. Um único diálogo acessível permite explicar consequência, alvo e reversibilidade com a mesma linguagem visual.
@@ -103,10 +99,6 @@ Há um `ConfirmButton` próprio, mas backup/reset ainda usam `window.confirm` e 
 ### 13. Aumentar ligeiramente o texto muted em cards
 
 O token `dark-text-muted` contra `dark-card` mede aproximadamente 4,34:1. Muitos textos usam 11–12 px, abaixo do contraste de 4,5:1 recomendado para texto normal. Ajustar apenas esse token preserva a estética e melhora leitura sem transformar a tela.
-
-### 14. Evitar tabelas sem alternativa mobile
-
-O Histórico depende de rolagem horizontal. Manter a tabela no desktop, mas renderizar cartões resumidos no mobile: mês, renda, gastos, investimento, poupança e patrimônio; detalhes e ações ficam numa expansão.
 
 ## Prioridade 2 — qualidade e manutenção
 
@@ -140,23 +132,23 @@ O bundle atual tem cerca de 127 kB gzip. `React.lazy` para Patrimônio e Futuro 
 
 ## Backend e persistência
 
-Não há backend; os dados ficam no navegador. Isso é uma vantagem de privacidade e simplicidade para uso pessoal. Não recomendo criar servidor apenas por “arquitetura”. Um backend passa a fazer sentido quando houver requisito real de múltiplos dispositivos, compartilhamento, autenticação ou recuperação fora deste navegador.
+Não há backend; os dados ficam no navegador. Isso é uma vantagem de privacidade e simplicidade para uso pessoal. O uso é exclusivo em notebook e computador, em telas grandes. Não criar servidor apenas por “arquitetura”.
 
-Antes disso, o melhor investimento é tornar a persistência local confiável: erro visível, restore transacional, testes de migração e backup exportável verificável. IndexedDB pode ser considerado se o volume crescer, mas não resolve sozinho sincronização ou recuperação de dispositivo.
+O melhor investimento é tornar a persistência local confiável: erro visível, restauração transacional e backup exportável verificável. IndexedDB pode ser considerado se o volume crescer.
 
 ## Sequência sugerida
 
 1. Integridade de persistência e backup.
 2. Remoção de código morto e seletor duplicado.
 3. Resumo único do ciclo atual.
-4. Acessibilidade mobile/contraste/diálogos.
+4. Contraste e diálogos acessíveis por teclado.
 5. Divisão de Cartões e dos tipos por domínio.
 6. Testes de jornada e lint obrigatório no CI.
 7. Atualizações de dependências e, só se medido, lazy loading.
 
 ## Estado da implementação
 
-Os 19 pontos desta auditoria foram tratados na aplicação:
+Registro dos pontos desta auditoria tratados na aplicação:
 
 1. Entradas e saídas extraordinárias só afetam o caixa depois de marcadas como recebidas/pagas; a composição é preservada no Histórico.
 2. Falhas de gravação mantêm o estado anterior na tela, exibem um alerta persistente e bloqueiam fechamento e importação.
@@ -168,10 +160,8 @@ Os 19 pontos desta auditoria foram tratados na aplicação:
 8. Cartões separa cadastro, importação, revisão de pagamento, área e resumos em componentes sem persistência própria.
 9. Os tipos foram divididos por domínio; `types/index.ts` apenas reexporta.
 10. Cenários, cartões, investimentos, histórico, futuro, dívidas, bens, realizados, métricas e caixa têm contextos próprios.
-11. Ações essenciais ficam visíveis em dispositivos sem hover.
 12. Backup, restauração e limpeza usam um diálogo acessível comum.
 13. `dark-text-muted` passou a atender contraste de texto normal contra cards.
-14. Histórico usa cartões resumidos no mobile e tabela apenas no desktop.
 15. A suíte inclui jornadas de realizados, fechamento/reabertura, pagamento de fatura e importação segura.
 16. O CI executa lint, testes e build.
 17. Dependências patch/minor foram atualizadas; saltos major de ESLint e TypeScript ficaram fora do lote.

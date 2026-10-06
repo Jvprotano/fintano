@@ -2,6 +2,8 @@
 
 ## Ponto de partida
 
+Em 06/10/2026, as entregas pendentes passaram a depender da seleção de escopo do proprietário. A ordem abaixo é a proposta original. Toda implementação deve atender ao uso exclusivo em notebook e computador, em telas grandes, com mouse e teclado.
+
 Na leitura inicial de 02/10/2026, `main` estava em `504afc9`, sem alterações locais. FT-01–FT-12 estão marcadas como concluídas em [tasks.md](tasks.md); FT-13–FT-26 estão pendentes. Esta divisão usa o estado registrado no repositório, não presume que uma tarefa pendente já funcione por ter código parcial.
 
 Cada versão abaixo deve poder ser usada isoladamente após a entrega. Uma versão só fecha quando o fluxo descrito funciona com dados sintéticos, os efeitos no documento persistido são coerentes e `tasks.md` registra o resultado e os limites observados. Manter compatibilidade de leitura dos dados anteriores e fazer migração junto da funcionalidade que a exige.
@@ -67,7 +69,7 @@ Cada versão abaixo deve poder ser usada isoladamente após a entrega. Uma vers�
 1. Começar pela primeira versão pendente, V3. A ordem da tabela é a ordem de publicação; trabalho interno de versões independentes pode avançar antes, desde que a integração e a entrega respeitem as dependências.
 2. Implementar o fluxo completo da versão, inclusive persistência, migração/backup quando aplicável, cálculo e interface. Não encerrar uma entrega por compilação ou tela isolada.
 3. **Não gastar tempo de execução nem tokens criando, ampliando ou rodando testes unitários, suítes completas ou testes sem risco concreto associado à mudança.** A prioridade é implementar as funcionalidades. Fazer somente a conferência manual curta da jornada indicada, com dados sintéticos, e olhar o registro persistido quando houver alteração financeira ou migração. Rodar build uma vez quando necessário para verificar a integração do código; lint ou outra verificação apenas se uma falha concreta ou requisito do repositório justificar.
-4. Nas telas alteradas, conferir apenas se a ação essencial funciona em 390 px sem rolagem horizontal nem dependência de hover, conforme `AGENTS.md`; isso não abre uma campanha de responsividade ou de testes visuais gerais.
+4. Nas telas alteradas, conferir a ação essencial no contexto de notebook e computador, com mouse e teclado, conforme `AGENTS.md`.
 5. Registrar no `tasks.md` o que foi realmente observado, o que ficou pendente e o commit de cada versão. Não declarar validação de navegador, dados pessoais ou produção que não tenha ocorrido.
 
 O escopo detalhado e os critérios de cada FT continuam em [tasks.md](tasks.md). Este documento define as fronteiras de publicação; não substitui os contratos financeiros de [plano-execucao.md](plano-execucao.md).

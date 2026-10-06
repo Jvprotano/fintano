@@ -6,4 +6,4 @@ O envelope Cartão tem tipo persistido. A migração identifica o nome legado um
 
 Ciclo destaca a verba disponível após compromissos pagos e pendentes, o restante depois de Desejos já destinados e a próxima ação de confirmação. A prévia seguinte usa a própria competência. Renda planejada zero não impede registrar extras ou movimentos.
 
-Limite: a conferência visual renderizada a 390 px segue pendente porque o navegador integrado está indisponível nesta sessão.
+Limite: a conferência visual renderizada segue pendente porque o navegador integrado está indisponível nesta sessão.

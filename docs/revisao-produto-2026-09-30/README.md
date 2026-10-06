@@ -2,6 +2,10 @@
 
 **Direção:** tornar confiável a resposta “quanto posso destinar, o que preciso fazer e o que muda se eu fizer isso?”. A aplicação já tem módulos suficientes. A maior oportunidade está em conectar os fatos financeiros e reduzir interpretações concorrentes do mesmo dinheiro.
 
+**Contexto de uso:** exclusivo em notebook e computador, em telas grandes, com mouse e teclado.
+
+**Revisão de escopo em 06/10/2026:** FT-14–FT-26 são propostas pendentes de seleção pelo proprietário. A ordem original não autoriza iniciar sua execução automaticamente; executar somente o que ele decidir manter.
+
 ## Documentos
 
 1. [Diagnóstico](diagnostico.md): funcionalidades, problemas comprovados, lacunas e proposta para cada aba.
@@ -35,6 +39,6 @@ As etapas agrupam temas. As fronteiras das entregas publicáveis e a ordem atual
 
 Base do diagnóstico original: commit `7d6f998`, incluindo as alterações locais então existentes em Futuro. Estado usado para dividir as versões: `504afc9` em 02/10/2026, com FT-01–FT-12 concluídas e FT-13–FT-26 pendentes.
 
-A pedido do usuário, as próximas versões não devem consumir tempo ou tokens com testes unitários, suítes completas ou verificações sem risco concreto. A validação será a jornada funcional curta de cada entrega, com build apenas quando necessário. Nas telas alteradas, observar o mínimo de 390 px exigido por `AGENTS.md`. Evidências técnicas obtidas antes dessa orientação não constituem aprovação de todos os fluxos. Os exemplos dos documentos são sintéticos e não reproduzem o cadastro financeiro pessoal.
+A pedido do usuário, as próximas versões não devem consumir tempo ou tokens com testes unitários, suítes completas ou verificações sem risco concreto. A validação será a jornada funcional curta de cada entrega, com build apenas quando necessário, no contexto de notebook e computador. Evidências técnicas obtidas antes dessa orientação não constituem aprovação de todos os fluxos. Os exemplos dos documentos são sintéticos e não reproduzem o cadastro financeiro pessoal.
 
-Para retomar: ler [versões entregáveis](versoes-entregaveis.md), conferir o estado atual do repositório, começar por V3 e registrar cada resultado em `tasks.md`. Não marcar uma tarefa como concluída apenas por compilar.
+Para retomar: consultar a seleção de escopo do proprietário antes de escolher uma entrega, conferir o estado atual do repositório e registrar cada resultado em `tasks.md`. Não marcar uma tarefa como concluída apenas por compilar.

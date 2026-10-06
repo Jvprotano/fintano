@@ -1,11 +1,13 @@
 ---
 name: frontend-design
-description: Design or refine FinTano screens and shared UI components with the app's dark palette, financial hierarchy, and responsive behavior. Use for frontend visual or interaction work; skip backend-only tasks.
+description: Design or refine FinTano screens and shared UI components for exclusive use on laptop and desktop computers, with the app's dark palette and financial hierarchy. Use for frontend visual or interaction work; skip backend-only tasks.
 ---
 
 # Frontend design do FinTano
 
 O FinTano é uma aplicação financeira pessoal. A interface deve tornar claras as decisões e distinguir plano, realizado, caixa, patrimônio e projeção. Preserve a linguagem escura, calma e objetiva descrita em `AGENTS.md`.
+
+O uso é exclusivo em notebook e computador, em telas grandes, com mouse e teclado. Direcione a implementação e a revisão visual a esse contexto.
 
 ## Cores e tipografia
 
@@ -36,6 +38,6 @@ Use a fonte sem serifa definida por `--font-sans` (`Inter` com fallback). Alinhe
 - Em formulários, mantenha rótulos persistentes e use placeholders somente para exemplos. Use pelo menos 12 px para informação operacional fora de eixos de gráfico. A competência do ciclo pertence à movimentação. Diferencie visualmente plano, realizado e valores já pagos.
 - Escreva ações e estados em português claro, com o mesmo nome ao longo do fluxo. Erros e estados vazios devem indicar o próximo passo.
 - Dê cor de alerta apenas a riscos ou estados que exigem atenção; uma saída comum não é alerta por si só. Projeções devem ter rótulo explícito e não parecer saldo disponível.
-- Preserve foco visível por teclado e preferência por movimento reduzido. Quando o trabalho incluir uso móvel, revise em 390 px: sem rolagem horizontal da página, sem depender de hover e com ações utilizáveis por toque. Se o usuário limitar a revisão ao desktop, priorize larguras amplas e preserve a estrutura responsiva existente sem gastar tempo em auditoria móvel.
+- Preserve foco visível por teclado e preferência por movimento reduzido. Aproveite o espaço das telas grandes para organizar dados e ações com clareza; confira os fluxos por mouse e teclado.
 
-Antes de finalizar uma mudança visual, compare-a com as telas vizinhas e com `AGENTS.md`. Se houver navegador disponível, confira a tela renderizada nas larguras em escopo; relate quando essa checagem não puder ser feita.
+Antes de finalizar uma mudança visual, compare-a com as telas vizinhas e com `AGENTS.md`. Se houver navegador disponível, confira a tela renderizada no contexto de notebook e computador; relate quando essa checagem não puder ser feita.

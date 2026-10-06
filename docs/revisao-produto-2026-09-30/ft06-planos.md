@@ -20,7 +20,7 @@
 2. Hook de plano mensal e comando de aplicação explícita; mudar consumidores do Ciclo e do fechamento para esse plano.
 3. Seletor de simulações com prévia e aplicação; editor do modelo com alcance sobre ciclos futuros.
 4. Backup v9: incluir plano mensal editável completo na próxima extensão compatível, sem perder a leitura de v7/v8/v9. Reconciliar IDs, centavos e planos importados.
-5. A migração e a jornada de outubro/novembro foram verificadas com dados sintéticos. O build e o lint foram executados. A conferência renderizada a 390 px segue pendente porque o navegador integrado está indisponível nesta sessão.
+5. A migração e a jornada de outubro/novembro foram verificadas com dados sintéticos. O build e o lint foram executados. A conferência renderizada segue pendente porque o navegador integrado está indisponível nesta sessão.
 
 O seletor do cabeçalho agora pede confirmação antes de ativar outra competência. Histórico continua sendo a consulta de meses anteriores. O backup v9 inclui `monthlyPlans` completos e mantém os planos importados com apenas totais em `backupCarryover`, sem criar itens fictícios.
 

@@ -3,6 +3,7 @@
 ## Autonomia de produto
 
 - So o proprietario usa esta aplicacao. Decisoes de produto devem atender ao seu cenario pessoal e ajudar a decidir e analisar seus dados; nao projetar para outros usuarios hipoteticos.
+- Uso exclusivo em notebook e computador, em telas grandes, com mouse e teclado. Direcionar layouts, navegacao e validacao a esse contexto.
 - Regra maxima: KISS. Em codigo, modelo de dados, telas e fluxos, escolher a solucao mais simples que resolva o problema com dados corretos. Mostrar apenas informacao que ajuda a decidir ou agir.
 - Gastar tempo e tokens somente com validacoes estritamente necessarias ao risco da mudanca. Cobertura de testes nao e objetivo; normalmente nao criar nem executar testes. Quando houver risco financeiro ou de persistencia concreto, conferir apenas a jornada afetada e os dados resultantes.
 - Esta aplicacao e pessoal e tem um unico usuario. Ao trabalhar nela, existe autorizacao para repensar qualquer aba, fluxo, estrutura visual ou modelo de dados quando isso produzir uma decisao financeira mais clara, confiavel e util.
@@ -25,4 +26,4 @@
 - Preserve a linguagem escura, calma e objetiva do FinTano. Use profundidade sutil, verde apenas para acento/estado positivo e cores quentes apenas para alertas reais.
 - Evolua primeiro tokens e componentes compartilhados; evite controles isolados com aparencia nativa ou classes unicas quando o mesmo padrao pode atender outras telas.
 - Formularios devem ter rotulos persistentes, exemplos em placeholders e hierarquia clara entre acao, contexto e configuracao. Competencia de ciclo faz parte da movimentacao, nao e metadado solto.
-- Trate 390px como largura minima de revisao. Nenhuma tela pode depender de hover ou criar rolagem horizontal para funcionar.
+- Organize as telas para aproveitar o espaco de notebook e computador, com controles legiveis e navegacao por mouse e teclado.
