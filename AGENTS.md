@@ -1,5 +1,11 @@
 # Contexto permanente do produto
 
+## Base e ponto de retomada
+
+- A base atual do produto e a V17. Antes de alterar a aplicacao, ler `docs/prioridades.md` e `docs/funcionamento.md`; para persistencia, consultar tambem `docs/dados-e-backup.md`.
+- Executar as pendencias pela fila de prioridades registrada, concluindo uma etapa funcional antes de iniciar a seguinte. Os IDs FT identificam as pendencias, sem vinculo com versoes anteriores de produto.
+- Manter apenas documentacao do funcionamento atual e das pendencias. Atualizar esses documentos na entrega, sem criar planos de versao ou relatorios de refatoracao paralelos.
+
 ## Autonomia de produto
 
 - So o proprietario usa esta aplicacao. Decisoes de produto devem atender ao seu cenario pessoal e ajudar a decidir e analisar seus dados; nao projetar para outros usuarios hipoteticos.
