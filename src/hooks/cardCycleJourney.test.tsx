@@ -113,9 +113,9 @@ it('confere o crédito que passa de uma fatura anterior para a do ciclo no pagam
 it('confere os controles de pagamento, nova compra e fechamento sem alterar a consulta deste ciclo', () => {
   seed()
   const { container } = render(<FinancasProvider><CreditCardManager /><ClosingView onGoToCards={() => {}} onGoToPlanning={() => {}} /></FinancasProvider>)
-  const card = screen.getByRole('heading', { name: 'X', exact: true }).closest('section')!
-  fireEvent.click(within(card).getByRole('button', { name: 'Confirmar pagamento', exact: true }))
-  fireEvent.click(within(card).getAllByRole('button', { name: 'Confirmar pagamento', exact: true }).at(-1)!)
+  const card = screen.getByRole('heading', { name: 'X' }).closest('section')!
+  fireEvent.click(within(card).getByRole('button', { name: 'Confirmar pagamento' }))
+  fireEvent.click(within(card).getAllByRole('button', { name: 'Confirmar pagamento' }).at(-1)!)
   expect(container.querySelector('input[value="Compra parcelada"]')).toBeNull()
   expect(container.textContent).toContain('Paga na fatura')
   expect(container.textContent).toContain('1/3')
@@ -125,11 +125,11 @@ it('confere os controles de pagamento, nova compra e fechamento sem alterar a co
   fireEvent.change(form.querySelector('input[placeholder="0,00"]')!, { target: { value: '5000' } })
   fireEvent.submit(form)
   expect((readRepositoryDocument().collections.cardEntries as CreditCardEntry[]).find((entry) => entry.description === 'Depois do pagamento')).toMatchObject({ dueMonth: '2026-12' })
-  fireEvent.click(screen.getByRole('button', { name: 'Próximo ciclo', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: 'Próximo ciclo' }))
   expect(container.querySelector('input[value="Depois do pagamento"]')).not.toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: 'Este ciclo', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: 'Este ciclo' }))
   expect(container.querySelector('input[value="Depois do pagamento"]')).toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: 'Revisar e fechar', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: 'Revisar e fechar' }))
   fireEvent.click(screen.getByRole('button', { name: /Confirmar pendentes e virar ciclo/ }))
   expect((readRepositoryDocument().collections.activeCycle as { month: string }).month).toBe('2026-11')
   expect(readRepositoryDocument().collections.cardPaidInvoices).toHaveLength(2)

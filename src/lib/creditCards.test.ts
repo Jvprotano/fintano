@@ -303,10 +303,10 @@ describe('credit card due month settings', () => {
 })
 
 describe('normalizeCardAccount', () => {
-  it('limita os dias ao calendário', () => {
+  it('limita os dias informados e conserva referências não informadas', () => {
     expect(normalizeCardAccount({ closingDay: 99, dueDay: 0 })).toMatchObject({
       closingDay: 31,
-      dueDay: 1,
+      dueDay: 0,
     })
   })
 })

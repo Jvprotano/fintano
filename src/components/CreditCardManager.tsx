@@ -285,7 +285,9 @@ export function CreditCardManager() {
           {accounts.map((account) => {
             const dueMonth = currentDueMonth
             const invoicePaid = paidInvoices.find((invoice) => invoice.accountId === account.id && invoice.dueMonth === dueMonth)
-            const previousPending = (account.currentDueMonth ?? dueMonth) < dueMonth
+            const openDueMonth = account.currentDueMonth ?? dueMonth
+            const previousPending = openDueMonth < dueMonth
+            const paymentKnown = entries.some((entry) => entry.accountId === account.id && entry.dueMonth === openDueMonth) || account.confirmedEmptyDueMonths?.includes(openDueMonth) === true
             const accountEntries = cycleEntries.filter((entry) => entry.accountId === account.id)
             const accountSummary = calculateCreditCardSummary(accountEntries, settings)
             const invoiceHasEntries = accountEntries.some((entry) => entry.cycle === 'current')
@@ -294,14 +296,16 @@ export function CreditCardManager() {
             return <section key={account.id} className={`rounded-xl border border-dark-border bg-dark-surface/60 p-3 ${paymentAccountId === account.id && showPaySummary ? 'lg:col-span-2' : ''}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div><h3 className="font-semibold text-dark-text">{account.name}</h3><p className="text-xs text-dark-text-muted">Ciclo {formatMonthLong(activeCycle.month)} · {accountEntries.filter((entry) => entry.cycle === 'current').length} lançamentos</p></div>
-                <div className="text-right"><strong className="block tabular-nums text-dark-text">{invoicePaid ? formatCurrency(invoicePaid.total ?? 0) : formatCurrency(accountSummary.currentTotal)}</strong>{invoicePaid && <span className="block text-xs text-primary-400">Paga em {formatDate(invoicePaid.paidAt)}</span>}<span className="block text-xs tabular-nums text-dark-text-secondary">meu: {formatCurrency(accountSummary.currentPersonalTotal)}</span>{accountSummary.currentThirdPartyTotal > 0 && <span className="block text-xs tabular-nums text-dark-text-muted">não meu: {formatCurrency(accountSummary.currentThirdPartyTotal)}</span>}</div>
+                <div className="text-right"><strong className="block tabular-nums text-dark-text">{invoicePaid ? invoicePaid.total === null ? '—' : formatCurrency(invoicePaid.total) : formatCurrency(accountSummary.currentTotal)}</strong>{invoicePaid && <span className="block text-xs text-primary-400">Paga em {formatDate(invoicePaid.paidAt)}</span>}<span className="block text-xs tabular-nums text-dark-text-secondary">meu: {formatCurrency(invoicePaid?.personalTotal ?? accountSummary.currentPersonalTotal)}</span>{accountSummary.currentThirdPartyTotal > 0 && <span className="block text-xs tabular-nums text-dark-text-muted">não meu: {formatCurrency(accountSummary.currentThirdPartyTotal)}</span>}</div>
               </div>
               {accountSummary.remainingInstallmentsTotal > 0 && <p className="mt-2 text-xs tabular-nums text-dark-text-secondary">Parcelas restantes: {formatCurrency(accountSummary.remainingInstallmentsTotal)} · minha parte {formatCurrency(accountSummary.remainingPersonalInstallmentsTotal)}</p>}
               {!invoicePaid && !invoiceHasEntries && !emptyConfirmed && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-dark-text-secondary"><span>Fatura ainda sem valor informado.</span><SecondaryButton onClick={() => confirmEmptyInvoice(account.id, dueMonth)}>Confirmar sem lançamentos</SecondaryButton></div>}
               {!invoicePaid && !invoiceHasEntries && emptyConfirmed && <p className="mt-2 text-xs text-primary-400">Sem lançamentos confirmados.</p>}
+              {previousPending && <p className="mt-2 text-xs text-dark-text-muted">Fatura anterior de {formatMonthLong(openDueMonth)} ainda pendente. A confirmação individual começa por ela.</p>}
+              {previousPending && !paymentKnown && <SecondaryButton onClick={() => confirmEmptyInvoice(account.id, openDueMonth)}>Confirmar anterior sem lançamentos</SecondaryButton>}
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                {!invoicePaid && <button type="button" disabled={!invoiceHasEntries && !emptyConfirmed && !previousPending} onClick={() => { setPaymentAccountId(account.id); setPaymentReviewRevision(repositoryRevision()); setPaymentError(''); setShowPaySummary(true) }} className="text-xs font-medium text-primary-400 hover:text-primary-300">{previousPending ? 'Confirmar fatura anterior primeiro' : 'Confirmar pagamento'}</button>}
-                {history.length > 0 && <details className="text-xs text-dark-text-secondary"><summary className="cursor-pointer">Faturas pagas ({history.length})</summary><div className="mt-2 space-y-2">{[...history].reverse().map((invoice) => <details key={invoice.id ?? `${invoice.accountId}-${invoice.dueMonth}`} className="rounded-lg border border-dark-border bg-dark-card p-2"><summary className="cursor-pointer">{formatMonthLong(invoice.dueMonth)} · {formatCurrency(invoice.total ?? 0)} · paga em {invoice.paidAt.slice(0, 10)}</summary><p className="mt-2">Minha parte: {formatCurrency(invoice.personalTotal)}. {invoice.entries ? `${invoice.entries.length} lançamentos preservados.` : 'Composição legada não disponível.'}</p>{invoice.entries?.map((entry) => <div key={entry.id} className="flex justify-between gap-2 border-t border-dark-border-subtle py-1"><span>{entry.description}</span><span className="tabular-nums">{entry.entryType === 'invoiceCredit' ? '−' : ''}{formatCurrency(entry.amount)}</span></div>)}</details>)}</div></details>}
+                {!invoicePaid && <button type="button" disabled={!paymentKnown || openDueMonth > dueMonth} onClick={() => { setPaymentAccountId(account.id); setPaymentReviewRevision(repositoryRevision()); setPaymentError(''); setShowPaySummary(true) }} className="text-xs font-medium text-primary-400 hover:text-primary-300">{previousPending ? 'Confirmar fatura anterior primeiro' : 'Confirmar pagamento'}</button>}
+                {history.length > 0 && <details className="text-xs text-dark-text-secondary"><summary className="cursor-pointer">Faturas pagas ({history.length})</summary><div className="mt-2 space-y-2">{[...history].reverse().map((invoice) => <details key={invoice.id ?? `${invoice.accountId}-${invoice.dueMonth}`} className="rounded-lg border border-dark-border bg-dark-card p-2"><summary className="cursor-pointer">{formatMonthLong(invoice.dueMonth)} · {invoice.total === null ? '—' : formatCurrency(invoice.total)} · paga em {invoice.paidAt.slice(0, 10)}</summary><p className="mt-2">Minha parte: {formatCurrency(invoice.personalTotal)}. {invoice.entries ? `${invoice.entries.length} lançamentos preservados.` : 'Composição legada não disponível.'}</p>{invoice.entries?.map((entry) => <div key={entry.id} className="flex justify-between gap-2 border-t border-dark-border-subtle py-1"><span>{entry.description}</span><span className="tabular-nums">{entry.entryType === 'invoiceCredit' ? '−' : ''}{formatCurrency(entry.amount)}</span></div>)}</details>)}</div></details>}
               </div>
               {showPaySummary && paymentAccountId === account.id && <div className="mt-3">
                 <InvoicePaymentReview ownBankPayment={paymentSummary.currentTotal} summary={paymentSummary} currentDueMonth={paymentDueMonth} currentSpendingMonth={addMonths(paymentDueMonth, -1)} nextDueMonth={addMonths(paymentDueMonth, 1)} onConfirm={handlePayInvoice} onCancel={() => { setShowPaySummary(false); setPaymentAccountId(null) }} />
@@ -314,7 +318,7 @@ export function CreditCardManager() {
       <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Minha parte"
-          value={formatCurrency(summary.currentPersonalTotal)}
+          value={formatCurrency(cardCycleAccounting.invoiceFormedByCycle.personalTotal)}
           detail={
             availableForBudget > 0
               ? `${((summary.currentPersonalTotal / availableForBudget) * 100).toFixed(0)}% da base do orçamento`
@@ -324,7 +328,7 @@ export function CreditCardManager() {
         />
         <StatTile
           label="Total das faturas deste ciclo"
-          value={formatCurrency(summary.currentTotal)}
+          value={cardCycleAccounting.invoiceFormedByCycle.amountKnown ? formatCurrency(cardCycleAccounting.invoiceFormedByCycle.total!) : '—'}
           detail={
             `${summary.currentEntriesCount} lançamentos${summary.currentAppliedCreditTotal > 0 ? ` · ${formatCurrency(summary.currentAppliedCreditTotal)} abatidos` : ''}${summary.currentPrepaidTotal > 0 ? ` · ${formatCurrency(summary.currentPrepaidTotal)} pagos por compra` : ''}`
           }
