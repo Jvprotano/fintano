@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useActiveCycle } from './useActiveCycle'
 import { useScenarios } from './useScenarios'
-import { useCardThirdParties } from './useCardThirdParties'
 import { useCreditCards } from './useCreditCards'
 import { useAssets } from './useAssets'
 import { useDebts } from './useDebts'
@@ -37,7 +36,6 @@ export function useFinancas() {
   const activeCycle = useActiveCycle()
   const scenarios = useScenarios(activeCycle.month)
   const cards = useCreditCards(activeCycle.month, activeCycle.cycle.cardDueHintDay)
-  const thirdParties = useCardThirdParties(activeCycle.month, cards.entries)
   const assetsState = useAssets()
   const debts = useDebts(scenarios.activeScenarioAll.costs, assetsState.assets, activeCycle.month)
 
@@ -240,8 +238,6 @@ export function useFinancas() {
       extraExpense: actuals.summary.extraExpenseTotal,
       cardAdvancePaid,
       debtExtraPayments,
-      thirdPartyAdvanced: thirdParties.advanced,
-      reimbursementsReceived: thirdParties.received,
       investmentWithdrawals: investmentActuals.cashWithdrawals,
       cashInvestmentContributions: investmentActuals.cashContributions,
       costsOnAccountActual: costsOnAccount,
@@ -266,7 +262,6 @@ export function useFinancas() {
     cards.paidInvoices,
     investmentActuals,
     debtExtraPayments,
-    thirdParties,
   ])
   const cashFlow = currentCycleFacts.cash
 
@@ -284,8 +279,8 @@ export function useFinancas() {
         wantsOnAccount: cashFlow.wantsOnAccount,
         directInvestment: cashFlow.directInvestment,
         directInvestmentCommitted: Math.max(metrics.directInvestmentTarget, cashFlow.directInvestment),
-        extraExpense: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments + cashFlow.thirdPartyAdvanced,
-        extraExpenseCommitted: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments + cashFlow.thirdPartyAdvanced + pendingExtraExpense,
+        extraExpense: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments,
+        extraExpenseCommitted: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments + pendingExtraExpense,
         // A reserva do próximo caixa usa a parte pessoal da fatura que encerra
         // o ciclo ativo.
         nextInvoicePersonal: cardCycleAccounting.invoiceFormedByCycle.personalTotal,
@@ -324,11 +319,11 @@ export function useFinancas() {
       costsOnAccount: nextMetrics.costsOnAccount,
       baseInvestment: nextMetrics.directInvestmentTarget,
       // Neste contexto, Desejos fora do cartão são os envelopes que sairão da
-      // conta (Viagens, Qualidade de vida etc.). O cartão já foi abatido inteiro
-      // pela fatura acima.
+      // conta (Viagens, Qualidade de vida etc.). A parte pessoal do cartão já
+      // foi abatida pela fatura acima; a outra parte é coberta pelo repasse.
       plannedWants: nextMetrics.wantsOnAccount,
-      extraIncome: extraIncome + thirdParties.records.flatMap((row) => row.payments).filter((row) => row.cycleMonth === month).reduce((sum, row) => sum + row.amount, 0),
-      extraExpense: extraExpense + thirdParties.records.filter((row) => row.fundedBy === 'user' && row.cashMonth === month).reduce((sum, row) => sum + row.amount, 0),
+      extraIncome,
+      extraExpense,
     })
   }, [
     activeCycle.month,
@@ -343,7 +338,6 @@ export function useFinancas() {
     cards.entries,
     cards.paidInvoices,
     movementSources,
-    thirdParties.records,
   ])
 
   const monthlyContribution = useMemo(() => {
@@ -442,7 +436,7 @@ export function useFinancas() {
       const costs = actuals.summary.effectiveCosts
       const balance =
         (actuals.summary.paycheck?.amount ?? 0) +
-        actuals.summary.extraIncomeTotal + thirdParties.received - thirdParties.advanced -
+        actuals.summary.extraIncomeTotal -
         actuals.summary.extraExpenseTotal - debtExtraPayments -
         costs -
         actuals.summary.effectiveWants -
@@ -455,8 +449,6 @@ export function useFinancas() {
         availableForBudget: (actuals.summary.paycheck?.amount ?? 0) + investmentActuals.payroll,
         paycheckInAccount: actuals.summary.paycheck?.amount ?? 0,
         extraIncome: actuals.summary.extraIncomeTotal,
-        thirdPartyAdvanced: thirdParties.advanced,
-        reimbursementsReceived: thirdParties.received,
         extraIncomeEntries: actuals.summary.extraIncome,
         extraExpense: actuals.summary.extraExpenseTotal + debtExtraPayments,
         extraExpenseEntries: [...actuals.summary.extraExpenses, ...debtPayments],
@@ -536,7 +528,6 @@ export function useFinancas() {
       planComparison,
       debtPayments,
       debtExtraPayments,
-      thirdParties,
     ],
   )
 
@@ -545,7 +536,6 @@ export function useFinancas() {
     planComparison,
     scenarios,
     cards,
-    thirdParties,
     cardCycleAccounting,
     assets,
     debts,

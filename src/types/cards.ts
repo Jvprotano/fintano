@@ -2,6 +2,7 @@ import type { BudgetArea } from './core'
 
 export type CreditCardCycle = 'current' | 'next'
 
+/** Registros antigos, conservados apenas na ida e volta do backup. */
 export interface CardThirdParty {
   id: string
   entryId: string

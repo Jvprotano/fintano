@@ -24,8 +24,6 @@ export interface CashFlowInput {
   cardAdvancePaid?: number
   investmentWithdrawals?: number
   debtExtraPayments?: number
-  thirdPartyAdvanced?: number
-  reimbursementsReceived?: number
   costsOnAccount: number
   costsOnCard: number
   wantsOnAccount: number
@@ -45,16 +43,16 @@ export function calculateCashFlow(input: CashFlowInput): CashFlowSummary {
   const plannedOnCard = input.costsOnCard + input.wantsOnCard
   const investmentWithdrawals = input.investmentWithdrawals ?? 0
   const debtExtraPayments = input.debtExtraPayments ?? 0
-  const thirdPartyAdvanced = input.thirdPartyAdvanced ?? 0
-  const reimbursementsReceived = input.reimbursementsReceived ?? 0
-  const totalIn = input.paycheck + extraIncome + investmentWithdrawals + reimbursementsReceived
+  // A parte não pessoal do cartão é coberta pelo repasse antes do vencimento.
+  // Só a parte pessoal da fatura participa deste fluxo; o repasse não é renda.
+  const totalIn = input.paycheck + extraIncome + investmentWithdrawals
   const totalOut =
     input.invoiceToPay +
     input.costsOnAccount +
     input.wantsOnAccount +
     input.directInvestment +
     extraExpense +
-    cardAdvancePaid + debtExtraPayments + thirdPartyAdvanced
+    cardAdvancePaid + debtExtraPayments
 
   return {
     paycheck: input.paycheck,
@@ -71,8 +69,6 @@ export function calculateCashFlow(input: CashFlowInput): CashFlowSummary {
     cardAdvancePaid,
     investmentWithdrawals,
     debtExtraPayments,
-    thirdPartyAdvanced,
-    reimbursementsReceived,
     totalOut,
     leftover: totalIn - totalOut,
     cardPlanGap: input.invoiceToPay - plannedOnCard,

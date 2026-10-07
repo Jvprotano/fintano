@@ -20,7 +20,6 @@ import { Card } from './Card'
 import { CardImportPanel } from './cards/CardImportPanel'
 import { CardAccountsPanel } from './cards/CardAccountsPanel'
 import { CardSummaryPanels } from './cards/CardSummaryPanels'
-import { CardThirdPartyPanel } from './cards/CardThirdPartyPanel'
 import { CardAreaCell } from './cards/CardAreaCell'
 import { CardEntryForm } from './cards/CardEntryForm'
 import { InvoiceCreditForm } from './cards/InvoiceCreditForm'
@@ -79,7 +78,7 @@ export function CreditCardManager() {
     setSettings,
   } = useCardsStore()
   const { availableForBudget, budgetComparison, plannedOnCard } = useMetrics()
-  const { activeCycle, cardCycleAccounting, thirdParties } = useFinancasStore()
+  const { activeCycle, cardCycleAccounting } = useFinancasStore()
   const [paymentAccountId, setPaymentAccountId] = useState<string | null>(null)
   const [importAccountId, setImportAccountId] = useState('')
   const paymentAccount = accounts.find((account) => account.id === paymentAccountId)
@@ -336,7 +335,7 @@ export function CreditCardManager() {
         <StatTile
           label="Ainda a pagar ao banco"
           value={formatCurrency(pendingTotal)}
-          detail={`${formatCurrency(summary.currentTotal - pendingTotal)} em faturas pagas · ${formatCurrency(thirdParties.outstanding)} a receber de terceiros`}
+          detail={`${formatCurrency(summary.currentTotal - pendingTotal)} em faturas pagas`}
         />
         <StatTile
           label={summary.availablePersonalLimit >= 0 ? 'Limite disponível' : 'Acima do limite'}
@@ -856,7 +855,6 @@ export function CreditCardManager() {
       )}
 
       {entryError && <p role="alert" className="text-xs text-rose-200">{entryError}</p>}
-      <CardThirdPartyPanel />
       <CardSummaryPanels
         summary={summary}
         accounting={cardCycleAccounting}

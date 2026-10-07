@@ -14,7 +14,7 @@ export function CardImportPanel({ text, onTextChange, cycle, onCycleChange, repl
   currentDueMonth: string; nextDueMonth: string
   account?: CreditCardAccount; entries: CreditCardEntry[]; onImport: () => void
 }) {
-  const { thirdParties, cards } = useFinancasStore()
+  const { cards } = useFinancasStore()
   const [revision, setRevision] = useState<string | null | undefined>()
   const [ignored, setIgnored] = useState<number[]>([])
   const [duplicates, setDuplicates] = useState<number[]>([])
@@ -48,8 +48,8 @@ export function CardImportPanel({ text, onTextChange, cycle, onCycleChange, repl
           {row.duplicate && <label><input type="checkbox" checked={duplicates.includes(row.line)} onChange={() => toggle(row.line, duplicates, setDuplicates)} /> Adicionar mesmo assim</label>}
         </div>
       </div>)}</div>
-      {review.removed.length > 0 && <details className="text-xs text-dark-text-secondary"><summary className="cursor-pointer">Itens que sairão ({review.removed.length})</summary><div className="mt-2 space-y-1">{review.removed.map((entry) => <p key={entry.id}>{entry.description} · {entry.entryType ? 'abatimento' : 'compra'} · {formatCurrency(entry.amount)}{entry.sourceForecastOccurrenceId ? ' · vínculo com Futuro' : ''}{entry.isPrepaid ? ' · já antecipada' : ''}{thirdParties.records.some((row) => row.entryId === entry.id) ? ' · adiantamento/devoluções preservados em Terceiros' : ''}</p>)}</div></details>}
-      {replace && <p className="text-xs text-dark-text-muted">A substituição alcança apenas esta fatura deste cartão. Recebimentos de terceiros já registrados são preservados.</p>}
+      {review.removed.length > 0 && <details className="text-xs text-dark-text-secondary"><summary className="cursor-pointer">Itens que sairão ({review.removed.length})</summary><div className="mt-2 space-y-1">{review.removed.map((entry) => <p key={entry.id}>{entry.description} · {entry.entryType ? 'abatimento' : 'compra'} · {formatCurrency(entry.amount)}{entry.sourceForecastOccurrenceId ? ' · vínculo com Futuro' : ''}{entry.isPrepaid ? ' · já antecipada' : ''}</p>)}</div></details>}
+      {replace && <p className="text-xs text-dark-text-muted">A substituição alcança apenas esta fatura deste cartão.</p>}
       <PrimaryButton disabled={review.result.length === 0 || review.added + review.updated + review.removed.length === 0} onClick={() => {
         const saved = applyCardImport(review, revision)
         if (!saved.ok) { setError(saved.message); return }

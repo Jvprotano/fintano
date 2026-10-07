@@ -1,5 +1,4 @@
-import type { CardThirdParty, CreditCardEntry, MonthlyActuals, MonthlySnapshot } from '../types'
-import { thirdPartiesForEntries } from './cardThirdParties'
+import type { CreditCardEntry, MonthlyActuals, MonthlySnapshot } from '../types'
 import { normalizeActuals } from '../lib/actuals'
 import { advanceCycleMonth, normalizeActiveCycle } from '../lib/activeCycle'
 import { nowIso, uid } from '../lib/shared'
@@ -51,9 +50,6 @@ export function closeCycleInDocument(
     ...document,
     collections: {
       ...document.collections,
-      cardThirdParties: thirdPartiesForEntries(document.collections.cardThirdParties as CardThirdParty[] ?? [],
-        (document.collections.cardEntries as CreditCardEntry[] ?? []).filter((entry) =>
-          (entry.isPrepaid ? entry.cashCycleMonth ?? entry.dueMonth : entry.dueMonth) === input.month)),
       actuals: [...storedActuals.filter((item) => item.month !== input.month), current]
         .sort((a, b) => a.month.localeCompare(b.month)),
       history: [...storedHistory.filter((item) => item.month !== input.month), closed]

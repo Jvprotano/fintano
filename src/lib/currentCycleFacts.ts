@@ -10,8 +10,6 @@ export interface CurrentCycleFactsInput {
   investmentWithdrawals?: number
   cashInvestmentContributions?: number
   debtExtraPayments?: number
-  thirdPartyAdvanced?: number
-  reimbursementsReceived?: number
   invoiceToPay: number
   costsOnAccountActual: number
   costsPlanned: number
@@ -65,8 +63,6 @@ export function buildCurrentCycleFacts(input: CurrentCycleFactsInput): CurrentCy
     cardAdvancePaid: input.cardAdvancePaid,
     investmentWithdrawals: input.investmentWithdrawals,
     debtExtraPayments: input.debtExtraPayments,
-    thirdPartyAdvanced: input.thirdPartyAdvanced,
-    reimbursementsReceived: input.reimbursementsReceived,
     costsOnAccount: input.costsOnAccountActual,
     costsOnCard: input.costsOnCardPlanned,
     wantsOnAccount: input.wantsOnAccountActual,

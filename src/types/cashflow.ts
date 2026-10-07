@@ -13,8 +13,6 @@ export interface CashFlowSummary {
   cardAdvancePaid: number
   investmentWithdrawals: number
   debtExtraPayments: number
-  thirdPartyAdvanced: number
-  reimbursementsReceived: number
   totalOut: number
   leftover: number
   cardPlanGap: number

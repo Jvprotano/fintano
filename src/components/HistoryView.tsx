@@ -13,7 +13,6 @@ import { historyCorrectionMovements, historyCorrectionRows, type HistoryDraft } 
 import { historyMissingMonths, selectHistoryPeriod, type HistoryTrendPeriod } from '../lib/historyTrends'
 import { HistoryTrendExplorer } from './history/HistoryTrendExplorer'
 import { LegacyInvoices } from './history/LegacyInvoices'
-import { CardThirdPartyPanel } from './cards/CardThirdPartyPanel'
 
 function SnapshotEditor({ point, onClose }: { point: HistoryPoint; onClose: () => void }) {
   const history = useHistoryStore()
@@ -118,7 +117,6 @@ function CycleDetails({ point }: { point: HistoryPoint }) {
         {point.extraIncomeEntries.map((entry) => <li key={entry.id}>Entrada · {entry.name}: {formatCurrency(entry.amount)}{entry.occurredAt ? ` · ${entry.occurredAt}` : ''}{entry.sourceEventId ? ' · origem na agenda' : ''}</li>)}
         {point.extraExpenseEntries.map((entry) => <li key={entry.id}>Saída · {entry.name}: {formatCurrency(entry.amount)}{entry.occurredAt ? ` · ${entry.occurredAt}` : ''}</li>)}
         <li>Entradas extras: {formatCurrency(point.extraIncome)} · saídas extraordinárias: {formatCurrency(point.extraExpense)}</li>
-        <li>Terceiros · adiantado: {formatCurrency(point.thirdPartyAdvanced ?? 0)} · devolvido: {formatCurrency(point.reimbursementsReceived ?? 0)}</li>
       </ul></div>
       <div><h4 className="mb-2 text-sm font-medium">Correções registradas</h4>
         {!point.corrections?.length && <p className="text-dark-text-muted">Nenhuma correção registrada.</p>}
@@ -138,7 +136,7 @@ export function HistoryView() {
   const [expanded, setExpanded] = useState<{ id: string; editing: boolean } | null>(null)
   const points = selectHistoryPeriod(history.points, period)
   const missing = historyMissingMonths(history.points, period)
-  if (!history.points.length) return <div className="space-y-4"><EmptyState icon={<History size={26} />} title="Nenhum mês fechado ainda">Feche a competência na aba Ciclo para consultar o passado.</EmptyState><LegacyInvoices /><CardThirdPartyPanel history /></div>
+  if (!history.points.length) return <div className="space-y-4"><EmptyState icon={<History size={26} />} title="Nenhum mês fechado ainda">Feche a competência na aba Ciclo para consultar o passado.</EmptyState><LegacyInvoices /></div>
   return <div className="space-y-4">
     <Panel>
       <div className="flex items-center justify-between gap-6"><div><h2 className="text-base font-semibold">Fechamentos e diferenças contra o plano</h2><p className="mt-1 text-xs text-dark-text-muted">{formatMonthKey(points[0].month)} a {formatMonthKey(points.at(-1)!.month)} · {points.length} ciclos fechados. Abra um ciclo para explicar os valores ou corrigir sua origem.</p></div>
@@ -167,6 +165,6 @@ export function HistoryView() {
       </Fragment>)}</tbody></table></div>
     </Panel>
     <details className="group"><summary className="cursor-pointer rounded-xl border border-dark-border bg-dark-card px-4 py-3 text-sm font-medium">Consultar evolução · mesmo período dos fechamentos</summary><div className="mt-3"><HistoryTrendExplorer points={history.points} period={period} /></div></details>
-    <LegacyInvoices /><CardThirdPartyPanel history />
+    <LegacyInvoices />
   </div>
 }

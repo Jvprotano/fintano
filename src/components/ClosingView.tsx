@@ -181,7 +181,7 @@ export function ClosingView({
             label="Entrou no ciclo"
             value={formatCurrency(cashFlow.totalIn)}
             detail={
-              `${actuals.summary.paycheck ? 'folha confirmada' : 'folha ainda não confirmada'}${cashFlow.extraIncome > 0 ? ` · ${formatCurrency(cashFlow.extraIncome)} extras` : ''}${cashFlow.investmentWithdrawals > 0 ? ` · ${formatCurrency(cashFlow.investmentWithdrawals)} resgatados` : ''}${cashFlow.reimbursementsReceived > 0 ? ` · ${formatCurrency(cashFlow.reimbursementsReceived)} devolvidos por terceiros` : ''}`
+              `${actuals.summary.paycheck ? 'folha confirmada' : 'folha ainda não confirmada'}${cashFlow.extraIncome > 0 ? ` · ${formatCurrency(cashFlow.extraIncome)} extras` : ''}${cashFlow.investmentWithdrawals > 0 ? ` · ${formatCurrency(cashFlow.investmentWithdrawals)} resgatados` : ''}`
             }
             tone={cashFlow.totalIn > 0 ? 'positive' : 'neutral'}
           />
@@ -222,7 +222,6 @@ export function ClosingView({
                 <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.cardAdvancePaid)}</dd>
               </div>
             )}
-            {cashFlow.thirdPartyAdvanced > 0 && <div className="flex items-center justify-between gap-3"><dt className="text-dark-text-muted">Adiantado a terceiros</dt><dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.thirdPartyAdvanced)}</dd></div>}
             {cashFlow.debtExtraPayments > 0 && <div className="flex items-center justify-between gap-3"><dt className="text-dark-text-muted">Amortizações extraordinárias</dt><dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.debtExtraPayments)}</dd></div>}
           </dl>
         )}
@@ -274,7 +273,7 @@ export function ClosingView({
               }
             />
             <StatTile
-              label={`Fatura de ${formatMonthLong(nextCycleAllocation.month)}`}
+              label={`Minha parte da fatura de ${formatMonthLong(nextCycleAllocation.month)}`}
               value={formatCurrency(nextCycleAllocation.invoice)}
               detail={closingInvoiceAlreadyPaid ? 'já paga, mas consumiu este caixa' : 'formada pelo ciclo atual'}
             />

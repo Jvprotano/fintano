@@ -38,7 +38,7 @@ export function InvoicePaymentReview({
         />
         <StatTile label={`Próxima: ${formatMonthLong(nextDueMonth)}`} value={formatCurrency(summary.nextTotal)} />
       </div>
-      <p className="mt-3 text-xs text-dark-text-secondary">Do meu caixa ao banco: {formatCurrency(ownBankPayment)}. Recebimentos de terceiros não reduzem o valor pago ao banco.</p>
+      <p className="mt-3 text-xs text-dark-text-secondary">Pagamento ao banco: {formatCurrency(ownBankPayment)}. A parte não pessoal é considerada recebida antes do vencimento; somente minha parte entra nas despesas.</p>
       {summary.currentCreditTotal > 0 && (
         <p className="mt-3 text-xs leading-relaxed text-dark-text-muted">
           Abatimentos avulsos registrados: {formatCurrency(summary.currentCreditTotal)} · aplicados nesta fatura: {formatCurrency(summary.currentAppliedCreditTotal)}.
