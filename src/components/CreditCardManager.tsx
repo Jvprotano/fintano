@@ -3,6 +3,7 @@ import {
   ArrowUpDown,
   ChevronDown,
   ChevronUp,
+  CreditCard,
   FastForward,
   Filter,
   HandCoins,
@@ -15,6 +16,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
+import { Card } from './Card'
 import { CardImportPanel } from './cards/CardImportPanel'
 import { CardAccountsPanel } from './cards/CardAccountsPanel'
 import { CardSummaryPanels } from './cards/CardSummaryPanels'
@@ -87,10 +89,6 @@ export function CreditCardManager() {
   const afterClosingPaymentDueMonth = addMonths(activeCycle.month, 2)
   const summary = useMemo(() => calculateCreditCardSummary(entries, settings), [entries, settings])
   const paymentSummary = useMemo(() => calculateCreditCardSummary(entries.filter((entry) => entry.accountId === paymentAccountId), settings), [entries, paymentAccountId, settings])
-  const paymentThirds = thirdParties.records.filter((row) => row.accountId === paymentAccountId && row.dueMonth === paymentDueMonth && row.fundedBy === 'user' &&
-    entries.some((entry) => entry.id === row.entryId && !entry.isPrepaid))
-  const undefinedPaymentSplits = entries.filter((row) => row.accountId === paymentAccountId && row.dueMonth === paymentDueMonth && !row.entryType && !row.isPrepaid && row.amount > row.personalAmount &&
-    !thirdParties.records.some((record) => record.entryId === row.id)).length
   // Agosto + fatura de Setembro é o estado normal. Se a fatura de Setembro já
   // foi paga antes de fechar Agosto, Outubro + ciclo Agosto também é esperado.
   const unexpectedDueAccounts = accounts.filter((account) => {
@@ -285,8 +283,8 @@ export function CreditCardManager() {
   return (
     <div className="space-y-4">
       {accounts.length === 0 && <CardAccountsPanel />}
-      {accounts.length > 0 && <Panel>
-        <PanelHeader title="Faturas dos cartões" description="Todas as faturas abertas, com pagamento e histórico próprios de cada cartão." />
+      {accounts.length > 0 && <Card title="Faturas dos cartões" icon={<CreditCard size={17} />} collapsible storageKey="card-invoices">
+        <p className="text-sm text-dark-text-muted">Todas as faturas abertas, com pagamento e histórico próprios de cada cartão.</p>
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
           {accounts.map((account) => {
             const dueMonth = account.currentDueMonth ?? settings.currentDueMonth ?? activeCycle.month
@@ -308,13 +306,13 @@ export function CreditCardManager() {
                 {history.length > 0 && <details className="text-xs text-dark-text-secondary"><summary className="cursor-pointer">Faturas pagas ({history.length})</summary><div className="mt-2 space-y-2">{[...history].reverse().map((invoice) => <details key={invoice.id ?? `${invoice.accountId}-${invoice.dueMonth}`} className="rounded-lg border border-dark-border bg-dark-card p-2"><summary className="cursor-pointer">{formatMonthLong(invoice.dueMonth)} · {formatCurrency(invoice.total ?? 0)} · paga em {invoice.paidAt.slice(0, 10)}</summary><p className="mt-2">Minha parte: {formatCurrency(invoice.personalTotal)}. {invoice.entries ? `${invoice.entries.length} lançamentos preservados.` : 'Composição legada não disponível.'}</p>{invoice.entries?.map((entry) => <div key={entry.id} className="flex justify-between gap-2 border-t border-dark-border-subtle py-1"><span>{entry.description}</span><span className="tabular-nums">{entry.entryType === 'invoiceCredit' ? '−' : ''}{formatCurrency(entry.amount)}</span></div>)}</details>)}</div></details>}
               </div>
               {showPaySummary && paymentAccountId === account.id && <div className="mt-3">
-                <InvoicePaymentReview ownBankPayment={paymentSummary.currentPersonalTotal + paymentThirds.reduce((sum, row) => sum + row.amount, 0)} undefinedSplits={undefinedPaymentSplits} summary={paymentSummary} currentDueMonth={paymentDueMonth} currentSpendingMonth={addMonths(paymentDueMonth, -1)} nextDueMonth={addMonths(paymentDueMonth, 1)} onConfirm={handlePayInvoice} onCancel={() => { setShowPaySummary(false); setPaymentAccountId(null) }} />
+                <InvoicePaymentReview ownBankPayment={paymentSummary.currentTotal} summary={paymentSummary} currentDueMonth={paymentDueMonth} currentSpendingMonth={addMonths(paymentDueMonth, -1)} nextDueMonth={addMonths(paymentDueMonth, 1)} onConfirm={handlePayInvoice} onCancel={() => { setShowPaySummary(false); setPaymentAccountId(null) }} />
                 {paymentError && <p role="alert" className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{paymentError}</p>}
               </div>}
             </section>
           })}
         </div>
-      </Panel>}
+      </Card>}
       {unexpectedDueAccounts.length > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-4 py-3 text-sm leading-relaxed text-amber-100/90">
           <strong className="font-semibold text-amber-200">Confira o calendário: {unexpectedDueAccounts.map((account) => account.name).join(', ')}.</strong>{' '}
@@ -345,7 +343,7 @@ export function CreditCardManager() {
         <StatTile
           label="Não é meu"
           value={formatCurrency(summary.currentThirdPartyTotal)}
-          detail={summary.currentThirdPartyTotal > 0 ? `${formatCurrency(thirdParties.outstanding)} adiantados ainda a receber` : undefined}
+          detail={summary.currentThirdPartyTotal > 0 ? `${formatCurrency(thirdParties.outstanding)} ainda a receber` : undefined}
         />
         <StatTile
           label={summary.availablePersonalLimit >= 0 ? 'Limite disponível' : 'Acima do limite'}

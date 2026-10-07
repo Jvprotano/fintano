@@ -33,7 +33,7 @@ export function CardEntryForm({
   const [installmentCurrent, setInstallmentCurrent] = useState('')
   const [installmentTotal, setInstallmentTotal] = useState('')
   const [isRecurring, setIsRecurring] = useState(false)
-  const [area, setArea] = useState<BudgetArea>()
+  const [area, setArea] = useState<BudgetArea | undefined>('desejos')
   const [saveError, setSaveError] = useState('')
 
   const parsed = parseInstallments(description)
@@ -103,6 +103,7 @@ export function CardEntryForm({
     setInstallmentCurrent('')
     setInstallmentTotal('')
     setIsRecurring(false)
+    setArea('desejos')
     descriptionRef.current?.focus()
   }
 

@@ -10,7 +10,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | --- | --- |
 | Ciclo | Registrar recebido/pago, acompanhar verba para Desejos, consultar prévia do próximo ciclo e revisar o fechamento. |
 | Planejar | Editar o plano da competência ativa: renda, descontos em folha, custos, Desejos e aporte. Fixar uma referência para comparação posterior. |
-| Cartões | Conferir/importar compras, pagar cada cartão separadamente e definir adiantamentos a terceiros e devoluções recebidas. |
+| Cartões | Conferir/importar compras, pagar cada cartão separadamente e acompanhar o que terceiros devem e registrar recebimentos. |
 | Patrimônio | Consultar e registrar posições, reserva, metas, bens, dívidas e livros de movimentos. |
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
 | Futuro | Agrupar metas e dividir entradas previstas entre elas; acompanhar ocorrências, registrar ou vincular fatos e consultar projeção sob demanda. |
@@ -31,6 +31,8 @@ Exemplo: o salário do fim de setembro financia outubro. A fatura formada por ou
 
 Cada cartão tem identidade e calendário próprios. Pagar um não paga nem gira outro. O pagamento preserva a composição e avança a fatura daquele cartão; não fecha o ciclo por si só. O fechamento pode incluir pagamento de fatura e avança a competência operacional numa operação única. Os pagamentos preservados permitem fechar depois de pagar sem perder os valores da fatura.
 
+Novas compras manuais começam com a área Desejos selecionada; é possível escolher outra área ou deixar sem classificação. Após salvar, a próxima compra volta ao padrão Desejos. O bloco Faturas dos cartões pode ser recolhido pelo cabeçalho e guarda essa preferência no navegador.
+
 Separar total a pagar ao banco, parte pessoal, valores de terceiros e valores antecipados. Antecipação é dinheiro já pago; recompensa é abatimento sem nova saída. Créditos excedentes passam para a próxima fatura sem repetir movimento de caixa.
 
 O envelope Cartão inclui seus itens filhos. Não somar novamente seus detalhes ou contabilizar a mesma compra como conta e fatura.
@@ -39,13 +41,13 @@ O envelope Cartão inclui seus itens filhos. Não somar novamente seus detalhes 
 
 A colagem é revisada antes de gravar: linhas aceitas, descartadas com motivo, compras novas, alterações e possíveis duplicatas. Descrição, data e parcela identificam uma compra existente; quando a identidade é ambígua, a linha fica ignorada até decisão explícita. Repetir a colagem preserva o ID das compras reconhecidas. Substituir mostra o que sairá, inclusive abatimentos e vínculos, e alcança somente a fatura e o cartão selecionados. Dados alterados depois da revisão exigem nova conferência.
 
-Rateio não presume adiantamento. Em Terceiros, definir se eu adianto ao banco ou se o terceiro paga a própria parte. Ao adiantar, a parte de terceiros entra no desembolso do ciclo escolhido, além da parte pessoal já contabilizada na fatura. Registrar devoluções na própria compra, com valor, data real e ciclo; aceitar pagamentos parciais até o restante. Devolução aumenta caixa e reduz o valor a receber, sem aumentar renda ou aporte. Não repetir esse desembolso nas saídas extras.
+Você sempre paga a fatura inteira; terceiros te pagam a parte deles. O valor a receber vem automaticamente da diferença entre o total da compra e sua parte pessoal, com o nome livre informado na compra. Não há cadastro de pessoas, escolha de quem paga ao banco nem definição adicional para fechar o ciclo.
 
-Exemplo: compra de R$ 300, sendo R$ 100 pessoais e R$ 200 financiados por mim, exige R$ 300 de desembolso. Receber R$ 50 mantém o pagamento ao banco e reduz o valor a receber para R$ 150. Se o terceiro paga diretamente, não existe adiantamento meu.
+Registrar recebimentos na própria compra, com valor, data real e ciclo; aceitar valores parciais até o restante. Recebimento aumenta caixa e reduz o valor a receber, sem aumentar renda ou aporte. A parte de terceiros complementa o desembolso da fatura no ciclo do vencimento; compras já antecipadas usam o ciclo da antecipação. Não repetir esse desembolso nas saídas extras.
 
-Rateios ainda sem definição tornam a leitura de caixa incompleta; o Ciclo informa isso e exige a definição dos rateios do próprio caixa antes de fechar. A prévia seguinte identifica sua incerteza e inclui adiantamentos já definidos no ciclo seguinte. Valores antigos sem confirmação não são convertidos automaticamente em dívidas a receber.
+Exemplo: compra de R$ 300, sendo R$ 100 pessoais e R$ 200 de terceiros, exige R$ 300 ao banco. Receber R$ 50 mantém o pagamento da fatura e reduz o valor a receber para R$ 150, inclusive quando o recebimento acontece antes do pagamento da fatura.
 
-Trocar ou remover compras não apaga adiantamentos/devoluções já confirmados. A correção de rateio não pode ficar menor que o recebido. Desfazer devolução repõe o restante; desfazer uma definição exige desfazer suas devoluções antes. Desfazer a exclusão da compra mantém seu ID. Registros sem pendência de ciclos anteriores e rateios antigos ficam em Histórico; cobranças ainda pendentes continuam operacionais em Cartões.
+O pagamento da fatura preserva automaticamente os valores a receber. Remover uma compra sem fatos de terceiros registrados retira sua previsão; compras com recebimentos ou faturas já pagas conservam seus fatos. A parte de terceiros não pode ficar menor que o recebido. Desfazer recebimento repõe o restante. Registros anteriores continuam preservados, inclusive definições antigas de pagamento direto ao banco; faturas antigas sem recebimentos registrados não ganham cobranças retroativas. Pendências continuam em Cartões e registros concluídos anteriores ficam em Histórico.
 
 ## Realizado, verba e fechamento
 
@@ -101,6 +103,8 @@ Exemplo: metas de R$ 14.350, com R$ 1.000 já destinados, exigem R$ 13.350 sem d
 ## Ocorrências e agenda
 
 A lista principal de Futuro ordena cada previsão pela próxima ocorrência pendente conciliada. O resumo mostra data e restante, incluindo vencidas e parciais; realizar uma ocorrência avança para a próxima. O detalhe permite consultar outras ocorrências e os registros realizados/cancelados. Projeção e premissas começam recolhidas.
+
+Entradas e saídas esperadas também pode ser recolhido pelo cabeçalho. Esse bloco e Faturas dos cartões começam abertos e conservam a última escolha de exibição no navegador.
 
 Editar permite escolher esta ocorrência ou esta e próximas pendentes. A identidade mantém o mês original mesmo após adiamento; data prevista e competência realizada continuam distintas. As liquidadas guardam a definição que acompanhou seus fatos e não são reabertas por uma revisão da série. Pagamentos e recebimentos parciais sobrevivem ao adiamento, com valor, ciclo e data real intactos. A repetição da série mantém sua origem.
 
