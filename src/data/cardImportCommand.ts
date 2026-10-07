@@ -1,7 +1,7 @@
 import type { CardThirdParty, CreditCardAccount, CreditCardEntry } from '../types'
 import type { ParsedImportRow } from '../lib/cardImport'
 import { normalizeCreditCardEntry, syncGeneratedNextEntries } from '../lib/creditCards'
-import { withCardEntrySpendingMonth } from '../lib/cardCycleAccounting'
+import { normalizePaidInvoiceSnapshots, withCardEntrySpendingMonth } from '../lib/cardCycleAccounting'
 import { normalizeText, uid } from '../lib/shared'
 import { runRepositoryCommand } from './repositoryCommand'
 import { reconcileThirdParties, withThirdParties } from './cardThirdParties'
@@ -66,7 +66,8 @@ export function reviewCardImport(report: ParsedImportRow[], all: CreditCardEntry
 export function applyCardImport(review: ImportReview, expectedRevision: string | null) {
   return runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
     const account = (document.collections.cardAccounts as CreditCardAccount[] ?? []).find((row) => row.id === review.accountId)
-    if (!account || !review.result.length) return null
+    if (!account || !review.result.length || normalizePaidInvoiceSnapshots(document.collections.cardPaidInvoices)
+      .some((invoice) => invoice.accountId === account.id && invoice.dueMonth === review.dueMonth)) return null
     const entries = document.collections.cardEntries as CreditCardEntry[] ?? []
     const next = [...entries.filter((entry) => entry.accountId !== review.accountId || entry.dueMonth !== review.dueMonth), ...review.result]
     return withThirdParties({ ...document, collections: { ...document.collections,

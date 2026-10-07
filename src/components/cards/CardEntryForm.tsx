@@ -14,10 +14,12 @@ function todayShort() {
 export function CardEntryForm({
   cycle,
   knownCards,
+  paidCards = [],
   onAdd,
 }: {
   cycle: CreditCardCycle
   knownCards: string[]
+  paidCards?: string[]
   onAdd: (entry: Omit<CreditCardEntry, 'id'>) => boolean
 }) {
   const descriptionRef = useRef<HTMLInputElement>(null)
@@ -112,6 +114,7 @@ export function CardEntryForm({
       onSubmit={(event) => { event.preventDefault(); submit() }}
       className="grid grid-cols-2 gap-3 border-b border-dark-border-subtle bg-dark-surface/30 p-4 md:grid-cols-[minmax(140px,1.4fr)_84px_64px_92px_128px_104px_104px_104px_minmax(72px,0.8fr)_56px] md:items-center md:gap-2 md:px-3 md:py-2"
     >
+      {paidCards.includes(knownCards.includes(cardName) ? cardName : knownCards[0] ?? '') && <p className="col-span-full text-xs text-primary-400">Fatura deste ciclo paga: esta compra será lançada no próximo ciclo.</p>}
       {saveError && <p role="alert" className="col-span-full rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-200">{saveError}</p>}
       <h3 className="col-span-full text-sm font-semibold text-dark-text md:hidden">Nova compra</h3>
       <label className="col-span-full min-w-0 md:col-span-1"><span className="app-form-label mb-1 block md:sr-only">Descrição</span><input ref={descriptionRef} placeholder="Ex.: mercado" value={description} onChange={(event) => setDescription(event.target.value)} aria-label="Descrição da nova compra" className="app-field w-full px-2.5 py-2 text-sm font-medium md:py-1.5" /></label>

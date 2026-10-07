@@ -14,7 +14,7 @@ export function CardImportPanel({ text, onTextChange, cycle, onCycleChange, repl
   currentDueMonth: string; nextDueMonth: string
   account?: CreditCardAccount; entries: CreditCardEntry[]; onImport: () => void
 }) {
-  const { thirdParties } = useFinancasStore()
+  const { thirdParties, cards } = useFinancasStore()
   const [revision, setRevision] = useState<string | null | undefined>()
   const [ignored, setIgnored] = useState<number[]>([])
   const [duplicates, setDuplicates] = useState<number[]>([])
@@ -23,6 +23,7 @@ export function CardImportPanel({ text, onTextChange, cycle, onCycleChange, repl
   const review = useMemo(() => account ? reviewCardImport(report, entries, account,
     cycle === 'current' ? currentDueMonth : nextDueMonth, replace, ignored, duplicates) : null,
   [report, entries, account, cycle, currentDueMonth, nextDueMonth, replace, ignored, duplicates])
+  const destinationPaid = cards.paidInvoices.some((invoice) => invoice.accountId === account?.id && invoice.dueMonth === (cycle === 'current' ? currentDueMonth : nextDueMonth))
   const reset = () => { setRevision(undefined); setIgnored([]); setDuplicates([]); setError('') }
   const toggle = (line: number, list: number[], setter: (value: number[]) => void) => setter(list.includes(line) ? list.filter((value) => value !== line) : [...list, line])
   return <Panel>
@@ -31,12 +32,13 @@ export function CardImportPanel({ text, onTextChange, cycle, onCycleChange, repl
       placeholder={'Descrição\tData\tCartão\tFatura\tÉ meu\nTotal Fitness\t06/10\tItaú\t100,00\t100,00'} className="app-field mt-4 min-h-[160px] w-full px-4 py-3 font-mono text-xs" />
     <div className="mt-3 flex items-end gap-3">
       <label className="block flex-1"><span className="app-form-label mb-1 block">Destino</span><select className={inputClass} value={cycle} onChange={(e) => { reset(); onCycleChange(e.target.value as CreditCardCycle) }}>
-        <option value="current">Fatura ativa · {formatMonthLong(currentDueMonth)}</option><option value="next">Próxima fatura · {formatMonthLong(nextDueMonth)}</option>
+        <option value="current">Este ciclo · {formatMonthLong(currentDueMonth)}</option><option value="next">Próximo ciclo · {formatMonthLong(nextDueMonth)}</option>
       </select></label>
       <label className="flex items-center gap-2 p-3 text-sm text-dark-text-secondary"><input type="checkbox" checked={replace} onChange={(e) => { reset(); onReplaceChange(e.target.checked) }} />Substituir fatura de destino</label>
-      <SecondaryButton disabled={!review || report.length === 0} onClick={() => { setRevision(repositoryRevision()); setError('') }}>Revisar importação</SecondaryButton>
+      <SecondaryButton disabled={destinationPaid || !review || report.length === 0} onClick={() => { setRevision(repositoryRevision()); setError('') }}>Revisar importação</SecondaryButton>
     </div>
-    {revision !== undefined && review && <div className="mt-4 space-y-3 border-t border-dark-border pt-3">
+    {destinationPaid && <p className="mt-3 text-xs text-primary-400">Esta fatura já foi paga. Selecione o próximo ciclo para importar novas compras.</p>}
+    {revision !== undefined && review && !destinationPaid && <div className="mt-4 space-y-3 border-t border-dark-border pt-3">
       <p className="text-sm text-dark-text-secondary">{review.added} novas · {review.updated} alteradas · {review.unchanged} preservadas · {review.removed.length} removidas</p>
       <p className="text-xs tabular-nums text-dark-text-muted">Fatura: {formatCurrency(review.beforeTotal)} → {formatCurrency(review.afterTotal)}. Valores importados para {account?.name}.</p>
       <div className="max-h-80 space-y-2 overflow-y-auto">{review.rows.map((row) => <div key={row.line} className="flex items-center justify-between gap-4 rounded-lg bg-dark-surface px-3 py-2 text-xs">

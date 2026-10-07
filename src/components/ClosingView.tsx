@@ -19,6 +19,7 @@ import { cycleSalaryMonth } from '../lib/activeCycle'
 import { usePersistenceStatus } from '../hooks/usePersistenceStatus'
 import { repositoryRevision } from '../data/repositoryCommand'
 import { uid } from '../lib/shared'
+import { pendingCardInvoices } from '../lib/cardCycleView'
 import { occurrencesInMonth } from '../lib/forecast'
 import { reconcileOccurrence } from '../lib/forecastCoverage'
 import {
@@ -109,12 +110,9 @@ export function ClosingView({
   const cashCompositionKnown = incomeKnown && currentInvoiceKnown
   const closingReady = actuals.summary.paycheck !== null && missingActualRows.length === 0 &&
     missingWantActualRows.length === 0 && invoiceKnown && currentInvoiceKnown
-  const currentDueMonth = cards.accounts[0]?.currentDueMonth ?? cards.settings.currentDueMonth ?? activeCycle.month
-  const canPayClosingInvoiceTogether =
-    cards.accounts.length === 1 &&
-    invoiceKnown &&
-    !closingInvoiceAlreadyPaid &&
-    currentDueMonth === cardCycleAccounting.invoiceFormedByCycle.dueMonth
+  const pendingInvoices = pendingCardInvoices(cards.entries, cards.paidInvoices, cards.accounts, cardCycleAccounting.invoiceFormedByCycle.dueMonth)
+  const pendingInvoiceTotal = pendingInvoices.reduce((sum, invoice) => sum + invoice.total, 0)
+  const canPayClosingInvoiceTogether = invoiceKnown && pendingInvoices.length > 0 && pendingInvoices.every((invoice) => invoice.known)
   const listedPersonal = cardCycleAccounting.spendingThisCycle.spentPersonalTotal
   const stillDuePersonal = cardCycleAccounting.spendingThisCycle.duePersonalTotal
   const prepaidPersonal = Math.max(0, listedPersonal - stillDuePersonal)
@@ -512,6 +510,11 @@ export function ClosingView({
               </div>
             )}
 
+            {pendingInvoices.length > 0 && <div className="mt-3 rounded-lg border border-dark-border bg-dark-surface p-3 text-sm">
+              <p className="font-medium">Faturas pendentes a confirmar</p>
+              {pendingInvoices.map((invoice) => <div key={`${invoice.accountId}-${invoice.dueMonth}`} className="mt-2 flex justify-between gap-3 text-xs"><span>{invoice.cardName} · {formatMonthLong(invoice.dueMonth)}</span><span className="tabular-nums">{invoice.known ? formatCurrency(invoice.total) : 'Valor não informado'}</span></div>)}
+              <p className="mt-2 text-xs text-dark-text-muted">Inclui anteriores em aberto. Faturas já pagas serão preservadas, sem novo pagamento.</p>
+            </div>}
             <label className="mt-3 block">
               <span className="mb-1 block text-xs uppercase tracking-wider text-dark-text-muted">
                 Nota do ciclo (opcional)
@@ -531,13 +534,13 @@ export function ClosingView({
               {canPayClosingInvoiceTogether && (
                 <PrimaryButton disabled={!closingReady} onClick={() => finishClose(true)}>
                   <CheckCircle2 size={15} />
-                  Fechar + pagar fatura ({formatCurrency(closingInvoiceDue)})
+                  Confirmar pendentes e virar ciclo ({formatCurrency(pendingInvoiceTotal)})
                 </PrimaryButton>
               )}
-              {closingInvoiceAlreadyPaid && (
+              {pendingInvoices.length === 0 && closingInvoiceAlreadyPaid && (
                 <PrimaryButton disabled={!closingReady} onClick={() => finishClose(false)}>
                   <CheckCircle2 size={15} />
-                  Fechar ciclo — fatura já paga
+                  Virar ciclo — faturas já pagas
                 </PrimaryButton>
               )}
               <button

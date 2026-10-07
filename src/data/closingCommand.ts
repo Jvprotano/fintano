@@ -3,7 +3,10 @@ import { thirdPartiesForEntries } from './cardThirdParties'
 import { normalizeActuals } from '../lib/actuals'
 import { advanceCycleMonth, normalizeActiveCycle } from '../lib/activeCycle'
 import { nowIso, uid } from '../lib/shared'
-import { payInvoiceInDocument } from '../hooks/useCreditCards'
+import { migrateCardIdentityInDocument, payInvoiceInDocument } from '../hooks/useCreditCards'
+import { pendingCardInvoices } from '../lib/cardCycleView'
+import { calculateCardCycleAccounting, normalizePaidInvoiceSnapshots } from '../lib/cardCycleAccounting'
+import type { CreditCardAccount } from '../types'
 import type { RepositoryDocument } from './repository'
 import type { MonthlyPlan } from '../lib/monthlyPlans'
 
@@ -59,9 +62,32 @@ export function closeCycleInDocument(
     },
   }
   if (input.payInvoiceDueMonth) {
-    const paid = payInvoiceInDocument(next, input.payInvoiceDueMonth)
-    if (!paid) return null
-    next = paid
+    next = migrateCardIdentityInDocument(next)
+    const accounting = (source: RepositoryDocument) => calculateCardCycleAccounting({
+      entries: source.collections.cardEntries as CreditCardEntry[],
+      accounts: source.collections.cardAccounts as CreditCardAccount[],
+      paidInvoices: normalizePaidInvoiceSnapshots(source.collections.cardPaidInvoices),
+      activeCycleMonth: input.month, currentDueMonth: input.payInvoiceDueMonth!,
+      currentTotal: 0, currentPersonalTotal: 0, nextTotal: 0, nextPersonalTotal: 0,
+    })
+    const beforePayment = accounting(next)
+    const pending = pendingCardInvoices(next.collections.cardEntries as CreditCardEntry[],
+      normalizePaidInvoiceSnapshots(next.collections.cardPaidInvoices),
+      next.collections.cardAccounts as CreditCardAccount[], input.payInvoiceDueMonth)
+    if (pending.some((invoice) => !invoice.known)) return null
+    for (const invoice of pending) {
+      const paid = payInvoiceInDocument(next, invoice.dueMonth, invoice.accountId)
+      if (!paid) return null
+      next = paid
+    }
+    // Pagar anteriores pode levar um crédito excedente até a fatura do ciclo.
+    const afterPayment = accounting(next)
+    next = { ...next, collections: { ...next.collections,
+      history: (next.collections.history as MonthlySnapshot[]).map((snapshot) => snapshot.month !== input.month ? snapshot : {
+        ...snapshot, cardPersonalTotal: afterPayment.invoiceFormedByCycle.personalTotal,
+        cashLeftover: snapshot.cashLeftover + beforePayment.invoiceThisCycle.personalTotal - afterPayment.invoiceThisCycle.personalTotal,
+      }),
+    } }
   }
   return next
 }

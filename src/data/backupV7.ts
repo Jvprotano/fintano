@@ -931,7 +931,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     createdAt: debt.createdAt,
     settledAt: debt.settledAt,
   }))
-  const firstDueDay = accounts[0]?.dueDay ?? backup.profile.activeCycle.cardDueHintDay
+  const firstDueDay = accounts[0]?.dueDay || backup.profile.activeCycle.cardDueHintDay
   const paymentDate = `${String(firstDueDay).padStart(2, '0')}/${backup.cards.currentDueMonth.slice(5)}`
   const cardEntries: CreditCardEntry[] = backup.cards.charges.map((charge) => {
     const account = accountById.get(charge.accountId)

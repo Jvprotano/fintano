@@ -25,7 +25,7 @@ export function InvoicePaymentReview({
       <PanelHeader
         title="Resumo antes de pagar"
         icon={<CheckCircle2 size={16} />}
-        description={`Fatura que encerra o bucket de ${formatMonthLong(currentSpendingMonth)} e vence em ${formatMonthLong(currentDueMonth)}. Marcar como paga salva o total e a sua parte antes de girar o cartão.`}
+        description={`Fatura do ciclo de ${formatMonthLong(currentSpendingMonth)} e vence em ${formatMonthLong(currentDueMonth)}. Confirmar preserva a composição paga. A lista deste ciclo continua visível até o fechamento.`}
       />
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         <StatTile label="Total da fatura" value={formatCurrency(summary.currentTotal)} />
@@ -48,7 +48,7 @@ export function InvoicePaymentReview({
       <div className="mt-4 flex flex-wrap gap-2">
         <PrimaryButton onClick={onConfirm}>
           <CheckCircle2 size={15} />
-          Pagar e abrir próxima fatura
+          Confirmar pagamento
         </PrimaryButton>
         <button type="button" onClick={onCancel} className="rounded-lg px-3 py-2 text-sm text-dark-text-muted transition-colors hover:text-dark-text">
           Cancelar

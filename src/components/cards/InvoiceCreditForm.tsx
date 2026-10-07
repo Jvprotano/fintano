@@ -9,10 +9,11 @@ function todayShort() {
   return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, onCancel }: {
+export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, paidCards = [], onAdd, onCancel }: {
   cycle: CreditCardCycle
   cashCycleMonth: string
   knownCards: string[]
+  paidCards?: string[]
   onAdd: (entry: Omit<CreditCardEntry, 'id'>) => boolean
   onCancel: () => void
 }) {
@@ -50,6 +51,7 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
       }}
       className="grid gap-3 border-b border-dark-border-subtle bg-dark-surface/50 p-4 sm:grid-cols-2 xl:grid-cols-[1fr_1.5fr_1fr_0.8fr_1fr_auto] xl:items-end"
     >
+      {cycle === 'current' && paidCards.includes(knownCards.includes(cardName) ? cardName : knownCards[0] ?? '') && <p className="text-xs text-primary-400 sm:col-span-2 xl:col-span-full">Fatura deste ciclo paga: este abatimento será registrado no próximo ciclo.</p>}
       {saveError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-200 sm:col-span-2 xl:col-span-full">{saveError}</p>}
       <label className="block min-w-0 text-xs font-medium text-dark-text-secondary">
         Tipo de abatimento
@@ -79,7 +81,7 @@ export function InvoiceCreditForm({ cycle, cashCycleMonth, knownCards, onAdd, on
         <button type="button" onClick={onCancel} className="rounded-lg border border-dark-border px-3 py-2 text-sm font-medium text-dark-text-secondary hover:text-dark-text">Cancelar</button>
       </div>
       <p className="text-xs leading-relaxed text-dark-text-muted sm:col-span-2 xl:col-span-full">
-        Fatura selecionada: {cycle === 'current' ? 'atual' : 'em formação'} · ciclo do caixa: {formatMonthLong(cashCycleMonth)}. Reduz a parte pessoal da fatura sem mudar compras ou áreas do orçamento. Pagamento antecipado já saiu do caixa; pontos ou crédito não são saída de caixa.
+        Fatura selecionada: {cycle === 'current' && !paidCards.includes(knownCards.includes(cardName) ? cardName : knownCards[0] ?? '') ? 'este ciclo' : 'próximo ciclo'} · ciclo do caixa: {formatMonthLong(cashCycleMonth)}. Reduz a parte pessoal da fatura sem mudar compras ou áreas do orçamento. Pagamento antecipado já saiu do caixa; pontos ou crédito não são saída de caixa.
       </p>
     </form>
   )

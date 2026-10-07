@@ -10,7 +10,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | --- | --- |
 | Ciclo | Registrar recebido/pago, acompanhar verba para Desejos, consultar prévia do próximo ciclo e revisar o fechamento. |
 | Planejar | Editar o plano da competência ativa: renda, descontos em folha, custos, Desejos e aporte. Fixar uma referência para comparação posterior. |
-| Cartões | Conferir/importar compras, pagar cada cartão separadamente e acompanhar o que terceiros devem e registrar recebimentos. |
+| Cartões | Conferir/importar compras por ciclo, confirmar faturas pagas e acompanhar o que terceiros devem e registrar recebimentos. |
 | Patrimônio | Consultar e registrar posições, reserva, metas, bens, dívidas e livros de movimentos. |
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
 | Futuro | Agrupar metas e dividir entradas previstas entre elas; acompanhar ocorrências, registrar ou vincular fatos e consultar projeção sob demanda. |
@@ -29,7 +29,13 @@ O ciclo ativo é a competência padrão dos lançamentos. A data real existe par
 
 Exemplo: o salário do fim de setembro financia outubro. A fatura formada por outubro pode vencer em novembro. O vencimento do cartão e a competência operacional são conceitos diferentes. A fatura determina o ciclo do consumo; a data original de uma compra parcelada não reatribui sua parcela atual.
 
-Cada cartão tem identidade e calendário próprios. Pagar um não paga nem gira outro. O pagamento preserva a composição e avança a fatura daquele cartão; não fecha o ciclo por si só. O fechamento pode incluir pagamento de fatura e avança a competência operacional numa operação única. Os pagamentos preservados permitem fechar depois de pagar sem perder os valores da fatura.
+Cartões usa **Este ciclo** e **Próximo ciclo**, ancorados na competência operacional para todos os cartões. Confirmar o pagamento de um cartão preserva sua composição e mantém as parcelas pagas na lista deste ciclo, com estado textual, data e acento verde; elas não têm edição comum. A próxima parcela continua em Próximo ciclo. Só a virada operacional avança o período consultado. O total do ciclo conserva as faturas pagas; Ainda a pagar ao banco exclui apenas as já pagas.
+
+Novas compras em um cartão cuja fatura deste ciclo já foi paga entram no próximo ciclo, com aviso no formulário. Importação exige escolher Próximo ciclo nessa situação; faturas pagas não podem ser substituídas ou reimportadas. Trocar o cartão de uma compra mantém sua competência e recusa uma fatura de destino já paga.
+
+O fechamento permite **Confirmar pendentes e virar ciclo**: revisa cartões, meses de vencimento e valor cheio ao banco, incluindo faturas anteriores ainda abertas, e confirma tudo numa gravação única. Faturas já pagas são puladas. Créditos excedentes passam uma vez para a seguinte; valores desconhecidos exigem conferência. Continua disponível fechar apenas o ciclo, sem declarar pagamento.
+
+Cadastrar cartão exige somente o nome. Dias de fechamento e vencimento e limite do banco são opcionais e não comandam a consulta. Cartões novos começam atribuídos ao ciclo ativo; a fatura anterior é confirmada vazia por se tratar de um novo cadastro. A correção excepcional da atribuição de fatura fica recolhida na configuração; dados existentes conservam seus meses e pagamentos.
 
 Novas compras manuais começam com a área Desejos selecionada; é possível escolher outra área ou deixar sem classificação. Após salvar, a próxima compra volta ao padrão Desejos. O bloco Faturas dos cartões pode ser recolhido pelo cabeçalho e guarda essa preferência no navegador.
 

@@ -34,7 +34,7 @@ import {
   SegmentedControl,
   StatTile,
 } from './ui'
-import { formatCurrency, formatMonthLong } from '../lib/format'
+import { formatCurrency, formatDate, formatMonthLong } from '../lib/format'
 import { addMonths, normalizeText } from '../lib/shared'
 import {
   buildRemainingAmount,
@@ -44,6 +44,8 @@ import type { CreditCardCycle, CreditCardEntry } from '../types'
 import { BUDGET_AREA_COLORS } from '../types/constants'
 import { repositoryRevision } from '../data/repositoryCommand'
 import { calculateCreditCardSummary } from '../lib/creditCards'
+import { cardEntriesForCycle } from '../lib/cardCycleView'
+import { PaidCardEntry } from './cards/PaidCardEntry'
 
 type View = CreditCardCycle | 'import'
 type SortKey = 'description' | 'purchaseDate' | 'cardName' | 'amount'
@@ -82,20 +84,15 @@ export function CreditCardManager() {
   const [importAccountId, setImportAccountId] = useState('')
   const paymentAccount = accounts.find((account) => account.id === paymentAccountId)
   const importAccount = accounts.find((account) => account.id === importAccountId) ?? accounts[0]
-  const currentDueMonth = importAccount?.currentDueMonth ?? settings.currentDueMonth ?? activeCycle.month
+  const currentDueMonth = addMonths(activeCycle.month, 1)
   const nextDueMonth = addMonths(currentDueMonth, 1)
   const paymentDueMonth = paymentAccount?.currentDueMonth ?? currentDueMonth
-  const closingDueMonth = addMonths(activeCycle.month, 1)
-  const afterClosingPaymentDueMonth = addMonths(activeCycle.month, 2)
-  const summary = useMemo(() => calculateCreditCardSummary(entries, settings), [entries, settings])
+  const cycleEntries = useMemo(() => cardEntriesForCycle(entries, paidInvoices, accounts, activeCycle.month),
+    [entries, paidInvoices, accounts, activeCycle.month])
+  const summary = useMemo(() => calculateCreditCardSummary(cycleEntries, settings), [cycleEntries, settings])
   const paymentSummary = useMemo(() => calculateCreditCardSummary(entries.filter((entry) => entry.accountId === paymentAccountId), settings), [entries, paymentAccountId, settings])
-  // Agosto + fatura de Setembro é o estado normal. Se a fatura de Setembro já
-  // foi paga antes de fechar Agosto, Outubro + ciclo Agosto também é esperado.
-  const unexpectedDueAccounts = accounts.filter((account) => {
-    const dueMonth = account.currentDueMonth ?? settings.currentDueMonth ?? activeCycle.month
-    return dueMonth !== activeCycle.month && dueMonth !== closingDueMonth &&
-      !(dueMonth === afterClosingPaymentDueMonth && cardCycleAccounting.spendingThisCycle.paid)
-  })
+  const pendingTotal = calculateCreditCardSummary(cycleEntries.filter((entry) => !entry.paidAt), settings).currentTotal
+  const paidCards = accounts.filter((account) => paidInvoices.some((invoice) => invoice.accountId === account.id && invoice.dueMonth === currentDueMonth)).map((account) => account.name)
 
   const [view, setView] = useState<View>('current')
 
@@ -120,7 +117,7 @@ export function CreditCardManager() {
   const visibleCycle: CreditCardCycle = view === 'next' ? 'next' : 'current'
   const normalizedSearch = normalizeText(search)
 
-  const filteredEntries = entries.filter((entry) => {
+  const filteredEntries = cycleEntries.filter((entry) => {
     if (entry.cycle !== visibleCycle) return false
     if (
       normalizedSearch &&
@@ -238,9 +235,8 @@ export function CreditCardManager() {
   const addSelectedEntry = (entry: Omit<CreditCardEntry, 'id'>) => {
     const account = accounts.find((candidate) => candidate.name === entry.cardName)
     if (!account) return false
-    const dueMonth = account.currentDueMonth ?? settings.currentDueMonth ?? activeCycle.month
-    return addEntry({ ...entry, accountId: account.id, cardName: account.name,
-      dueMonth: visibleCycle === 'current' ? dueMonth : addMonths(dueMonth, 1) })
+    const dueMonth = visibleCycle === 'next' || paidCards.includes(account.name) ? nextDueMonth : currentDueMonth
+    return addEntry({ ...entry, accountId: account.id, cardName: account.name, dueMonth })
   }
 
   const renderSortHeader = (
@@ -284,25 +280,27 @@ export function CreditCardManager() {
     <div className="space-y-4">
       {accounts.length === 0 && <CardAccountsPanel />}
       {accounts.length > 0 && <Card title="Faturas dos cartões" icon={<CreditCard size={17} />} collapsible storageKey="card-invoices">
-        <p className="text-sm text-dark-text-muted">Todas as faturas abertas, com pagamento e histórico próprios de cada cartão.</p>
+        <p className="text-sm text-dark-text-muted">Faturas deste ciclo. Pagar preserva os lançamentos; a consulta avança junto com o ciclo.</p>
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
           {accounts.map((account) => {
-            const dueMonth = account.currentDueMonth ?? settings.currentDueMonth ?? activeCycle.month
-            const accountEntries = entries.filter((entry) => entry.accountId === account.id)
+            const dueMonth = currentDueMonth
+            const invoicePaid = paidInvoices.find((invoice) => invoice.accountId === account.id && invoice.dueMonth === dueMonth)
+            const previousPending = (account.currentDueMonth ?? dueMonth) < dueMonth
+            const accountEntries = cycleEntries.filter((entry) => entry.accountId === account.id)
             const accountSummary = calculateCreditCardSummary(accountEntries, settings)
             const invoiceHasEntries = accountEntries.some((entry) => entry.cycle === 'current')
             const emptyConfirmed = account.confirmedEmptyDueMonths?.includes(dueMonth) === true
             const history = paidInvoices.filter((invoice) => invoice.accountId === account.id)
             return <section key={account.id} className={`rounded-xl border border-dark-border bg-dark-surface/60 p-3 ${paymentAccountId === account.id && showPaySummary ? 'lg:col-span-2' : ''}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div><h3 className="font-semibold text-dark-text">{account.name}</h3><p className="text-xs text-dark-text-muted">Fecha dia {account.closingDay} · vence dia {account.dueDay} de {formatMonthLong(dueMonth)} · {accountEntries.filter((entry) => entry.cycle === 'current').length} lançamentos</p></div>
-                <div className="text-right"><strong className="block tabular-nums text-dark-text">{formatCurrency(accountSummary.currentTotal)}</strong><span className="block text-xs tabular-nums text-dark-text-secondary">meu: {formatCurrency(accountSummary.currentPersonalTotal)}</span>{accountSummary.currentThirdPartyTotal > 0 && <span className="block text-xs tabular-nums text-dark-text-muted">não meu: {formatCurrency(accountSummary.currentThirdPartyTotal)}</span>}</div>
+                <div><h3 className="font-semibold text-dark-text">{account.name}</h3><p className="text-xs text-dark-text-muted">Ciclo {formatMonthLong(activeCycle.month)} · {accountEntries.filter((entry) => entry.cycle === 'current').length} lançamentos</p></div>
+                <div className="text-right"><strong className="block tabular-nums text-dark-text">{invoicePaid ? formatCurrency(invoicePaid.total ?? 0) : formatCurrency(accountSummary.currentTotal)}</strong>{invoicePaid && <span className="block text-xs text-primary-400">Paga em {formatDate(invoicePaid.paidAt)}</span>}<span className="block text-xs tabular-nums text-dark-text-secondary">meu: {formatCurrency(accountSummary.currentPersonalTotal)}</span>{accountSummary.currentThirdPartyTotal > 0 && <span className="block text-xs tabular-nums text-dark-text-muted">não meu: {formatCurrency(accountSummary.currentThirdPartyTotal)}</span>}</div>
               </div>
               {accountSummary.remainingInstallmentsTotal > 0 && <p className="mt-2 text-xs tabular-nums text-dark-text-secondary">Parcelas restantes: {formatCurrency(accountSummary.remainingInstallmentsTotal)} · minha parte {formatCurrency(accountSummary.remainingPersonalInstallmentsTotal)}</p>}
-              {!invoiceHasEntries && !emptyConfirmed && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-dark-text-secondary"><span>Fatura ainda sem valor informado.</span><SecondaryButton onClick={() => confirmEmptyInvoice(account.id, dueMonth)}>Confirmar sem lançamentos</SecondaryButton></div>}
-              {!invoiceHasEntries && emptyConfirmed && <p className="mt-2 text-xs text-primary-400">Sem lançamentos confirmados.</p>}
+              {!invoicePaid && !invoiceHasEntries && !emptyConfirmed && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-dark-text-secondary"><span>Fatura ainda sem valor informado.</span><SecondaryButton onClick={() => confirmEmptyInvoice(account.id, dueMonth)}>Confirmar sem lançamentos</SecondaryButton></div>}
+              {!invoicePaid && !invoiceHasEntries && emptyConfirmed && <p className="mt-2 text-xs text-primary-400">Sem lançamentos confirmados.</p>}
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <button type="button" onClick={() => { setPaymentAccountId(account.id); setPaymentReviewRevision(repositoryRevision()); setPaymentError(''); setShowPaySummary(true) }} className="text-xs font-medium text-primary-400 hover:text-primary-300">Pagar fatura</button>
+                {!invoicePaid && <button type="button" disabled={!invoiceHasEntries && !emptyConfirmed && !previousPending} onClick={() => { setPaymentAccountId(account.id); setPaymentReviewRevision(repositoryRevision()); setPaymentError(''); setShowPaySummary(true) }} className="text-xs font-medium text-primary-400 hover:text-primary-300">{previousPending ? 'Confirmar fatura anterior primeiro' : 'Confirmar pagamento'}</button>}
                 {history.length > 0 && <details className="text-xs text-dark-text-secondary"><summary className="cursor-pointer">Faturas pagas ({history.length})</summary><div className="mt-2 space-y-2">{[...history].reverse().map((invoice) => <details key={invoice.id ?? `${invoice.accountId}-${invoice.dueMonth}`} className="rounded-lg border border-dark-border bg-dark-card p-2"><summary className="cursor-pointer">{formatMonthLong(invoice.dueMonth)} · {formatCurrency(invoice.total ?? 0)} · paga em {invoice.paidAt.slice(0, 10)}</summary><p className="mt-2">Minha parte: {formatCurrency(invoice.personalTotal)}. {invoice.entries ? `${invoice.entries.length} lançamentos preservados.` : 'Composição legada não disponível.'}</p>{invoice.entries?.map((entry) => <div key={entry.id} className="flex justify-between gap-2 border-t border-dark-border-subtle py-1"><span>{entry.description}</span><span className="tabular-nums">{entry.entryType === 'invoiceCredit' ? '−' : ''}{formatCurrency(entry.amount)}</span></div>)}</details>)}</div></details>}
               </div>
               {showPaySummary && paymentAccountId === account.id && <div className="mt-3">
@@ -313,15 +311,6 @@ export function CreditCardManager() {
           })}
         </div>
       </Card>}
-      {unexpectedDueAccounts.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-4 py-3 text-sm leading-relaxed text-amber-100/90">
-          <strong className="font-semibold text-amber-200">Confira o calendário: {unexpectedDueAccounts.map((account) => account.name).join(', ')}.</strong>{' '}
-          O vencimento difere do esperado para o ciclo ativo de {formatMonthLong(activeCycle.month)}. Não altere o ciclo apenas para igualar o vencimento:
-          isso pode significar que mais de uma fatura foi girada. Confira os lançamentos e o último
-          pagamento antes de continuar.
-        </div>
-      )}
-
       <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Minha parte"
@@ -334,16 +323,16 @@ export function CreditCardManager() {
           tone={summary.currentPersonalTotal > 0 ? 'accent' : 'neutral'}
         />
         <StatTile
-          label="Faturas abertas · todos os cartões"
+          label="Total das faturas deste ciclo"
           value={formatCurrency(summary.currentTotal)}
           detail={
             `${summary.currentEntriesCount} lançamentos${summary.currentAppliedCreditTotal > 0 ? ` · ${formatCurrency(summary.currentAppliedCreditTotal)} abatidos` : ''}${summary.currentPrepaidTotal > 0 ? ` · ${formatCurrency(summary.currentPrepaidTotal)} pagos por compra` : ''}`
           }
         />
         <StatTile
-          label="Não é meu"
-          value={formatCurrency(summary.currentThirdPartyTotal)}
-          detail={summary.currentThirdPartyTotal > 0 ? `${formatCurrency(thirdParties.outstanding)} ainda a receber` : undefined}
+          label="Ainda a pagar ao banco"
+          value={formatCurrency(pendingTotal)}
+          detail={`${formatCurrency(summary.currentTotal - pendingTotal)} em faturas pagas · ${formatCurrency(thirdParties.outstanding)} a receber de terceiros`}
         />
         <StatTile
           label={summary.availablePersonalLimit >= 0 ? 'Limite disponível' : 'Acima do limite'}
@@ -361,7 +350,7 @@ export function CreditCardManager() {
       <Panel>
         <PanelHeader
           title="Seu teto de gasto"
-          description="Defina seu limite pessoal somando todos os cartões. Cada compra entra na fatura ativa ou seguinte do cartão informado."
+          description="Defina seu limite pessoal somando todos os cartões. Cada compra pertence a este ciclo ou ao próximo. Pagamentos não mudam o período consultado."
           className="mb-4"
         />
         <div className="grid gap-4 lg:grid-cols-2">
@@ -403,8 +392,8 @@ export function CreditCardManager() {
           value={view}
           onChange={setView}
           options={[
-            { value: 'current' as View, label: 'Faturas abertas' },
-            { value: 'next' as View, label: 'Próximas faturas' },
+            { value: 'current' as View, label: 'Este ciclo' },
+            { value: 'next' as View, label: 'Próximo ciclo' },
             { value: 'import' as View, label: 'Importar' },
           ]}
         />
@@ -427,8 +416,9 @@ export function CreditCardManager() {
       {view !== 'import' ? (
         <Panel padded={false} className="overflow-hidden">
           {showCreditForm && accounts.length > 0 && (
-            <InvoiceCreditForm cycle={visibleCycle} cashCycleMonth={activeCycle.month} knownCards={knownCards} onAdd={addSelectedEntry} onCancel={() => setShowCreditForm(false)} />
+            <InvoiceCreditForm cycle={visibleCycle} cashCycleMonth={activeCycle.month} knownCards={knownCards} paidCards={visibleCycle === 'current' ? paidCards : []} onAdd={addSelectedEntry} onCancel={() => setShowCreditForm(false)} />
           )}
+          <p className="border-b border-dark-border-subtle px-4 py-3 text-sm text-dark-text-secondary">{view === 'next' ? `Próximo ciclo · ${formatMonthLong(addMonths(activeCycle.month, 1))}` : `Este ciclo · ${formatMonthLong(activeCycle.month)}`}. Compras em cartões com a fatura deste ciclo paga entram no próximo ciclo.</p>
           <div className="flex flex-wrap items-center gap-2 border-b border-dark-border-subtle p-3">
             <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-dark-text-muted">
               <Filter size={13} />
@@ -441,7 +431,7 @@ export function CreditCardManager() {
               ...(summary.unclassifiedPersonal > 0
                 ? [{ key: 'unclassified', label: 'Sem área' }]
                 : []),
-              ...(entries.some((entry) => entry.isPrepaid) ? [{ key: 'prepaid', label: 'Pagos' }] : []),
+              ...(entries.some((entry) => entry.isPrepaid) ? [{ key: 'prepaid', label: 'Antecipados' }] : []),
               ...knownOwners.map((owner) => ({ key: owner, label: owner })),
             ].map((item) => (
               <button
@@ -545,14 +535,14 @@ export function CreditCardManager() {
           )}
 
           <div className="md:hidden">
-            {accounts.length > 0 && <CardEntryForm cycle={visibleCycle} knownCards={knownCards} onAdd={addSelectedEntry} />}
+            {accounts.length > 0 && <CardEntryForm cycle={visibleCycle} knownCards={knownCards} paidCards={visibleCycle === 'current' ? paidCards : []} onAdd={addSelectedEntry} />}
             <div className="space-y-2 p-3">
               {visibleEntries.length === 0 && (
                 <p className="app-inset px-4 py-6 text-center text-sm text-dark-text-secondary">
                   {search || ownerFilter !== 'all' ? 'Nenhum lançamento corresponde ao filtro.' : 'Nenhum lançamento nesta fatura. Adicione uma compra acima.'}
                 </p>
               )}
-              {visibleEntries.map((entry) => entry.entryType === 'invoiceCredit' ? (
+              {visibleEntries.map((entry) => entry.paidAt ? <PaidCardEntry key={entry.id} entry={entry} /> : entry.entryType === 'invoiceCredit' ? (
                 <div key={entry.id} className="app-inset flex items-start justify-between gap-3 p-3">
                   <div className="min-w-0">
                     <span className="text-xs font-semibold uppercase tracking-wide text-primary-300">Abatimento</span>
@@ -638,6 +628,7 @@ export function CreditCardManager() {
               {accounts.length > 0 && <CardEntryForm
                 cycle={visibleCycle}
                 knownCards={knownCards}
+                paidCards={visibleCycle === 'current' ? paidCards : []}
                 onAdd={addSelectedEntry}
               />}
 
@@ -649,7 +640,7 @@ export function CreditCardManager() {
                       : 'Nenhum lançamento nesta fatura.'}
                   </div>
                 ) : (
-                  visibleEntries.map((entry) => entry.entryType === 'invoiceCredit' ? (
+                  visibleEntries.map((entry) => entry.paidAt ? <PaidCardEntry key={entry.id} entry={entry} columns={TABLE_COLS} /> : entry.entryType === 'invoiceCredit' ? (
                     <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 bg-primary-500/[0.04] px-4 py-3 text-sm">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="rounded bg-primary-500/15 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-300">{entry.originCreditId ? 'Saldo transferido' : entry.creditSource === 'reward' ? 'Pontos / crédito' : 'Pago avulso'}</span>

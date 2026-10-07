@@ -391,12 +391,13 @@ export function calculateCardCycleAccounting(input: {
           continue
         }
         const openMonth = account.currentDueMonth ?? currentDueMonth
-        if (month !== openMonth && month !== addMonths(openMonth, 1)) {
+        const accountEntries = entries.filter((entry) => entry.accountId === account.id && entry.dueMonth === month)
+        if (month !== openMonth && month !== addMonths(openMonth, 1) &&
+          accountEntries.length === 0 && !account.confirmedEmptyDueMonths?.includes(month)) {
           // Faturas legadas agregadas não permitem inferir a parte de cada cartão.
           amountKnown = false
           continue
         }
-        const accountEntries = entries.filter((entry) => entry.accountId === account.id && entry.dueMonth === month)
         if (accountEntries.length === 0 && !account.confirmedEmptyDueMonths?.includes(month)) {
           amountKnown = false
           continue

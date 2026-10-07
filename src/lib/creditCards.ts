@@ -13,7 +13,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 export function normalizeCardAccount(raw: Partial<CreditCardAccount> | undefined): CreditCardAccount {
   const clampDay = (value: unknown, fallback: number) =>
-    Math.max(1, Math.min(31, Math.round(finiteNumber(value, fallback))))
+    value === 0 ? 0 : Math.max(1, Math.min(31, Math.round(finiteNumber(value, fallback))))
 
   return {
     id: raw?.id || uid(),
@@ -122,9 +122,9 @@ export function describeCardCycles(
 
     return {
       ...account,
-      isClosed: now.getDate() > closingThisMonth,
-      daysToClosing: days(nextDateForDay(account.closingDay, now)),
-      daysToDue: days(nextDateForDay(account.dueDay, now)),
+      isClosed: account.closingDay > 0 ? now.getDate() > closingThisMonth : null,
+      daysToClosing: account.closingDay > 0 ? days(nextDateForDay(account.closingDay, now)) : null,
+      daysToDue: account.dueDay > 0 ? days(nextDateForDay(account.dueDay, now)) : null,
       personalAmount,
       totalAmount,
       usagePct: account.limit > 0 ? (totalAmount / account.limit) * 100 : null,

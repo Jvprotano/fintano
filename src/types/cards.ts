@@ -53,15 +53,16 @@ export interface CreditCardAccount {
   name: string
   currentDueMonth?: string
   confirmedEmptyDueMonths?: string[]
+  /** Zero indica referência de calendário não informada. */
   closingDay: number
   dueDay: number
   limit: number
 }
 
 export interface CardCycleStatus extends CreditCardAccount {
-  isClosed: boolean
-  daysToClosing: number
-  daysToDue: number
+  isClosed: boolean | null
+  daysToClosing: number | null
+  daysToDue: number | null
   personalAmount: number
   totalAmount: number
   usagePct: number | null
