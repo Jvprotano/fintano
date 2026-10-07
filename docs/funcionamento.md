@@ -79,7 +79,7 @@ Reserva, carteira e metas atribuem finalidade ao dinheiro existente; não duplic
 
 Fechamentos preservam folha, metas de comparação e marca patrimonial do fechamento. Aportes diretos históricos acompanham a competência do livro de movimentos. Consultar o passado não troca a competência operacional. Cadastros com fatos são arquivados em vez de apagar seu histórico.
 
-Correção histórica geral, destinos de aportes e projeções ainda têm melhorias pendentes; consultar a fila antes de alterar esses fluxos.
+Destinos de aportes e projeções continuam pendentes e a execução está pausada após a ordem 4; consultar a fila antes de retomar esses fluxos.
 ## Ocorrências e agenda
 
 A lista principal de Futuro ordena cada previsão pela próxima ocorrência pendente conciliada. O resumo mostra data e restante, incluindo vencidas e parciais; realizar uma ocorrência avança para a próxima. O detalhe permite consultar outras ocorrências e os registros realizados/cancelados. Projeção e premissas começam recolhidas.
@@ -91,3 +91,17 @@ Cancelar ocorrência ou previsão conserva todos os fatos e vínculos; reativar 
 Uma saída incluída no plano identifica o custo ou Desejo correspondente e acompanha o realizado desse item no ciclo previsto. Custos vinculados reservam também o restante no Ciclo, uma vez; Desejos continuam fora dos compromissos-base. Para fatos já existentes, vincular extra, compra ou movimento compatível de posição/meta/dívida evita criar outro lançamento. A meta relacionada dá contexto; marcar uma meta não cria aporte nem reserva dinheiro.
 
 Cobrança no cartão fica lançada e ainda a pagar até o pagamento da fatura; a parte já lançada não pode ser registrada outra vez. Novas cobranças usam o calendário do cartão escolhido. A realização em conta pelo Futuro ou pelo Ciclo usa a mesma ocorrência e gravação, com o ciclo ativo como padrão e data real separada. Valores acima do restante são recusados.
+
+## Consulta e correção do Histórico
+
+A tabela é a leitura principal: renda, custos, Desejos em conta, cartão pessoal, aporte pessoal e marca patrimonial de cada fechamento. Os desvios contra o plano ficam junto ao realizado. O período de 6 ou 12 meses representa calendário e termina no último fechamento; Tudo alcança o primeiro registro. A evolução usa o mesmo período, começa recolhida e não liga pontos separados por meses ausentes. Lacunas não são zero. O acumulado é contado desde o primeiro fechamento disponível e fica desconhecido após lacunas ou contrapartidas sem informação.
+
+Abrir ciclo revela categorias, destinações, composição dos aportes, extras, faturas preservadas e revisões. Valores do patrimônio atual e resumos concorrentes foram retirados. Fechamentos legados identificam plano estimado, meta de aporte ausente e contrapartida desconhecida; um residual sem origem não é chamado de rentabilidade.
+
+Corrigir registros abre um rascunho. Nenhum campo grava sozinho. Revisar antes/depois e ciclos envolvidos, informar motivo e Salvar correção; Cancelar ou Escape descarta a edição. Campo vazio não confirma zero. Falha de gravação mantém o rascunho; revisão desatualizada recusa a operação para evitar sobrescrever outros dados.
+
+Extras, custos e Desejos com origem são corrigidos nos fatos correspondentes, conservando IDs, data real e vínculos da agenda. A folha confirmada atualiza também sua base de orçamento. Quando só existe agregado, a correção é identificada como ajuste explícito, sem inventar movimentações ou distribuição por categoria. Contrapartida desconhecida pode continuar vazia; informar zero a confirma.
+
+A competência dos movimentos pode ser revisada no mesmo rascunho. Todas as partes vinculadas mudam juntas; a data real e o valor continuam os do fato. Aportes e caixa dos ciclos envolvidos são reconciliados e os fechamentos existentes registram o motivo e os ciclos revisados. Amortização de parcela confirmada acompanha o ciclo de seu pagamento. O patrimônio passado não é substituído pelos saldos de hoje. Para corrigir valor ou desfazer uma operação patrimonial, usar o livro de movimentos em Patrimônio.
+
+Faturas pagas podem ser consultadas com sua composição disponível. Um total histórico não substitui compras, créditos ou o pagamento ao banco: a edição isolada do agregado só existe quando não há fatura preservada. As referências de plano continuam as capturadas no fechamento.

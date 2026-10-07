@@ -21,7 +21,7 @@ export interface MovementInput {
 type LedgerOwner = { label: string; transactions: LedgerEntry[]; balance: number; set: (entries: LedgerEntry[], balance: number) => void }
 
 /** Rever uma operação também revê o caixa do fechamento, sem alterar sua marca patrimonial. */
-function refreshMovementHistory(previous: RepositoryDocument, next: RepositoryDocument): RepositoryDocument {
+export function refreshMovementHistory(previous: RepositoryDocument, next: RepositoryDocument): RepositoryDocument {
   if (!next.collections.history) return next
   const facts = (doc: RepositoryDocument, month: string) => {
     const assets = [...(doc.collections.investmentHoldings as FinancialHolding[] ?? []), ...(doc.collections.goals as FinancialGoal[] ?? [])]

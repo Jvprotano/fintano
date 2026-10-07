@@ -328,6 +328,9 @@ export interface ForecastAssumptionsV7 {
 }
 
 export interface CycleClosureV7 {
+  corrections?: import('../types').HistoryCorrection[]
+  planEstimated?: boolean
+  investmentPlanCaptured?: boolean
   id: string
   month: MonthKey
   closedAt: string

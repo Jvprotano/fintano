@@ -33,7 +33,7 @@ export function normalizeSnapshot(raw: Partial<MonthlySnapshot> | undefined): Mo
 
   const extraIncomeEntries = normalizeExtraIncomeEntries(raw?.extraIncomeEntries)
   const extraExpenseEntries = normalizeExtraIncomeEntries(raw?.extraExpenseEntries)
-  const hasWantAllocationBreakdown = Array.isArray(raw?.wantAllocations)
+  const hasWantAllocationBreakdown = Array.isArray(raw?.wantAllocations) && raw.wantAllocations.length > 0
   const wantAllocations = hasWantAllocationBreakdown
     ? (raw?.wantAllocations ?? [])
         .map((allocation) => ({
@@ -146,6 +146,8 @@ export function normalizeSnapshot(raw: Partial<MonthlySnapshot> | undefined): Mo
     cardByArea,
     cashLeftover: finiteNumber(raw?.cashLeftover),
     note: raw?.note?.trim() || undefined,
+    corrections: raw?.corrections,
+    planEstimated: raw?.planEstimated ?? (typeof raw?.costsPlanned !== 'number' || typeof raw?.wantsPlanned !== 'number'),
   }
 }
 

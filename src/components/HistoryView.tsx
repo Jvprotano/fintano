@@ -1,697 +1,172 @@
 import { Fragment, useState } from 'react'
-import { ChartColumn, History, Pencil, Trash2 } from 'lucide-react'
+import { History } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
-import {
-  EmptyState,
-  ConfirmButton,
-  Panel,
-  PanelHeader,
-  SecondaryButton,
-  StatTile,
-  Tag,
-} from './ui'
-import {
-  formatCurrency,
-  formatMonthKey,
-  formatSignedCurrency,
-  inputClass,
-} from '../lib/format'
-import { useHistoryStore, useInvestmentsStore, useScenarioStore } from '../context/financasStore'
-import type { HistoryPoint, SnapshotPatch } from '../types'
-import {
-  BUDGET_AREA_LABELS,
-  BUDGET_AREAS,
-  COST_CATEGORIES,
-} from '../types/constants'
-import { HistoryOverview } from './history/HistoryOverview'
+import { EmptyState, Panel, PrimaryButton, SecondaryButton, SegmentedControl } from './ui'
+import { formatCurrency, formatMonthKey, formatSignedCurrency, inputClass } from '../lib/format'
+import { useCardsStore, useHistoryStore } from '../context/financasStore'
+import type { HistoryPoint } from '../types'
+import { COST_CATEGORIES, BUDGET_AREA_LABELS } from '../types/constants'
+import { readRepositoryDocument } from '../data/repository'
+import { repositoryRevision } from '../data/repositoryCommand'
+import { addMonths } from '../lib/shared'
+import { historyCorrectionMovements, historyCorrectionRows, type HistoryDraft } from '../data/historyCorrections'
+import { historyMissingMonths, selectHistoryPeriod, type HistoryTrendPeriod } from '../lib/historyTrends'
 import { HistoryTrendExplorer } from './history/HistoryTrendExplorer'
 import { LegacyInvoices } from './history/LegacyInvoices'
 import { CardThirdPartyPanel } from './cards/CardThirdPartyPanel'
 
-/**
- * Correção de um mês já fechado. Refechar substituiria tudo pelos números de
- * hoje — inútil quando o erro está três meses atrás.
- */
-function SnapshotEditorContent({ point, onClose }: { point: HistoryPoint; onClose: () => void }) {
-  const history = useHistoryStore()
-  const set = (patch: SnapshotPatch) => history.updateSnapshot(point.id, patch)
-
-  const fields: { label: string; value: number; key: keyof SnapshotPatch }[] = [
-    { label: 'Base do orçamento', value: point.availableForBudget, key: 'availableForBudget' },
-    { label: 'Salário na conta', value: point.paycheckInAccount, key: 'paycheckInAccount' },
-    { label: 'Entradas extras', value: point.extraIncome, key: 'extraIncome' },
-    { label: 'Saídas extraordinárias', value: point.extraExpense, key: 'extraExpense' },
-    { label: 'Custos', value: point.costs, key: 'costs' },
-    { label: 'Plano de custos', value: point.costsPlanned, key: 'costsPlanned' },
-    { label: 'Desejos fora do cartão', value: point.wants, key: 'wants' },
-    { label: 'Plano fora do cartão', value: point.wantsPlanned, key: 'wantsPlanned' },
-    { label: 'Previdência em folha', value: point.payrollInvested, key: 'payrollInvested' },
-    {
-      label: point.employerInvestmentKnown
-        ? 'Contrapartida da empresa'
-        : 'Contrapartida da empresa (não informada)',
-      value: point.employerInvested,
-      key: 'employerInvested',
-    },
-    { label: 'Meta de investimento', value: point.investedPlanned, key: 'investedPlanned' },
-    { label: 'Ativos financeiros', value: point.grossAssets, key: 'grossAssets' },
-    { label: 'Bens', value: point.physicalAssets, key: 'physicalAssets' },
-    { label: 'Dívidas', value: point.liabilities, key: 'liabilities' },
-    {
-      label: 'Dívida com bem',
-      value: point.securedLiabilities,
-      key: 'securedLiabilities',
-    },
-    {
-      label: 'Fatura do ciclo (minha parte)',
-      value: point.cardPersonalTotal,
-      key: 'cardPersonalTotal',
-    },
-    {
-      label: 'Plano do cartão',
-      value: point.cardPlanned,
-      key: 'cardPlanned',
-    },
-  ]
-
-  return (
-    <div>
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {fields.map((field) => (
-            <label key={field.key} className="block">
-              <span className="mb-1 block text-xs text-dark-text-muted">{field.label}</span>
-              <CurrencyInput
-                value={field.value}
-                onChange={(value) => set({ [field.key]: value } as SnapshotPatch)}
-                className="!py-1.5"
-              />
-            </label>
-          ))}
-          <label className="block sm:col-span-2 xl:col-span-4">
-            <span className="mb-1 block text-xs text-dark-text-muted">Nota do mês</span>
-            <input
-              value={point.note ?? ''}
-              onChange={(event) => set({ note: event.target.value })}
-              placeholder="ex.: 13º salário, mudança de aluguel"
-              className={`${inputClass} !py-1.5`}
-            />
-          </label>
-        </div>
-        <p className="mt-2.5 text-xs leading-relaxed text-dark-text-muted">
-          Aportes e resgates seguem a competência do livro-razão em Patrimônio. Aqui você
-          corrige a previdência em folha, a contrapartida da empresa e os valores congelados no fechamento. A taxa de
-          poupança, o saldo e o patrimônio líquido são recalculados a partir dessas fontes.
-          “Fatura do ciclo” é a sua parte efetivamente paga na fatura usada para encerrar o mês.
-          Valores antecipados já retirados da fatura não são somados novamente. Financeiro: {formatCurrency(point.financialNetWorth)} · líquido total:{' '}
-          {formatCurrency(point.grossAssets + point.physicalAssets - point.liabilities)}.
-        </p>
-        <div className="mt-2.5 flex gap-2">
-          <SecondaryButton onClick={onClose}>Fechar</SecondaryButton>
-        </div>
-    </div>
-  )
-}
-
 function SnapshotEditor({ point, onClose }: { point: HistoryPoint; onClose: () => void }) {
-  return (
-    <tr className="border-t border-dark-border-subtle bg-dark-surface/40">
-      <td colSpan={9} className="px-5 py-4">
-        <SnapshotEditorContent point={point} onClose={onClose} />
-      </td>
-    </tr>
-  )
-}
-
-function HistoryActions({
-  point,
-  editing,
-  onToggleEdit,
-  onRemove,
-  desktop = false,
-}: {
-  point: HistoryPoint
-  editing: boolean
-  onToggleEdit: () => void
-  onRemove: () => void
-  desktop?: boolean
-}) {
-  const visibility = desktop
-    ? 'opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100'
-    : ''
-  return (
-    <div className="flex items-center justify-end gap-1">
-      <button
-        type="button"
-        onClick={onToggleEdit}
-        className={`rounded-md p-1.5 transition-all focus-visible:opacity-100 ${visibility} ${
-          editing
-            ? 'bg-dark-hover text-dark-text opacity-100'
-            : 'text-dark-text-muted hover:bg-dark-hover hover:text-dark-text'
-        }`}
-        aria-label={`Corrigir ${formatMonthKey(point.month)}`}
-        aria-expanded={editing}
-      >
-        <Pencil size={14} />
-      </button>
-      <ConfirmButton
-        onConfirm={onRemove}
-        confirmLabel="Apagar mês"
-        className={`!p-1.5 ${visibility}`}
-      >
-        <Trash2 size={14} />
-        <span className="sr-only">Apagar {formatMonthKey(point.month)}</span>
-      </ConfirmButton>
-    </div>
-  )
-}
-
-function PlanVariance({
-  label,
-  planned,
-  actual,
-  higherIsBetter = false,
-}: {
-  label: string
-  planned: number
-  actual: number
-  higherIsBetter?: boolean
-}) {
-  const delta = actual - planned
-  const onTarget = Math.abs(delta) <= 0.005
-  const favorable = higherIsBetter ? delta >= 0 : delta <= 0
-
-  return (
-    <div className="rounded-xl border border-dark-border-subtle bg-dark-input/30 px-3.5 py-3.5 shadow-inner shadow-black/10">
-      <span className="block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
-        {label}
-      </span>
-      <strong className="mt-1 block text-base font-semibold tabular-nums text-dark-text">
-        {formatCurrency(actual)}
-      </strong>
-      <span className="mt-1 block text-xs text-dark-text-muted">
-        plano {formatCurrency(planned)}
-      </span>
-      <span
-        className={`mt-1.5 block text-xs font-semibold tabular-nums ${
-          onTarget
-            ? 'text-dark-text-muted'
-            : favorable
-              ? 'text-primary-400'
-              : 'text-rose-400'
-        }`}
-      >
-        {onTarget ? 'No planejado' : formatSignedCurrency(delta)}
-      </span>
-    </div>
-  )
-}
-
-function CompactPlanDelta({
-  planned,
-  actual,
-  higherIsBetter = false,
-}: {
-  planned: number
-  actual: number
-  higherIsBetter?: boolean
-}) {
-  const delta = actual - planned
-  if (Math.abs(delta) <= 0.005) return null
-  const favorable = higherIsBetter ? delta >= 0 : delta <= 0
-
-  return (
-    <span
-      className={`mt-0.5 block text-xs font-medium tabular-nums ${
-        favorable ? 'text-primary-400' : 'text-rose-400'
-      }`}
-      title={`Planejado ${formatCurrency(planned)}`}
-    >
-      {formatSignedCurrency(delta)} vs plano
-    </span>
-  )
-}
-
-function WantAllocationDetails({
-  point,
-  compact = false,
-}: {
-  point: HistoryPoint
-  compact?: boolean
-}) {
-  if (point.wantAllocations.length === 0) return null
-  const title = point.wantAllocations
-    .map((allocation) => `${allocation.name}: ${formatCurrency(allocation.actual)}`)
-    .join(' · ')
-
-  if (compact) {
-    return (
-      <span
-        className="mt-0.5 block max-w-52 truncate text-xs text-dark-text-muted"
-        title={title}
-      >
-        {point.wantAllocations
-          .map((allocation) => `${allocation.name} ${formatCurrency(allocation.actual)}`)
-          .join(' · ')}
-      </span>
-    )
+  const history = useHistoryStore()
+  const [base] = useState(() => {
+    const revision = repositoryRevision(), document = readRepositoryDocument()
+    return { revision, rows: historyCorrectionRows(document, point.id), movements: historyCorrectionMovements(document, point.month) }
+  })
+  const [draft, setDraft] = useState<HistoryDraft>(() => ({
+    amounts: Object.fromEntries(base.rows.map((row) => [row.key, row.unknown ? null : row.amount])),
+    months: Object.fromEntries(base.movements.map((row) => [row.key, row.month])), note: point.note ?? '', reason: '',
+  }))
+  const [error, setError] = useState('')
+  const changes = [
+    ...base.rows.filter((row) => row.unknown ? draft.amounts[row.key] !== null : draft.amounts[row.key] !== row.amount).map((row) => ({ key: row.key, label: row.label,
+      before: row.unknown ? 'Não informada' : formatCurrency(row.amount), after: draft.amounts[row.key] === null ? 'Não informado' : formatCurrency(draft.amounts[row.key]!), source: row.context })),
+    ...base.movements.filter((row) => draft.months[row.key] !== row.month).map((row) => ({ key: row.key, label: row.label, before: formatMonthKey(row.month), after: formatMonthKey(draft.months[row.key]), source: 'Competência; data real preservada' })),
+    ...(draft.note !== (point.note ?? '') ? [{ key: 'note', label: 'Nota', before: point.note ?? 'Sem nota', after: draft.note || 'Sem nota', source: 'Fechamento' }] : []),
+  ]
+  const revisedMonths = [...new Set([point.month, ...base.movements.filter((row) => draft.months[row.key] !== row.month).map((row) => draft.months[row.key])])].sort()
+  const save = () => {
+    const result = history.updateSnapshot(point.id, draft, base.revision)
+    if (!result.ok) { setError(result.message); return }
+    onClose()
   }
-
-  return (
-    <div className="col-span-2 border-t border-dark-border-subtle pt-2">
-      <span className="text-dark-text-muted">Distribuição fora do cartão</span>
-      <ul className="mt-1.5 space-y-1">
-        {point.wantAllocations.map((allocation) => (
-          <li
-            key={allocation.id}
-            className="flex items-center justify-between gap-3 text-dark-text-secondary"
-          >
-            <span className="min-w-0 truncate">{allocation.name}</span>
-            <span className="shrink-0 tabular-nums">{formatCurrency(allocation.actual)}</span>
-          </li>
-        ))}
-      </ul>
+  return <form onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); onClose() } }} className="space-y-4" onSubmit={(event) => { event.preventDefault(); save() }}>
+    <p className="text-sm text-dark-text-secondary">Correção de {formatMonthKey(point.month)}. Os pagamentos detalhados são corrigidos na origem; valores sem origem recebem um ajuste explícito. As marcas patrimoniais continuam sendo as da data do fechamento.</p>
+    <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+      {base.rows.map((row) => <label key={row.key} className="block">
+        <span className="mb-1 block text-xs text-dark-text-secondary">{row.label}</span>
+        <CurrencyInput ariaLabel={row.label} showZero={draft.amounts[row.key] !== null} value={draft.amounts[row.key] ?? 0} placeholder="Informe o valor" onEmpty={() => setDraft((prev) => ({ ...prev, amounts: { ...prev.amounts, [row.key]: null } }))}
+          onChange={(amount) => setDraft((prev) => ({ ...prev, amounts: { ...prev.amounts, [row.key]: amount } }))} />
+        <span className="mt-1 block text-xs text-dark-text-muted">{row.context}{draft.amounts[row.key] === null && !row.unknown ? ' · Preenchimento obrigatório' : ''}</span>
+      </label>)}
     </div>
-  )
+    {base.movements.length > 0 && <div className="border-t border-dark-border-subtle pt-3">
+      <h4 className="mb-2 text-sm font-medium">Competência dos movimentos</h4>
+      <p className="mb-3 text-xs text-dark-text-muted">Alterar a competência preserva data e valor. Partes da mesma operação se movem juntas. Para corrigir valor ou desfazer, abra o livro em Patrimônio.</p>
+      <div className="space-y-2">{base.movements.map((row) => <label key={row.key} className="flex items-center justify-between gap-4 text-xs">
+        <span>{row.label} · {formatCurrency(row.amount)} · data real {row.date.slice(0, 10)}{row.locked ? ' · acompanha a parcela paga' : ''}</span>
+        <input type="month" disabled={row.locked} aria-label={`Competência de ${row.label}`} value={draft.months[row.key]} className={`${inputClass} w-44`}
+          onChange={(event) => setDraft((prev) => ({ ...prev, months: { ...prev.months, [row.key]: event.target.value } }))} />
+      </label>)}</div>
+    </div>}
+    <p className="text-xs text-dark-text-muted">Faturas com pagamento e composição preservados ficam disponíveis no detalhe do cartão. O total isolado não substitui compras, créditos ou desembolsos ao banco.</p>
+    <div className="grid grid-cols-2 gap-4">
+      <label><span className="mb-1 block text-xs text-dark-text-secondary">Nota do ciclo</span><input className={inputClass} value={draft.note} placeholder="Ex.: bônus anual recebido" onChange={(event) => setDraft((prev) => ({ ...prev, note: event.target.value }))} /></label>
+      <label><span className="mb-1 block text-xs text-dark-text-secondary">Motivo da correção</span><input required className={inputClass} value={draft.reason} placeholder="Ex.: valor conferido no extrato" onChange={(event) => setDraft((prev) => ({ ...prev, reason: event.target.value }))} /></label>
+    </div>
+    {changes.length > 0 && <div className="rounded-xl border border-dark-border bg-dark-input p-3 text-xs">
+      <p className="mb-2 font-medium">Antes → depois · ciclos revisados: {revisedMonths.map(formatMonthKey).join(', ')}</p>
+      <ul className="space-y-1.5">{changes.map((row) => <li key={row.key}><strong>{row.label}</strong>: {row.before} → {row.after}<span className="ml-2 text-dark-text-muted">{row.source}</span></li>)}</ul>
+    </div>}
+    {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
+    <div className="flex gap-2"><PrimaryButton type="submit" disabled={!changes.length || !draft.reason.trim() || base.rows.some((row) => !row.unknown && draft.amounts[row.key] === null)}>Salvar correção</PrimaryButton><SecondaryButton onClick={onClose}>Cancelar</SecondaryButton></div>
+  </form>
 }
 
-function LatestMonthComparison({ points, fixedAt }: { points: HistoryPoint[]; fixedAt?: string }) {
-  const latest = points.at(-1)
-  if (!latest) return null
-  const previous = points.at(-2)
+function PlanDelta({ actual, planned, higherIsBetter = false, known = true }: { actual: number; planned: number; higherIsBetter?: boolean; known?: boolean }) {
+  if (!known) return <span className="mt-1 block text-xs text-dark-text-muted">Plano não preservado</span>
+  const delta = actual - planned
+  const favorable = higherIsBetter ? delta >= 0 : delta <= 0
+  return <span className={`mt-1 block text-xs ${(Math.abs(delta) < 0.005) ? 'text-dark-text-muted' : favorable ? 'text-primary-400' : 'text-rose-300'}`} title={`Plano: ${formatCurrency(planned)}`}>
+    {Math.abs(delta) < 0.005 ? 'No plano' : `${formatSignedCurrency(delta)} vs plano`}
+  </span>
+}
 
-  const categoryChanges = previous
-    ? [
-        ...COST_CATEGORIES.map(({ key, label }) => ({
-          id: `cost-${key}`,
-          group: 'Custo',
-          label,
-          current: latest.costsByCategory[key] ?? 0,
-          delta: (latest.costsByCategory[key] ?? 0) - (previous.costsByCategory[key] ?? 0),
-        })),
-        ...BUDGET_AREAS.map((area) => ({
-          id: `card-${area}`,
-          group: 'Cartão',
-          label: BUDGET_AREA_LABELS[area],
-          current: latest.cardByArea[area] ?? 0,
-          delta: (latest.cardByArea[area] ?? 0) - (previous.cardByArea[area] ?? 0),
-        })),
-        ...latest.wantAllocations.map((allocation) => {
-          const before = previous.wantAllocations.find(
-            (item) => item.id === allocation.id || item.name === allocation.name,
-          )
-          return {
-            id: `want-${allocation.id}`,
-            group: 'Desejo fora do cartão',
-            label: allocation.name,
-            current: allocation.actual,
-            delta: allocation.actual - (before?.actual ?? 0),
-          }
-        }),
-      ]
-        .filter((item) => Math.abs(item.delta) > 0.005)
-        .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-        .slice(0, 6)
-    : []
-
-  return (
-    <Panel>
-      <PanelHeader
-        title={`${formatMonthKey(latest.month)}: fechamento contra o plano`}
-        icon={<ChartColumn size={16} />}
-        description={fixedAt ? 'Comparação com a referência fixada antes dos ajustes. O sinal mostra realizado menos planejado.' : 'Comparação com o plano registrado no fechamento. O sinal mostra realizado menos planejado.'}
-      />
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <PlanVariance label="Custos" planned={latest.costsPlanned} actual={latest.costs} />
-        <PlanVariance
-          label="Desejos fora do cartão"
-          planned={latest.wantsPlanned}
-          actual={latest.wants}
-        />
-        <PlanVariance label="Cartão" planned={latest.cardPlanned} actual={latest.cardPersonalTotal} />
-        <PlanVariance
-          label="Investimentos"
-          planned={latest.investedPlanned}
-          actual={latest.invested}
-          higherIsBetter
-        />
+function CycleDetails({ point }: { point: HistoryPoint }) {
+  const { paidInvoices } = useCardsStore()
+  const invoices = paidInvoices.filter((invoice) => invoice.dueMonth === addMonths(point.month, 1))
+  return <div className="space-y-4 text-xs">
+    <div className="grid grid-cols-3 gap-6">
+      <div><h4 className="mb-2 text-sm font-medium">Custos por origem</h4><ul className="space-y-1.5">
+        {COST_CATEGORIES.filter(({ key }) => point.costsByCategory[key] !== undefined).map(({ key, label }) => <li key={key} className="flex justify-between gap-3"><span>{label}</span><span>{formatCurrency(point.costsByCategory[key]!)}</span></li>)}
+        <li className="text-dark-text-muted">Plano: {formatCurrency(point.costsPlanned)}</li>
+        {Math.abs(point.costs - Object.values(point.costsByCategory).reduce((total, value) => total + (value ?? 0), 0)) > 0.005 && <li className="text-dark-text-muted">Parte sem categoria preservada: {formatCurrency(point.costs - Object.values(point.costsByCategory).reduce((total, value) => total + (value ?? 0), 0))}</li>}
+      </ul></div>
+      <div><h4 className="mb-2 text-sm font-medium">Desejos e cartão</h4><ul className="space-y-1.5">
+        {point.wantAllocations.map((row) => <li key={row.id}>{row.name}: {formatCurrency(row.actual)} · plano {formatCurrency(row.planned)}</li>)}
+        {!point.wantAllocations.length && <li>Desejos sem composição preservada</li>}
+        {Object.entries(point.cardByArea).map(([area, amount]) => <li key={area}>Cartão · {BUDGET_AREA_LABELS[area as keyof typeof BUDGET_AREA_LABELS]}: {formatCurrency(amount ?? 0)}</li>)}
+        <li className="text-dark-text-muted">Plano do cartão: {formatCurrency(point.cardPlanned)} · plano de Desejos: {formatCurrency(point.wantsPlanned)}</li>
+      </ul></div>
+      <div><h4 className="mb-2 text-sm font-medium">Investimentos e patrimônio</h4><ul className="space-y-1.5">
+        <li>Folha: {formatCurrency(point.payrollInvested)} · conta: {formatCurrency(point.directInvestedAtClose)}</li>
+        <li>Empresa: {point.employerInvestmentKnown ? formatCurrency(point.employerInvested) : 'não informada'}</li>
+        <li>Plano de aporte: {point.investmentPlanCaptured ? formatCurrency(point.investedPlanned) : 'não preservado'}</li>
+        <li>Ativos financeiros: {formatCurrency(point.grossAssets)}</li><li>Bens: {formatCurrency(point.physicalAssets)} · dívidas: {formatCurrency(point.liabilities)}</li>
+        <li className="text-dark-text-muted">Marca patrimonial de {point.closedAt.slice(0, 10)}. Variação sem origem identificada não representa rentabilidade.</li>
+      </ul></div>
+    </div>
+    {invoices.length > 0 && <details className="rounded-xl border border-dark-border p-3">
+      <summary className="cursor-pointer font-medium">Faturas preservadas · compras e pagamentos</summary>
+      <div className="mt-3 space-y-3">{invoices.map((invoice) => <div key={invoice.id ?? `${invoice.accountId}:${invoice.dueMonth}`}>
+        <p>Vencimento {formatMonthKey(invoice.dueMonth)} · pago em {invoice.paidAt.slice(0, 10)} · minha parte {formatCurrency(invoice.personalTotal)} · total ao banco {invoice.total === null ? 'não preservado' : formatCurrency(invoice.total)}</p>
+        <ul className="mt-2 space-y-1 text-dark-text-secondary">{invoice.entries?.map((entry) => <li key={entry.id}>{entry.description} · {entry.cardName} · minha parte {formatCurrency(entry.personalAmount)} · total {formatCurrency(entry.amount)}</li>)}</ul>
+        {!invoice.entries?.length && <p className="mt-2 text-dark-text-muted">Composição de compras não preservada.</p>}
+      </div>)}</div>
+    </details>}
+    <div className="grid grid-cols-2 gap-6 border-t border-dark-border-subtle pt-3">
+      <div><h4 className="mb-2 text-sm font-medium">Recebimentos e extraordinários</h4><ul className="space-y-1.5">
+        <li>Salário na conta: {formatCurrency(point.paycheckInAccount)}</li>
+        {point.extraIncomeEntries.map((entry) => <li key={entry.id}>Entrada · {entry.name}: {formatCurrency(entry.amount)}{entry.occurredAt ? ` · ${entry.occurredAt}` : ''}{entry.sourceEventId ? ' · origem na agenda' : ''}</li>)}
+        {point.extraExpenseEntries.map((entry) => <li key={entry.id}>Saída · {entry.name}: {formatCurrency(entry.amount)}{entry.occurredAt ? ` · ${entry.occurredAt}` : ''}</li>)}
+        <li>Entradas extras: {formatCurrency(point.extraIncome)} · saídas extraordinárias: {formatCurrency(point.extraExpense)}</li>
+        <li>Terceiros · adiantado: {formatCurrency(point.thirdPartyAdvanced ?? 0)} · devolvido: {formatCurrency(point.reimbursementsReceived ?? 0)}</li>
+      </ul></div>
+      <div><h4 className="mb-2 text-sm font-medium">Correções registradas</h4>
+        {!point.corrections?.length && <p className="text-dark-text-muted">Nenhuma correção registrada.</p>}
+        {point.corrections?.map((correction) => <details key={correction.id} className="mb-2 rounded-lg border border-dark-border p-2">
+          <summary className="cursor-pointer">{correction.correctedAt.slice(0, 10)} · {correction.reason}</summary>
+          <p className="mt-2 text-dark-text-muted">Ciclos revisados: {correction.revisedMonths.map(formatMonthKey).join(', ')}</p>
+          <ul className="mt-2 space-y-1">{correction.changes.map((change, index) => <li key={index}>{change.label}: {change.before} → {change.after}<span className="block text-dark-text-muted">{change.source}</span></li>)}</ul>
+        </details>)}
       </div>
-
-      {previous && categoryChanges.length > 0 && (
-        <div className="mt-4 border-t border-dark-border-subtle pt-4">
-          <span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">
-            Maiores mudanças desde {formatMonthKey(previous.month)}
-          </span>
-          <div className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-            {categoryChanges.map((item) => (
-              <div key={item.id} className="flex items-center justify-between gap-3 text-xs">
-                <span className="min-w-0 truncate text-dark-text-secondary">
-                  <span className="text-dark-text-muted">{item.group}</span> · {item.label}
-                </span>
-                <span
-                  className={`shrink-0 font-medium tabular-nums ${
-                    item.delta > 0 ? 'text-rose-400' : 'text-primary-400'
-                  }`}
-                  title={`Agora ${formatCurrency(item.current)}`}
-                >
-                  {formatSignedCurrency(item.delta)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </Panel>
-  )
+    </div>
+  </div>
 }
 
-/** Só leitura do passado — o fechamento do mês corrente vive na aba Ciclo. */
 export function HistoryView() {
   const history = useHistoryStore()
-  const investments = useInvestmentsStore()
-  const { monthlyPlans } = useScenarioStore()
-  const { points, stats } = history
-  const [editingId, setEditingId] = useState<string | null>(null)
-
-  const hasLiabilities = points.some((point) => point.liabilities > 0)
-  const hasPhysicalAssets = points.some((point) => point.physicalAssets > 0)
-
-  const reversed = [...points].reverse()
-  const latestPoint = points.at(-1)
-
-  if (points.length === 0) {
-    return (
-      <div className="space-y-4">
-        <EmptyState icon={<History size={26} />} title="Nenhum mês fechado ainda">
-          O histórico só mostra o que você já fechou. Vá em Ciclo para registrar o mês
-          corrente — a partir do segundo fechamento aparecem comparações entre ciclos e o custo
-          médio real.
-        </EmptyState>
-        <LegacyInvoices />
-      <CardThirdPartyPanel history />
+  const [period, setPeriod] = useState<HistoryTrendPeriod>(12)
+  const [expanded, setExpanded] = useState<{ id: string; editing: boolean } | null>(null)
+  const points = selectHistoryPeriod(history.points, period)
+  const missing = historyMissingMonths(history.points, period)
+  if (!history.points.length) return <div className="space-y-4"><EmptyState icon={<History size={26} />} title="Nenhum mês fechado ainda">Feche a competência na aba Ciclo para consultar o passado.</EmptyState><LegacyInvoices /><CardThirdPartyPanel history /></div>
+  return <div className="space-y-4">
+    <Panel>
+      <div className="flex items-center justify-between gap-6"><div><h2 className="text-base font-semibold">Fechamentos e diferenças contra o plano</h2><p className="mt-1 text-xs text-dark-text-muted">{formatMonthKey(points[0].month)} a {formatMonthKey(points.at(-1)!.month)} · {points.length} ciclos fechados. Abra um ciclo para explicar os valores ou corrigir sua origem.</p></div>
+        <SegmentedControl options={[{ value: 6 as const, label: '6 meses' }, { value: 12 as const, label: '12 meses' }, { value: 'all' as const, label: 'Tudo' }]} value={period} onChange={setPeriod} />
       </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile
-          label="Meses fechados"
-          value={String(stats.months)}
-          detail={`desde ${formatMonthKey(points[0].month)}`}
-        />
-        <StatTile
-          label="Custo médio"
-          value={formatCurrency(stats.averageCosts)}
-          detail={
-            stats.averageCardPersonal > 0
-              ? `+ ${formatCurrency(stats.averageCardPersonal)}/mês de fatura pessoal`
-              : 'média dos meses fechados'
-          }
-        />
-        <StatTile
-          label="Aporte médio"
-          value={formatCurrency(stats.averageInvested)}
-          detail={`${stats.averageSavingsRate.toFixed(1)}% da renda por ciclo`}
-          tone={stats.averageInvested > 0 ? 'accent' : 'neutral'}
-        />
-        <StatTile
-          label="Último aporte"
-          value={formatCurrency(latestPoint?.invested ?? 0)}
-          detail={
-            stats.months > 1
-              ? `${formatSignedCurrency(latestPoint?.investedDelta ?? 0)} vs ${formatMonthKey(points.at(-2)?.month ?? '')}`
-              : formatMonthKey(latestPoint?.month ?? '')
-          }
-          tone={
-            !latestPoint || Math.abs(latestPoint.invested) <= 0.005
-              ? 'neutral'
-              : latestPoint.invested > 0
-                ? 'positive'
-                : 'negative'
-          }
-        />
-      </div>
-
-      <LatestMonthComparison points={points} fixedAt={monthlyPlans.find((plan) => plan.month === latestPoint?.month)?.fixedReference?.fixedAt} />
-
-      <HistoryOverview
-        points={points}
-        current={{
-          financialAssets: investments.summary.financialAssets,
-          financialNetWorth: investments.summary.financialNetWorth,
-          physicalAssets: investments.summary.physicalAssets,
-          securedLiabilities: investments.summary.securedLiabilities,
-          netWorth: investments.summary.netWorth,
-        }}
-      />
-
-      <HistoryTrendExplorer points={points} />
-
-      <Panel padded={false}>
-        <h3 className="border-b border-dark-border-subtle px-5 py-4 text-sm font-semibold tracking-tight text-dark-text">
-          Meses fechados
-        </h3>
-        <div className="space-y-2 p-3 sm:hidden">
-          {reversed.map((point) => {
-            const editing = editingId === point.id
-            return (
-              <article
-                key={point.id}
-                className="rounded-lg border border-dark-border-subtle bg-dark-surface/45 p-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h4 className="font-semibold text-dark-text">{formatMonthKey(point.month)}</h4>
-                    {point.note && <p className="mt-0.5 text-xs text-dark-text-muted">{point.note}</p>}
-                  </div>
-                  <HistoryActions
-                    point={point}
-                    editing={editing}
-                    onToggleEdit={() => setEditingId(editing ? null : point.id)}
-                    onRemove={() => history.removeSnapshot(point.id)}
-                  />
-                </div>
-                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                  <div>
-                    <dt className="text-dark-text-muted">Renda</dt>
-                    <dd className="mt-0.5 tabular-nums text-dark-text">
-                      {formatCurrency(point.availableForBudget + point.extraIncome)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-dark-text-muted">Custos</dt>
-                    <dd className="mt-0.5 tabular-nums text-dark-text">{formatCurrency(point.costs)}</dd>
-                    <CompactPlanDelta planned={point.costsPlanned} actual={point.costs} />
-                  </div>
-                  <div>
-                    <dt className="text-dark-text-muted">Investido</dt>
-                    <dd className="mt-0.5 tabular-nums text-dark-text">{formatCurrency(point.invested)}</dd>
-                    <CompactPlanDelta
-                      planned={point.investedPlanned}
-                      actual={point.invested}
-                      higherIsBetter
-                    />
-                  </div>
-                  <div>
-                    <dt className="text-dark-text-muted">Fatura pessoal</dt>
-                    <dd className="mt-0.5 tabular-nums text-dark-text">
-                      {formatCurrency(point.cardPersonalTotal)}
-                    </dd>
-                    <CompactPlanDelta planned={point.cardPlanned} actual={point.cardPersonalTotal} />
-                  </div>
-                  <div>
-                    <dt className="text-dark-text-muted">Desejos fora do cartão</dt>
-                    <dd className="mt-0.5 tabular-nums text-dark-text">{formatCurrency(point.wants)}</dd>
-                    <CompactPlanDelta planned={point.wantsPlanned} actual={point.wants} />
-                  </div>
-                  <div>
-                    <dt className="text-dark-text-muted">Poupança</dt>
-                    <dd className="mt-0.5 tabular-nums text-dark-text">{point.savingsRate.toFixed(0)}%</dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-dark-text-muted">
-                      {hasLiabilities || hasPhysicalAssets ? 'Patrimônio líquido' : 'Patrimônio'}
-                    </dt>
-                    <dd className="mt-0.5 tabular-nums text-dark-text">{formatCurrency(point.netWorth)}</dd>
-                  </div>
-                  <WantAllocationDetails point={point} />
-                </dl>
-                {(point.extraIncome > 0.005 || point.extraExpense > 0.005) && (
-                  <div className="mt-3 border-t border-dark-border-subtle pt-2 text-xs leading-relaxed">
-                    {point.extraIncome > 0.005 && (
-                      <p className="text-primary-300">+ {formatCurrency(point.extraIncome)} em entradas extras</p>
-                    )}
-                    {point.extraExpense > 0.005 && (
-                      <p className="text-amber-300">− {formatCurrency(point.extraExpense)} em saídas extraordinárias</p>
-                    )}
-                  </div>
-                )}
-                {editing && (
-                  <div className="mt-3 border-t border-dark-border-subtle pt-3">
-                    <SnapshotEditorContent point={point} onClose={() => setEditingId(null)} />
-                  </div>
-                )}
-              </article>
-            )
-          })}
-        </div>
-        <div className="hidden overflow-x-auto sm:block">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-dark-text-muted">
-                <th className="px-5 py-2.5 font-medium">Mês</th>
-                <th
-                  className="px-4 py-2.5 text-right font-medium"
-                  title="Base recorrente do orçamento mais entradas extras recebidas"
-                >
-                  Renda
-                </th>
-                <th className="px-4 py-2.5 text-right font-medium">Custos</th>
-                <th className="px-4 py-2.5 text-right font-medium">Desejos fora do cartão</th>
-                <th className="px-4 py-2.5 text-right font-medium">Investido</th>
-                <th
-                  className="px-4 py-2.5 text-right font-medium"
-                  title="Sua parte da fatura usada para encerrar o ciclo"
-                >
-                  Fatura
-                </th>
-                <th className="px-4 py-2.5 text-right font-medium">Poupança</th>
-                <th className="px-4 py-2.5 text-right font-medium">
-                  {hasLiabilities || hasPhysicalAssets ? 'Líquido' : 'Patrimônio'}
-                </th>
-                <th className="px-5 py-2.5 text-right font-medium sr-only">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reversed.map((point) => (
-                <Fragment key={point.id}>
-                  <tr className="group border-t border-dark-border-subtle">
-                    <td className="px-5 py-2.5">
-                      <span className="font-medium text-dark-text">
-                        {formatMonthKey(point.month)}
-                      </span>
-                      {point.note && (
-                        <span className="ml-2 text-xs text-dark-text-muted">{point.note}</span>
-                      )}
-                      {point.extraIncome > 0.005 && (
-                        <span
-                          className="mt-0.5 block max-w-64 truncate text-xs text-primary-300"
-                          title={point.extraIncomeEntries
-                            .map((entry) => `${entry.name}: ${formatCurrency(entry.amount)}`)
-                            .join(' · ')}
-                        >
-                          + {formatCurrency(point.extraIncome)} extra
-                          {point.extraIncomeEntries.length > 0
-                            ? ` · ${point.extraIncomeEntries.map((entry) => entry.name).join(', ')}`
-                            : ''}
-                        </span>
-                      )}
-                      {point.extraExpense > 0.005 && (
-                        <span
-                          className="mt-0.5 block max-w-64 truncate text-xs text-amber-300"
-                          title={point.extraExpenseEntries
-                            .map((entry) => `${entry.name}: ${formatCurrency(entry.amount)}`)
-                            .join(' · ')}
-                        >
-                          − {formatCurrency(point.extraExpense)} extraordinário
-                          {point.extraExpenseEntries.length > 0
-                            ? ` · ${point.extraExpenseEntries.map((entry) => entry.name).join(', ')}`
-                            : ''}
-                        </span>
-                      )}
-                      {(point.thirdPartyAdvanced ?? 0) > 0.005 && <span className="mt-0.5 block text-xs text-dark-text-muted">{formatCurrency(point.thirdPartyAdvanced!)} adiantados a terceiros</span>}
-                      {(point.reimbursementsReceived ?? 0) > 0.005 && <span className="mt-0.5 block text-xs text-dark-text-muted">{formatCurrency(point.reimbursementsReceived!)} devolvidos por terceiros</span>}
-                    </td>
-                    <td
-                      className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary"
-                      title={
-                        point.extraIncome > 0.005
-                          ? `Base ${formatCurrency(point.availableForBudget)} + extras ${formatCurrency(point.extraIncome)}`
-                          : 'Base recorrente do orçamento'
-                      }
-                    >
-                      {formatCurrency(point.availableForBudget + point.extraIncome)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                      {formatCurrency(point.costs)}
-                      {point.costsDelta !== null && Math.abs(point.costsDelta) > 0.005 && (
-                        <span
-                          className={`ml-1.5 text-xs ${
-                            point.costsDelta > 0 ? 'text-rose-400' : 'text-primary-400'
-                          }`}
-                        >
-                          {point.costsDelta > 0 ? '↑' : '↓'}
-                        </span>
-                      )}
-                      <CompactPlanDelta planned={point.costsPlanned} actual={point.costs} />
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                      {formatCurrency(point.wants)}
-                      <CompactPlanDelta planned={point.wantsPlanned} actual={point.wants} />
-                      <WantAllocationDetails point={point} compact />
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                      {formatCurrency(point.invested)}
-                      <CompactPlanDelta
-                        planned={point.investedPlanned}
-                        actual={point.invested}
-                        higherIsBetter
-                      />
-                    </td>
-                    <td
-                      className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary"
-                      title="Sua parte efetivamente devida na fatura que encerrou o ciclo"
-                    >
-                      {point.cardPersonalTotal > 0 ? formatCurrency(point.cardPersonalTotal) : '—'}
-                      <CompactPlanDelta planned={point.cardPlanned} actual={point.cardPersonalTotal} />
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                      {point.savingsRate.toFixed(0)}%
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-dark-text">
-                      {formatCurrency(point.netWorth)}
-                      {point.netWorthDelta !== null && (
-                        <span
-                          className={`ml-1.5 text-xs ${
-                            point.netWorthDelta >= 0 ? 'text-primary-400' : 'text-rose-400'
-                          }`}
-                        >
-                          {point.netWorthDelta >= 0 ? '+' : '−'}
-                          {formatCurrency(Math.abs(point.netWorthDelta)).replace('R$', '').trim()}
-                        </span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-2.5 text-right">
-                      <HistoryActions
-                        point={point}
-                        editing={editingId === point.id}
-                        onToggleEdit={() =>
-                          setEditingId((prev) => (prev === point.id ? null : point.id))
-                        }
-                        onRemove={() => history.removeSnapshot(point.id)}
-                        desktop
-                      />
-                    </td>
-                  </tr>
-                  {editingId === point.id && (
-                    <SnapshotEditor point={point} onClose={() => setEditingId(null)} />
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {stats.bestSavingsMonth && stats.months > 1 && (
-          <p className="border-t border-dark-border-subtle px-5 py-3 text-xs text-dark-text-muted">
-            Melhor mês de poupança:{' '}
-            <Tag>{formatMonthKey(stats.bestSavingsMonth.month)}</Tag> com{' '}
-            {stats.bestSavingsMonth.savingsRate.toFixed(0)}%.
-          </p>
-        )}
-      </Panel>
-      <LegacyInvoices />
-      <CardThirdPartyPanel history />
-    </div>
-  )
+      {missing.length > 0 && <p className="mt-3 text-xs text-amber-200">Sem fechamento: {missing.map(formatMonthKey).join(', ')}. Esses períodos não são considerados zero nem interpolados no gráfico.</p>}
+      {points.some((point) => point.planEstimated || !point.investmentPlanCaptured || !point.employerInvestmentKnown) && <p className="mt-3 text-xs text-dark-text-muted">Há registros antigos com plano estimado, meta de aporte ou contrapartida não preservados. Valores desconhecidos ficam identificados no detalhe.</p>}
+    </Panel>
+    <Panel padded={false}>
+      <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-xs text-dark-text-muted">
+        {['Ciclo', 'Renda', 'Custos', 'Desejos em conta', 'Cartão pessoal', 'Aporte pessoal', 'Patrimônio na data', 'Detalhes'].map((label, index) => <th key={label} className={`px-4 py-3 font-medium ${index ? 'text-right' : ''}`}>{label}</th>)}
+      </tr></thead><tbody>{[...points].reverse().map((point) => <Fragment key={point.id}>
+        <tr className="border-t border-dark-border-subtle align-top">
+          <td className="px-4 py-3"><strong className="font-medium">{formatMonthKey(point.month)}</strong>{point.planEstimated && <span className="mt-1 block text-xs text-dark-text-muted">Plano estimado</span>}{point.note && <span className="mt-1 block max-w-44 text-xs text-dark-text-muted">{point.note}</span>}{!!point.corrections?.length && <span className="mt-1 block text-xs text-dark-text-muted">Corrigido · {point.corrections.length} revisões</span>}</td>
+          <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(point.availableForBudget + point.extraIncome)}</td>
+          <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(point.costs)}<PlanDelta actual={point.costs} planned={point.costsPlanned} known={!point.planEstimated} /></td>
+          <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(point.wants)}<PlanDelta actual={point.wants} planned={point.wantsPlanned} known={!point.planEstimated} /></td>
+          <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(point.cardPersonalTotal)}<PlanDelta actual={point.cardPersonalTotal} planned={point.cardPlanned} known={!point.planEstimated} /></td>
+          <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(point.invested)}<PlanDelta actual={point.invested} planned={point.investedPlanned} higherIsBetter known={point.investmentPlanCaptured} /></td>
+          <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(point.netWorth)}</td>
+          <td className="px-4 py-3 text-right"><SecondaryButton onClick={() => setExpanded((current) => current?.id === point.id ? null : { id: point.id, editing: false })}>{expanded?.id === point.id ? 'Recolher' : 'Abrir ciclo'}</SecondaryButton></td>
+        </tr>
+        {expanded?.id === point.id && <tr className="border-t border-dark-border-subtle bg-dark-surface/40"><td colSpan={8} className="px-5 py-4">
+          {expanded.editing ? <SnapshotEditor key={point.id} point={point} onClose={() => setExpanded({ id: point.id, editing: false })} /> : <><CycleDetails point={point} /><div className="mt-4"><SecondaryButton onClick={() => setExpanded({ id: point.id, editing: true })}>Corrigir registros deste ciclo</SecondaryButton></div></>}
+        </td></tr>}
+      </Fragment>)}</tbody></table></div>
+    </Panel>
+    <details className="group"><summary className="cursor-pointer rounded-xl border border-dark-border bg-dark-card px-4 py-3 text-sm font-medium">Consultar evolução · mesmo período dos fechamentos</summary><div className="mt-3"><HistoryTrendExplorer points={history.points} period={period} /></div></details>
+    <LegacyInvoices /><CardThirdPartyPanel history />
+  </div>
 }

@@ -46,12 +46,6 @@ const VIEW_OPTIONS = [
   { value: 'rate' as const, label: '% da renda' },
 ]
 
-const PERIOD_OPTIONS = [
-  { value: 6 as const, label: '6m' },
-  { value: 12 as const, label: '12m' },
-  { value: 'all' as const, label: 'Tudo' },
-]
-
 function chartDomain(values: number[]): [number, number] {
   if (values.length === 0) return [0, 1]
   const min = Math.min(0, ...values)
@@ -62,7 +56,7 @@ function chartDomain(values: number[]): [number, number] {
 
 function viewDescription(view: TrendView) {
   if (view === 'cumulative') {
-    return 'Total creditado acumulado: aportes pessoais mais contrapartida. Não inclui valorização nem saldo inicial.'
+    return 'Total creditado acumulado desde o primeiro fechamento disponível: aportes pessoais mais contrapartida. Lacunas ou contrapartida desconhecida interrompem o acumulado. Não inclui valorização nem saldo inicial.'
   }
   if (view === 'rate') {
     return 'Percentual da renda do ciclo destinado a aportes, incluindo previdência em folha.'
@@ -70,14 +64,13 @@ function viewDescription(view: TrendView) {
   return 'Fluxos realizados em reais. Ative apenas as séries que deseja comparar.'
 }
 
-export function HistoryTrendExplorer({ points }: { points: HistoryPoint[] }) {
+export function HistoryTrendExplorer({ points, period = 'all' }: { points: HistoryPoint[]; period?: HistoryTrendPeriod }) {
   const [view, setView] = useState<TrendView>('cycle')
-  const [period, setPeriod] = useState<HistoryTrendPeriod>(12)
   const [selectedSeries, setSelectedSeries] = useState<CurrencySeries[]>([
     'invested',
     'employerInvested',
   ])
-  const data = useMemo(() => buildHistoryTrendPoints(points, period), [period, points])
+  const data = useMemo(() => buildHistoryTrendPoints(points, period), [points, period])
 
   const activeSeries = useMemo(() => {
     if (view === 'cumulative') {
@@ -123,17 +116,7 @@ export function HistoryTrendExplorer({ points }: { points: HistoryPoint[] }) {
             className="w-full"
           />
         </div>
-        <div className="w-full sm:w-44">
-          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
-            Período
-          </span>
-          <SegmentedControl
-            options={PERIOD_OPTIONS}
-            value={period}
-            onChange={setPeriod}
-            className="w-full"
-          />
-        </div>
+
       </div>
 
       {view === 'cycle' && (

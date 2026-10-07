@@ -228,8 +228,7 @@ function forecastTermsFromBackup(terms: ForecastTermsV9): ExpectedEventTerms {
 
 function snapshotToClosure(raw: Partial<MonthlySnapshot>): CycleClosureV7 {
   const snapshot = normalizeSnapshot(raw)
-  const employerKnown =
-    raw.employerInvestmentKnown === true || typeof raw.employerInvested === 'number'
+  const employerKnown = snapshot.employerInvestmentKnown
   return {
     id: snapshot.id,
     month: snapshot.month,
@@ -299,6 +298,9 @@ function snapshotToClosure(raw: Partial<MonthlySnapshot>): CycleClosureV7 {
       ) as Partial<Record<BudgetArea, MoneyCents>>,
     },
     note: snapshot.note,
+    corrections: snapshot.corrections,
+    planEstimated: snapshot.planEstimated,
+    investmentPlanCaptured: snapshot.investmentPlanCaptured,
   }
 }
 
@@ -358,7 +360,7 @@ function closureToSnapshot(closure: CycleClosureV7): MonthlySnapshot {
     openingBalance: fromCents(closure.investments.openingBalanceCents),
     investmentProjectionVersion: 1,
     invested,
-    investmentPlanCaptured: true,
+    investmentPlanCaptured: closure.investmentPlanCaptured ?? true,
     investedPlanned: fromCents(closure.plan.personalInvestmentCents),
     balance:
       fromCents(closure.cash.paycheckCents) + extraIncome + fromCents(closure.cash.reimbursementsReceivedCents ?? 0) - fromCents(closure.cash.thirdPartyAdvancedCents ?? 0) - extraExpense - costs - wants - directInvestedAtClose,
@@ -382,6 +384,8 @@ function closureToSnapshot(closure: CycleClosureV7): MonthlySnapshot {
     ),
     cashLeftover: fromCents(closure.cash.leftoverCents),
     note: closure.note,
+    corrections: closure.corrections,
+    planEstimated: closure.planEstimated,
   })
 }
 
@@ -1496,6 +1500,18 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const closure of backup.history.closures) {
+    if (closure.planEstimated !== undefined && typeof closure.planEstimated !== 'boolean' ||
+      closure.investmentPlanCaptured !== undefined && typeof closure.investmentPlanCaptured !== 'boolean') {
+      add('error', 'history_origin_invalid', 'Origem da comparação histórica inválida.', closure.id)
+    }
+    if (closure.corrections !== undefined && (!Array.isArray(closure.corrections) || closure.corrections.some((item) =>
+      !item || typeof item.id !== 'string' || !item.id || typeof item.reason !== 'string' || !item.reason.trim() ||
+      typeof item.correctedAt !== 'string' || !Number.isFinite(Date.parse(item.correctedAt)) ||
+      !Array.isArray(item.revisedMonths) || !item.revisedMonths.length || item.revisedMonths.some((month) => !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) ||
+      !Array.isArray(item.changes) || !item.changes.length || item.changes.some((change) =>
+        !change || ['label', 'before', 'after', 'source'].some((key) => typeof change[key as keyof typeof change] !== 'string'))))) {
+      add('error', 'history_corrections_invalid', 'Registro de correção histórica inválido.', closure.id)
+    }
     if (!templateIds.has(closure.planningTemplateId)) {
       add(
         'warning',

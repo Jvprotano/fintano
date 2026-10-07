@@ -75,6 +75,8 @@ export interface WantAllocationSnapshot {
 }
 
 export interface MonthlySnapshot {
+  corrections?: HistoryCorrection[]
+  planEstimated?: boolean
   id: string
   month: string
   closedAt: string
@@ -125,6 +127,14 @@ export interface MonthlySnapshot {
   cardByArea: Partial<Record<BudgetArea, number>>
   cashLeftover: number
   note?: string
+}
+
+export interface HistoryCorrection {
+  id: string
+  correctedAt: string
+  reason: string
+  revisedMonths: string[]
+  changes: { label: string; before: string; after: string; source: string }[]
 }
 
 export interface HistoryPoint extends MonthlySnapshot {
