@@ -2,11 +2,20 @@ export type ExpectedEventKind = 'income' | 'expense'
 export type ExpectedEventRecurrence = 'once' | 'yearly' | 'monthly'
 export type EventCashTreatment = 'extra' | 'planned' | 'card'
 
+export type ForecastFactLink =
+  | { type: 'cost' | 'want' | 'cash'; id: string; month: string }
+  | { type: 'card'; id: string }
+  | { type: 'movement'; ownerType: 'holding' | 'goal' | 'debt'; ownerId: string; id: string }
+
+export type ExpectedEventTerms = Pick<ExpectedEvent, 'name' | 'kind' | 'amount' | 'month' | 'date' | 'cashTreatment' | 'cardDueMonth' | 'confirmed' | 'savedPct' | 'goalId' | 'note' | 'planLink'>
+
 export interface ExpectedOccurrenceOverride {
   date?: string
   month?: string
   amount?: number
   cancelled?: boolean
+  terms?: ExpectedEventTerms
+  links?: ForecastFactLink[]
   /** Efetivação de uma saída já incluída no plano; não cria outra saída de caixa. */
   realizedAmount?: number
   realizedAt?: string
@@ -36,6 +45,10 @@ export interface ExpectedEvent {
   cardDueMonth?: string
   /** Entrada esperada pode ser marcada como confirmada, sem virar caixa realizado. */
   confirmed?: boolean
+  cancelled?: boolean
+  futureChanges?: Record<string, ExpectedEventTerms>
+  /** O mesmo item do plano, em cada ciclo da ocorrência. */
+  planLink?: { type: 'cost' | 'want'; id: string }
   occurrenceOverrides?: Record<string, ExpectedOccurrenceOverride>
   savedPct?: number
   goalId?: string
@@ -52,6 +65,7 @@ export interface ExpectedOccurrence {
   amount: number
   signedAmount: number
   savedAmount: number
+  cancelled?: boolean
 }
 
 export interface ForecastAssumptions {

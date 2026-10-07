@@ -12,10 +12,10 @@ import {
 import { CurrencyInput } from './CurrencyInput'
 import { EmptyState, Panel, PanelHeader, SecondaryButton, Tag } from './ui'
 import { formatCurrency, formatMonthLong } from '../lib/format'
-import { useActualsStore, useCardsStore, useForecastStore, useMetrics } from '../context/financasStore'
+import { useActualsStore, useForecastStore, useMetrics, useFinancasStore } from '../context/financasStore'
 import { COST_CATEGORY_COLORS, COST_CATEGORY_LABELS } from '../types/constants'
 import { ActualCashEntries } from './ActualCashEntries'
-import { reconcileOccurrence } from '../lib/forecastCoverage'
+import { requiresExtraCash } from '../lib/forecastCoverage'
 
 // ---------------------------------------------------------------------------
 // Realizado do mês.
@@ -112,7 +112,7 @@ export function CostAdjustmentControl({
 export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () => void; onGoToPlanning: () => void }) {
   const actuals = useActualsStore()
   const forecast = useForecastStore()
-  const cards = useCardsStore()
+  const { forecastAgenda } = useFinancasStore()
   const metrics = useMetrics()
   const { summary } = actuals
   const {
@@ -133,14 +133,11 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
     extraIncome,
     extraExpenses,
   } = summary
-  const today = new Date().toISOString().slice(0, 10)
-  const cycleEvents = forecast.monthOccurrences
-    .map((occurrence) => reconcileOccurrence(occurrence, actuals.months, today, cards.entries, cards.paidInvoices))
-  const pending = cycleEvents
-    .filter((occurrence) => occurrence.remainingAmount > 0.005)
-  const expectedIncome = pending.filter((occurrence) => occurrence.event.kind === 'income')
+  const pending = forecastAgenda.flatMap((row) => row.items).filter((item) => item.month <= forecast.currentMonth && item.remainingAmount > 0.005 && item.status !== 'cancelled')
+  const cycleEvents = pending.filter((item) => !requiresExtraCash(item))
+  const expectedIncome = pending.filter((occurrence) => occurrence.event.kind === 'income' && requiresExtraCash(occurrence))
   const expectedExpenses = pending.filter((occurrence) => occurrence.event.kind === 'expense' &&
-    occurrence.event.cashTreatment !== 'planned' && occurrence.event.cashTreatment !== 'card')
+    requiresExtraCash(occurrence))
 
   return (
     <Panel>

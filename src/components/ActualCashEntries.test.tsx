@@ -17,6 +17,10 @@ const expected: ReconciledOccurrence[] = [
     savedAmount: 500,
     paidAmount: 0,
     remainingAmount: 500,
+    committedAmount: 0,
+    unregisteredAmount: 500,
+    overdue: false,
+    linked: false,
     status: 'pending',
     event: {
       id: 'bonus-1',

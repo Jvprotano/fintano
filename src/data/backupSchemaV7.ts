@@ -7,6 +7,8 @@ import type {
   ExpectedEventKind,
   ExpectedEventRecurrence,
   EventCashTreatment,
+  ExpectedEventTerms,
+  ForecastFactLink,
   GoalInclusionType,
   GoalKind,
   PaymentMethod,
@@ -303,12 +305,17 @@ export interface ForecastEventV7 {
   cashTreatment?: EventCashTreatment
   cardDueMonth?: MonthKey
   confirmed?: boolean
-  occurrenceOverrides?: Record<string, { date?: string; month?: MonthKey; amountCents?: MoneyCents; cancelled?: boolean; realizedAmountCents?: MoneyCents; realizedAt?: string }>
+  cancelled?: boolean
+  planLink?: ExpectedEventTerms['planLink']
+  futureChanges?: Record<string, ForecastTermsV9>
+  occurrenceOverrides?: Record<string, { date?: string; month?: MonthKey; amountCents?: MoneyCents; cancelled?: boolean; realizedAmountCents?: MoneyCents; realizedAt?: string; terms?: ForecastTermsV9; links?: ForecastFactLink[] }>
   savedPct?: number
   goalId?: string
   note?: string
   createdAt: string
 }
+
+export type ForecastTermsV9 = Omit<ExpectedEventTerms, 'amount'> & { amountCents: MoneyCents }
 
 export interface ForecastAssumptionsV7 {
   monthlyContributionCents: MoneyCents | null

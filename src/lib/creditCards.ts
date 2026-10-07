@@ -262,6 +262,7 @@ export function syncGeneratedNextEntries(
         remainingAmount: 0,
         // Antecipar o pagamento vale só para o ciclo atual; a próxima cobrança volta a ser devida.
         isPrepaid: undefined,
+        sourceForecastOccurrenceId: undefined,
       }),
     )
   }
@@ -291,6 +292,7 @@ export function syncGeneratedNextEntries(
         installmentCurrent: nextInstallment,
         remainingAmount: buildRemainingInstallmentsAmount(entry.amount, nextInstallment, total),
         isPrepaid: undefined,
+        sourceForecastOccurrenceId: undefined,
       }),
     )
   }

@@ -5,9 +5,7 @@ import {
   Gift,
   Plus,
   Pencil,
-  Repeat,
-  Sparkles,
-  Trash2,
+  Ban,
   TrendingUp,
 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
@@ -19,7 +17,6 @@ import {
   SecondaryButton,
   SegmentedControl,
   StatTile,
-  Tag,
   TrendChart,
   type TrendSeries,
 } from './ui'
@@ -27,15 +24,16 @@ import {
   formatCurrency,
   formatMonthKey,
   formatMonthLong,
-  formatMonths,
   inputClass,
 } from '../lib/format'
-import { EVENT_SUGGESTIONS, nextMonthKeyFor, occurrencesInRange, projectedAt } from '../lib/forecast'
+import { EVENT_SUGGESTIONS, nextMonthKeyFor, projectedAt } from '../lib/forecast'
 // `formatMonthLong` nomeia o mês em que a dívida zera; os demais formatos são de eixo.
-import { monthKey, monthsBetween } from '../lib/shared'
+import { monthKey } from '../lib/shared'
 import { useFinancasStore } from '../context/financasStore'
 import type { ExpectedEvent, ExpectedEventKind, ExpectedEventRecurrence, GoalSummary } from '../types'
 import { CHART_PALETTE, RECURRENCE_LABELS } from '../types/constants'
+import { repositoryRevision } from '../data/repositoryCommand'
+import { cardDueMonthForOccurrence, type ReconciledOccurrence } from '../lib/forecastCoverage'
 import { ForecastEventOccurrences } from './ForecastCommitments'
 
 // ---------------------------------------------------------------------------
@@ -49,27 +47,27 @@ import { ForecastEventOccurrences } from './ForecastCommitments'
 
 const HORIZONS = [12, 18, 24, 36]
 
-function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEvent }) {
+function EventForm({ onClose, event, occurrence }: { onClose: () => void; event?: ExpectedEvent; occurrence?: ReconciledOccurrence }) {
   const store = useFinancasStore()
   const { forecast } = store
-  const eventId = event?.id
-  const hasLinkedFacts = Boolean(eventId && (
-    store.actuals.months.some((cycle) => [...cycle.extraIncome, ...cycle.extraExpenses]
-      .some((entry) => entry.sourceEventId === eventId)) ||
-    store.cards.entries.some((entry) => entry.sourceForecastOccurrenceId?.startsWith(`${eventId}@`)) ||
-    store.cards.paidInvoices.some((invoice) => invoice.forecastOccurrences?.some((item) => item.id.startsWith(`${eventId}@`)))
-  ))
+  const hasLinkedFacts = Boolean(event)
   const [kind, setKind] = useState<ExpectedEventKind>(event?.kind ?? 'income')
   const [name, setName] = useState(event?.name ?? '')
-  const [amount, setAmount] = useState(event?.amount ?? 0)
-  const [month, setMonth] = useState(event?.month ?? monthKey())
-  const [date, setDate] = useState(event?.date ?? '')
+  const [amount, setAmount] = useState(occurrence?.amount ?? event?.amount ?? 0)
+  const [month, setMonth] = useState(occurrence?.month ?? forecast.currentMonth)
+  const [date, setDate] = useState(occurrence?.date ?? event?.date ?? '')
   const [recurrence, setRecurrence] = useState<ExpectedEventRecurrence>(event?.recurrence ?? 'once')
   const [savedPct, setSavedPct] = useState(event?.savedPct ?? 100)
   const [cashTreatment, setCashTreatment] = useState(event?.cashTreatment ?? 'extra')
-  const [cardDueMonth, setCardDueMonth] = useState(event?.cardDueMonth ?? '')
+  const [cardDueMonth, setCardDueMonth] = useState(occurrence ? cardDueMonthForOccurrence(occurrence) ?? '' : event?.cardDueMonth ?? '')
   const [confirmed, setConfirmed] = useState(event?.confirmed ?? false)
   const [note, setNote] = useState(event?.note ?? '')
+  const [scope, setScope] = useState<'this' | 'following'>('this')
+  const [error, setError] = useState('')
+  const [revision, setRevision] = useState(repositoryRevision)
+  const [planChoice, setPlanChoice] = useState(event?.planLink ? event.planLink.type + ':' + event.planLink.id : '')
+  const [goalId, setGoalId] = useState(event?.goalId ?? '')
+  const plan = store.scenarios.monthlyPlans.find((row) => row.month === month) ?? store.scenarios.activeScenarioAll
 
   const handleAdd = () => {
     if (!name.trim() || amount <= 0 ||
@@ -77,9 +75,9 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
     const input = { name, kind, amount, month, date: date || undefined, recurrence,
       savedPct, cashTreatment,
       cardDueMonth: cashTreatment === 'card' ? cardDueMonth || undefined : undefined,
-      confirmed, note: note || undefined }
-    const saved = event ? forecast.updateEvent(event.id, input) : forecast.addEvent(input)
-    if (!saved) return
+      confirmed, note: note || undefined, goalId: goalId || undefined, planLink: cashTreatment === 'planned' && planChoice ? { type: planChoice.startsWith('cost:') ? 'cost' as const : 'want' as const, id: planChoice.slice(planChoice.indexOf(':') + 1) } : undefined }
+    if (event && occurrence) { const result = forecast.updateEvent(event.id, input, occurrence.originalMonth, scope, revision); if (!result.ok) { setError(result.message); return } }
+    else if (!forecast.addEvent({ ...input, recurrence })) { setError('Não foi possível salvar. Confira os campos e o armazenamento.'); return }
     setName('')
     setAmount(0)
     onClose()
@@ -108,7 +106,7 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
         )}</div>
       </details>}
 
-      {hasLinkedFacts ? <p className="text-sm text-dark-text-secondary">{kind === 'income' ? 'Entra dinheiro' : 'Sai dinheiro'} · tipo preservado porque já há fatos vinculados.</p> : <SegmentedControl
+      {hasLinkedFacts ? <p className="text-sm text-dark-text-secondary">{kind === 'income' ? 'Entra dinheiro' : 'Sai dinheiro'} · tipo preservado na série.</p> : <SegmentedControl
         options={[
           { value: 'income' as ExpectedEventKind, label: 'Entra dinheiro' },
           { value: 'expense' as ExpectedEventKind, label: 'Sai dinheiro' },
@@ -117,7 +115,7 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
         onChange={setKind}
         className="sm:max-w-80"
       />}
-      {hasLinkedFacts && <p className="text-xs text-dark-text-muted">O mês inicial e a repetição da série ficam fixos. Para mudar uma cobrança futura, use “Ajustar esta ocorrência” na agenda.</p>}
+      {hasLinkedFacts && <p className="text-xs text-dark-text-muted">Pagamentos e recebimentos ficam preservados. A repetição da série mantém sua origem; a edição abaixo ajusta a pendência escolhida.</p>}
 
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
@@ -139,7 +137,6 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
           <span className="mb-1 block text-xs text-dark-text-muted">Mês previsto</span>
           <input
             type="month"
-            disabled={hasLinkedFacts}
             value={month}
             onChange={(event) => { setMonth(event.target.value || monthKey()); setDate('') }}
             className={inputClass}
@@ -147,7 +144,7 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-dark-text-muted">Dia exato (se souber)</span>
-          <input type="date" disabled={hasLinkedFacts} value={date} onChange={(event) => {
+          <input type="date" value={date} onChange={(event) => {
             setDate(event.target.value)
             if (event.target.value) setMonth(event.target.value.slice(0, 7))
           }} className={inputClass} />
@@ -178,14 +175,6 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
           <input type="month" min={month} value={cardDueMonth} onChange={(event) => setCardDueMonth(event.target.value)} className={inputClass} />
         </label>}
       </div>
-
-      {event && Object.entries(event.occurrenceOverrides ?? {}).length > 0 && <details className="rounded-lg border border-dark-border-subtle p-3">
-        <summary className="cursor-pointer text-xs font-semibold text-dark-text-secondary marker:text-dark-text-muted">Ajustes de datas anteriores</summary>
-        {Object.entries(event.occurrenceOverrides ?? {}).map(([originalMonth, override]) => <div key={originalMonth} className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-dark-text-muted">
-          <span>{formatMonthKey(originalMonth)} · {override.cancelled ? 'cancelada' : override.date ?? override.month ?? 'valor alterado'}</span>
-          <button type="button" onClick={() => forecast.clearOccurrenceOverride(event.id, originalMonth)} className="text-primary-400 hover:text-primary-300">Reverter ajuste</button>
-        </div>)}
-      </details>}
 
       <details className="rounded-lg border border-dark-border-subtle p-3 text-sm text-dark-text-secondary">
         <summary className="cursor-pointer marker:text-dark-text-muted">Mais opções</summary>
@@ -220,8 +209,12 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
       )}
       </details>
 
+      {cashTreatment === 'planned' && kind === 'expense' && <label className="block"><span className="app-form-label mb-1 block">Item do plano que já cobre esta saída</span><select className={inputClass} value={planChoice} onChange={(e) => setPlanChoice(e.target.value)}><option value="">Escolha o item</option>{plan.costs.filter((row) => !row.archivedAt && row.paidWith !== 'card').map((row) => <option key={row.id} value={'cost:' + row.id}>{row.name} · custo</option>)}{plan.wants.filter((row) => !row.archivedAt && row.paidWith === 'account').map((row) => <option key={row.id} value={'want:' + row.id}>{row.name} · Desejos</option>)}</select></label>}
+      <label className="block"><span className="app-form-label mb-1 block">Meta relacionada (opcional)</span><select className={inputClass} value={goalId} onChange={(e) => setGoalId(e.target.value)}><option value="">Sem meta</option>{store.investments.goals.filter((row) => !row.archivedAt).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+      {event && event.recurrence !== 'once' && <label className="block"><span className="app-form-label mb-1 block">Aplicar alteração</span><select className={inputClass} value={scope} onChange={(e) => setScope(e.target.value as 'this' | 'following')}><option value="this">Esta ocorrência</option><option value="following">Esta e próximas pendentes</option></select></label>}
+      {error && <div role="alert" className="text-xs text-rose-200">{error}<SecondaryButton className="ml-2" onClick={() => { setRevision(repositoryRevision()); setError('') }}>Revisar dados atuais</SecondaryButton></div>}
       <div className="flex gap-2">
-        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || amount <= 0 || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))}>
+        <PrimaryButton onClick={handleAdd} disabled={!name.trim() || amount <= 0 || (cashTreatment === 'planned' && !planChoice) || (kind === 'expense' && cashTreatment === 'card' && (!cardDueMonth || cardDueMonth < month))}>
           <Plus size={15} />
           {event ? 'Salvar alterações' : 'Adicionar'}
         </PrimaryButton>
@@ -231,88 +224,36 @@ function EventForm({ onClose, event }: { onClose: () => void; event?: ExpectedEv
   )
 }
 
-function EventRow({ event, currentMonth }: { event: ExpectedEvent; currentMonth: string }) {
-  const { forecast } = useFinancasStore()
-  const [editing, setEditing] = useState(false)
-  const [showDates, setShowDates] = useState(false)
-  const [removeError, setRemoveError] = useState('')
-  const next = occurrencesInRange([event], currentMonth, 120)[0]
-  const monthsAway = next ? monthsBetween(currentMonth, next.month) : null
-  const isIncome = event.kind === 'income'
-
-  return (
-    <li className="group rounded-lg border border-dark-border-subtle bg-dark-surface/45 px-3 py-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span
-        className={`shrink-0 rounded-md p-1.5 ${
-          isIncome ? 'bg-primary-500/10 text-primary-400' : 'bg-white/[0.05] text-dark-text-secondary'
-        }`}
-      >
-        {isIncome ? <Gift size={14} /> : <CalendarClock size={14} />}
-      </span>
-      <div className="min-w-[10rem] flex-1">
-        <p className="text-sm font-medium text-dark-text">{event.name}</p>
-        <p className="flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
-          {next ? (
-            <>
-              {next.date ? next.date.split('-').reverse().join('/') : formatMonthKey(next.month)}
-              {monthsAway !== null && monthsAway > 0 && ` · em ${formatMonths(monthsAway)}`}
-              {monthsAway === 0 && ' · este mês'}
-            </>
-          ) : (
-            'já passou'
-          )}
-          {event.recurrence !== 'once' && (
-            <Tag>
-              <Repeat size={10} />
-              {RECURRENCE_LABELS[event.recurrence]}
-            </Tag>
-          )}
-          {isIncome && (event.savedPct ?? 100) < 100 && <Tag>guarda {event.savedPct}%</Tag>}
-        </p>
-      </div>
-      <strong className="shrink-0 text-sm tabular-nums text-dark-text">{isIncome ? '+' : '−'} {formatCurrency(event.amount)}</strong>
-      <button type="button" onClick={() => setEditing((value) => !value)} aria-label={`Editar ${event.name}`}
-        className="shrink-0 rounded-md p-1.5 text-dark-text-muted hover:bg-white/[0.06] hover:text-dark-text"><Pencil size={14} /></button>
-      <button
-        type="button"
-        onClick={() => {
-          if (!forecast.removeEvent(event.id)) {
-            setRemoveError('Este evento já tem efetivações vinculadas. Preserve a origem; ajuste as próximas ocorrências no detalhe.')
-          } else setRemoveError('')
-        }}
-        className="shrink-0 rounded-md p-1.5 text-dark-text-muted opacity-100 transition-all hover:bg-rose-500/10 hover:text-rose-400 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
-        aria-label={`Remover ${event.name}`}
-      >
-        <Trash2 size={14} />
-      </button>
-      </div>
-      {removeError && <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">{removeError}</p>}
-      <button type="button" onClick={() => setShowDates((value) => !value)}
-        className="mt-1 text-xs text-dark-text-muted hover:text-dark-text">
-        {showDates ? 'Ocultar datas' : 'Ver datas e registrar efetivação'}
-      </button>
-      {showDates && <ForecastEventOccurrences event={event} />}
-      {editing && <EventForm event={event} onClose={() => setEditing(false)} />}
-    </li>
-  )
+function EventRow({ event }: { event: ExpectedEvent }) {
+  const { forecast, forecastAgenda } = useFinancasStore()
+  const [editing, setEditing] = useState<ReconciledOccurrence | null>(null)
+  const [showDates, setShowDates] = useState(false), [error, setError] = useState('')
+  const next = forecastAgenda.find((row) => row.event.id === event.id)?.next
+  const income = event.kind === 'income'
+  return <li className="rounded-lg border border-dark-border-subtle bg-dark-surface/45 px-3 py-3">
+    <div className="flex items-start gap-3"><span className="rounded-md bg-dark-card p-2 text-dark-text-muted">{income ? <Gift size={14} /> : <CalendarClock size={14} />}</span>
+      <div className="min-w-0 flex-1"><p className="text-sm font-medium text-dark-text">{next?.event.name ?? event.name}</p><p className="mt-1 text-xs text-dark-text-muted">{next ? (next.date ? next.date.split('-').reverse().join('/') : formatMonthKey(next.month)) + (next.overdue ? ' · vencida' : '') + (next.paidAmount > 0 ? ' · parcial: ' + formatCurrency(next.paidAmount) + ' efetivados' : '') + (next.committedAmount > 0 ? ' · no cartão: ' + formatCurrency(next.committedAmount) : '') : event.cancelled ? 'Previsão cancelada; fatos preservados' : 'Sem pendência neste período'}{event.recurrence !== 'once' ? ' · ' + RECURRENCE_LABELS[event.recurrence] : ''}</p></div>
+      {next && <strong className="text-sm tabular-nums text-dark-text">{income ? '+' : '−'} {formatCurrency(next.remainingAmount)}<span className="ml-1 text-xs font-normal text-dark-text-muted">restante</span></strong>}
+      {next && <button type="button" aria-label={'Editar ' + event.name} className="p-1 text-dark-text-muted" onClick={() => setEditing(next)}><Pencil size={14} /></button>}
+      <button type="button" aria-label={(event.cancelled ? 'Reativar ' : 'Cancelar ') + event.name} className="p-1 text-dark-text-muted" onClick={() => { const saved = event.cancelled ? forecast.restoreEvent(event.id) : forecast.removeEvent(event.id); setError(saved ? '' : 'Não foi possível alterar a previsão.') }}>{event.cancelled ? 'Reativar' : <Ban size={14} />}</button>
+    </div>
+    <button type="button" className="mt-2 text-xs text-dark-text-muted" onClick={() => setShowDates(!showDates)}>{showDates ? 'Ocultar ocorrências' : 'Ver ocorrências e registros'}</button>
+    {showDates && <ForecastEventOccurrences event={event} onEdit={setEditing} />}
+    {editing && <EventForm key={editing.id} event={editing.event} occurrence={editing} onClose={() => setEditing(null)} />}
+    {error && <p role="alert" className="mt-2 text-xs text-rose-200">{error}</p>}
+  </li>
 }
 
-function ExpectedEventsPanel({ events, currentMonth }: { events: ExpectedEvent[]; currentMonth: string }) {
+function ExpectedEventsPanel() {
+  const { forecast, forecastAgenda } = useFinancasStore()
   const [showForm, setShowForm] = useState(false)
-
-  return <Panel>
-    <PanelHeader title="Entradas e saídas esperadas" icon={<Sparkles size={16} />}
-      description="Datas e valores previstos. Eles só viram realizado quando você registra o recebimento ou pagamento."
-      actions={!showForm && <SecondaryButton onClick={() => setShowForm(true)}><Plus size={14} /> Novo evento</SecondaryButton>} />
+  const pending = forecastAgenda.filter((row) => row.next)
+  const done = forecastAgenda.filter((row) => !row.next)
+  return <Panel><PanelHeader title="Entradas e saídas esperadas" icon={<CalendarClock size={16} />} description="A próxima pendência de cada previsão, pelo restante conciliado. Registrar no Ciclo ou aqui atualiza a mesma ocorrência." actions={!showForm && <SecondaryButton onClick={() => setShowForm(true)}><Plus size={14} /> Nova previsão</SecondaryButton>} />
     {showForm && <EventForm onClose={() => setShowForm(false)} />}
-    {events.length === 0 ? <div className="mt-4"><EmptyState icon={<CalendarClock size={24} />} title="Nada previsto ainda"
-      action={!showForm && <PrimaryButton onClick={() => setShowForm(true)}><Plus size={15} /> Cadastrar o primeiro</PrimaryButton>}>
-      Cadastre uma entrada ou saída com o mês ou dia esperado.
-    </EmptyState></div> : <ul className="mt-4 space-y-1.5">
-      {events.map((event) => <EventRow key={event.id} event={event} currentMonth={currentMonth} />)}
-    </ul>}
-    <p className="mt-4 text-xs text-dark-text-muted">Para juntar dinheiro até uma data, crie uma meta com valor e prazo em Metas.</p>
+    {!forecast.events.length && <div className="mt-4"><EmptyState icon={<CalendarClock size={24} />} title="Nada previsto ainda">Cadastre uma entrada ou saída com o mês ou dia esperado.</EmptyState></div>}
+    <ul className="mt-4 space-y-2">{pending.map((row) => <EventRow key={row.event.id} event={row.event} />)}</ul>
+    {done.length > 0 && <details className="mt-4 text-xs text-dark-text-muted"><summary className="cursor-pointer">Concluídas e canceladas ({done.length})</summary><ul className="mt-2 space-y-2">{done.map((row) => <EventRow key={row.event.id} event={row.event} />)}</ul></details>}
   </Panel>
 }
 
@@ -336,7 +277,7 @@ function goalOutlook(goal: GoalSummary, projected: number | null, currentFinanci
 export function ForecastView() {
   const store = useFinancasStore()
   const { forecast, projection, monthlyContribution, metrics, investments } = store
-  const { assumptions, currentMonth, events } = forecast
+  const { assumptions, currentMonth } = forecast
   const [chartView, setChartView] = useState<'money' | 'balance'>('money')
 
   const real = assumptions.showInRealTerms
@@ -434,6 +375,97 @@ export function ForecastView() {
 
   return (
     <div className="space-y-4">
+      {datedGoals.length > 0 && (
+        <Panel padded={false} className="overflow-hidden">
+          <div className="border-b border-dark-border-subtle px-5 py-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-dark-text">
+              <Flag size={15} className="text-dark-text-muted" />
+              Metas com prazo
+            </h3>
+            <p className="mt-0.5 text-xs text-dark-text-muted">
+              Metas que englobam seus investimentos são julgadas pela projeção; as outras, pelo
+              quanto você precisa aportar por mês.
+              {real && ' Os valores previstos estão em reais de hoje.'}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wider text-dark-text-muted">
+                  <th className="px-5 py-2.5 font-medium">Meta</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Hoje</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Alvo</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Prazo</th>
+                  <th className="px-5 py-2.5 text-right font-medium">Previsão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {datedGoals.map((goal) => {
+                  const projected = projectedAt(projection, goal.targetMonth!, real)
+                  const outlook = goalOutlook(goal, projected, financialNow)
+                  const late = goal.monthsLeft !== null && goal.monthsLeft < 0
+
+                  return (
+                    <tr key={goal.id} className="border-t border-dark-border-subtle">
+                      <td className="px-5 py-2.5">
+                        <span className="flex items-center gap-2 font-medium text-dark-text">
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: goal.color }}
+                          />
+                          {goal.name}
+                        </span>
+                        {goal.includedLabels.length > 0 && (
+                          <span className="ml-4 text-xs text-dark-text-muted">
+                            engloba {goal.includedLabels.join(' + ')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
+                        {formatCurrency(goal.current)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
+                        {formatCurrency(goal.targetAmount)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-dark-text-secondary">
+                        {formatMonthKey(goal.targetMonth!)}
+                      </td>
+                      <td className="px-5 py-2.5 text-right">
+                        {goal.isComplete ? (
+                          <span className="text-primary-400">meta batida</span>
+                        ) : late ? (
+                          <span className="text-rose-400">prazo vencido</span>
+                        ) : outlook?.mode === 'projection' ? (
+                          <span
+                            className={`tabular-nums ${
+                              outlook.gap >= 0 ? 'text-primary-400' : 'text-amber-300'
+                            }`}
+                          >
+                            {formatCurrency(outlook.value)}
+                            <span className="ml-1.5 text-xs text-dark-text-muted">
+                              {outlook.gap >= 0
+                                ? `+ ${formatCurrency(outlook.gap)}`
+                                : `faltam ${formatCurrency(-outlook.gap)}`}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="tabular-nums text-dark-text-secondary">
+                            {formatCurrency(goal.suggestedMonthly)}
+                            <span className="ml-1 text-xs text-dark-text-muted">/mês</span>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+
+      <ExpectedEventsPanel />
+      <details className="rounded-xl border border-dark-border p-4"><summary className="cursor-pointer text-sm font-semibold text-dark-text">Projeção e premissas</summary><div className="mt-4 space-y-4">
       <div className="grid gap-2.5 sm:grid-cols-2">
         <StatTile
           label={`Patrimônio financeiro projetado em ${formatMonthKey(last?.month ?? currentMonth)}`}
@@ -632,96 +664,7 @@ export function ForecastView() {
         )}
       </Panel>
 
-      {datedGoals.length > 0 && (
-        <Panel padded={false} className="overflow-hidden">
-          <div className="border-b border-dark-border-subtle px-5 py-4">
-            <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-dark-text">
-              <Flag size={15} className="text-dark-text-muted" />
-              Metas com prazo
-            </h3>
-            <p className="mt-0.5 text-xs text-dark-text-muted">
-              Metas que englobam seus investimentos são julgadas pela projeção; as outras, pelo
-              quanto você precisa aportar por mês.
-              {real && ' Os valores previstos estão em reais de hoje.'}
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-dark-text-muted">
-                  <th className="px-5 py-2.5 font-medium">Meta</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Hoje</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Alvo</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Prazo</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Previsão</th>
-                </tr>
-              </thead>
-              <tbody>
-                {datedGoals.map((goal) => {
-                  const projected = projectedAt(projection, goal.targetMonth!, real)
-                  const outlook = goalOutlook(goal, projected, financialNow)
-                  const late = goal.monthsLeft !== null && goal.monthsLeft < 0
-
-                  return (
-                    <tr key={goal.id} className="border-t border-dark-border-subtle">
-                      <td className="px-5 py-2.5">
-                        <span className="flex items-center gap-2 font-medium text-dark-text">
-                          <span
-                            className="h-2 w-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: goal.color }}
-                          />
-                          {goal.name}
-                        </span>
-                        {goal.includedLabels.length > 0 && (
-                          <span className="ml-4 text-xs text-dark-text-muted">
-                            engloba {goal.includedLabels.join(' + ')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                        {formatCurrency(goal.current)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                        {formatCurrency(goal.targetAmount)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-dark-text-secondary">
-                        {formatMonthKey(goal.targetMonth!)}
-                      </td>
-                      <td className="px-5 py-2.5 text-right">
-                        {goal.isComplete ? (
-                          <span className="text-primary-400">meta batida</span>
-                        ) : late ? (
-                          <span className="text-rose-400">prazo vencido</span>
-                        ) : outlook?.mode === 'projection' ? (
-                          <span
-                            className={`tabular-nums ${
-                              outlook.gap >= 0 ? 'text-primary-400' : 'text-amber-300'
-                            }`}
-                          >
-                            {formatCurrency(outlook.value)}
-                            <span className="ml-1.5 text-xs text-dark-text-muted">
-                              {outlook.gap >= 0
-                                ? `+ ${formatCurrency(outlook.gap)}`
-                                : `faltam ${formatCurrency(-outlook.gap)}`}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="tabular-nums text-dark-text-secondary">
-                            {formatCurrency(goal.suggestedMonthly)}
-                            <span className="ml-1 text-xs text-dark-text-muted">/mês</span>
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      )}
-
-      <ExpectedEventsPanel events={events} currentMonth={currentMonth} />
+      </div></details>
     </div>
   )
 }

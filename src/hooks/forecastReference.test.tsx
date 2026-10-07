@@ -5,7 +5,7 @@ import { readRepositoryDocument, writeRepositoryDocument } from '../data/reposit
 import { useForecast } from './useForecast'
 
 describe('origem de evento efetivado', () => {
-  it('não apaga um evento referido por entrada recebida', () => {
+  it('cancela e reativa sem apagar evento ou entrada recebida', () => {
     localStorage.clear()
     writeRepositoryDocument({
       schemaVersion: 7, updatedAt: '2026-10-01T12:00:00.000Z',
@@ -18,8 +18,11 @@ describe('origem de evento efetivado', () => {
       },
     })
     const app = renderHook(() => useForecast('2026-10'))
-    act(() => expect(app.result.current.removeEvent('bonus')).toBe(false))
+    act(() => expect(app.result.current.removeEvent('bonus')).toBe(true))
     expect(readRepositoryDocument().collections.forecastEvents).toHaveLength(1)
+    expect(app.result.current.events[0].cancelled).toBe(true)
+    act(() => expect(app.result.current.restoreEvent('bonus')).toBe(true))
+    expect(app.result.current.events[0].cancelled).toBe(false)
     app.unmount()
   })
 })

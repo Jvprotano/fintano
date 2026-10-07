@@ -1,18 +1,18 @@
 import { useCallback, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
-import { runRepositoryCommand } from '../data/repositoryCommand'
-import type { ExpectedEvent, ExpectedOccurrenceOverride, ForecastAssumptions, MonthlyActuals } from '../types'
+import { addForecast, cancelForecast, editForecastInDocument, editOccurrenceInDocument, forecastCommand, forecastCardInDocument, linkForecastFact, realizeForecastInDocument } from '../data/forecastCommands'
+import type { ExpectedEvent, ExpectedOccurrenceOverride, ExpectedEventTerms, ForecastFactLink, ForecastAssumptions } from '../types'
 import {
   DEFAULT_ASSUMPTIONS,
   normalizeAssumptions,
   normalizeExpectedEvent,
   occurrencesInMonth,
 } from '../lib/forecast'
-import { monthKey, uid } from '../lib/shared'
+import { monthKey } from '../lib/shared'
 
 /** Eventos esperados (13º, bônus, IPVA…) e as premissas da projeção. */
 export function useForecast(cycleMonth = monthKey()) {
-  const [storedEvents, setEvents] = useRepositoryState<ExpectedEvent[]>('forecastEvents', [])
+  const [storedEvents] = useRepositoryState<ExpectedEvent[]>('forecastEvents', [])
   const events = useMemo(
     () =>
       (Array.isArray(storedEvents) ? storedEvents.map(normalizeExpectedEvent) : []).sort((a, b) =>
@@ -30,82 +30,27 @@ export function useForecast(cycleMonth = monthKey()) {
     [storedAssumptions],
   )
 
-  const addEvent = useCallback(
-    (input: Omit<ExpectedEvent, 'id' | 'createdAt'>) => {
-      if (!input.name.trim() || input.amount <= 0) return false
-      return setEvents((prev) => [
-        ...(Array.isArray(prev) ? prev : []),
-        normalizeExpectedEvent({ ...input, id: uid(), createdAt: new Date().toISOString() }),
-      ])
-    },
-    [setEvents],
-  )
-
-  const updateEvent = useCallback(
-    (id: string, patch: Partial<Omit<ExpectedEvent, 'id' | 'createdAt'>>) => {
-      return setEvents((prev) =>
-        prev.map((event) =>
-          event.id === id ? normalizeExpectedEvent({ ...event, ...patch }) : event,
-        ),
-      )
-    },
-    [setEvents],
-  )
-
-  const removeEvent = useCallback(
-    (id: string) => runRepositoryCommand({
-      id: uid(),
-      apply: (document) => {
-        const events = Array.isArray(document.collections.forecastEvents)
-          ? document.collections.forecastEvents as ExpectedEvent[] : []
-        const target = events.find((event) => event.id === id)
-        if (!target) return null
-        const actuals = Array.isArray(document.collections.actuals)
-          ? document.collections.actuals as MonthlyActuals[] : []
-        const cashLinked = actuals.some((month) =>
-          [...(month.extraIncome ?? []), ...(month.extraExpenses ?? [])]
-            .some((entry) => entry.sourceEventId === id),
-        )
-        const cardEntries = Array.isArray(document.collections.cardEntries)
-          ? document.collections.cardEntries as Array<{ sourceForecastOccurrenceId?: string }> : []
-        const cardLinked = cardEntries.some((entry) =>
-          entry.sourceForecastOccurrenceId?.startsWith(`${id}@`),
-        )
-        const paidInvoices = Array.isArray(document.collections.cardPaidInvoices)
-          ? document.collections.cardPaidInvoices as Array<{ forecastOccurrences?: Array<{ id: string }> }> : []
-        const invoiceLinked = paidInvoices.some((invoice) => invoice.forecastOccurrences?.some((item) =>
-          item.id.startsWith(`${id}@`),
-        ))
-        const overrideLinked = Object.values(target.occurrenceOverrides ?? {}).some((item) =>
-          item.realizedAmount !== undefined || item.realizedAt !== undefined,
-        )
-        if (cashLinked || cardLinked || invoiceLinked || overrideLinked) return null
-        return {
-          ...document,
-          collections: { ...document.collections, forecastEvents: events.filter((event) => event.id !== id) },
-        }
-      },
-    }).ok,
-    [],
-  )
-
-  const updateOccurrence = useCallback((eventId: string, originalMonth: string, patch: ExpectedOccurrenceOverride) => {
-    setEvents((prev) => prev.map((event) => event.id === eventId
-      ? normalizeExpectedEvent({ ...event, occurrenceOverrides: {
-          ...event.occurrenceOverrides,
-          [originalMonth]: { ...event.occurrenceOverrides?.[originalMonth], ...patch },
-        } })
-      : event))
-  }, [setEvents])
-
-  const clearOccurrenceOverride = useCallback((eventId: string, originalMonth: string) => {
-    setEvents((prev) => prev.map((event) => {
-      if (event.id !== eventId) return event
-      const overrides = { ...event.occurrenceOverrides }
-      delete overrides[originalMonth]
-      return normalizeExpectedEvent({ ...event, occurrenceOverrides: overrides })
-    }))
-  }, [setEvents])
+  const addEvent = useCallback((input: Omit<ExpectedEvent, 'id' | 'createdAt'>) => addForecast(input).ok, [])
+  const updateEvent = useCallback((id: string, terms: ExpectedEventTerms, originalMonth = cycleMonth, scope: 'this' | 'following' = 'following', revision?: string | null) =>
+    forecastCommand((document) => editForecastInDocument(document, id, originalMonth, terms, scope), revision), [cycleMonth])
+  const removeEvent = useCallback((id: string) => cancelForecast(id, true).ok, [])
+  const restoreEvent = useCallback((id: string) => cancelForecast(id, false).ok, [])
+  const updateOccurrence = useCallback((id: string, originalMonth: string, patch: ExpectedOccurrenceOverride) =>
+    forecastCommand((document) => editOccurrenceInDocument(document, id, originalMonth, patch)), [])
+  const clearOccurrenceOverride = useCallback((id: string, originalMonth: string) =>
+    forecastCommand((document) => editOccurrenceInDocument(document, id, originalMonth, { cancelled: false })), [])
+  const linkFact = useCallback((id: string, originalMonth: string, link: ForecastFactLink) =>
+    forecastCommand((document) => linkForecastFact(document, id, originalMonth, link)), [])
+  const unlinkFact = useCallback((id: string, originalMonth: string, index: number) => forecastCommand((document) => {
+    const event = (document.collections.forecastEvents as ExpectedEvent[] ?? []).find((row) => row.id === id)
+    if (!event) throw new Error('Previsão não encontrada.')
+    const links = event.occurrenceOverrides?.[originalMonth]?.links ?? []
+    return editOccurrenceInDocument(document, id, originalMonth, { links: links.filter((_, i) => i !== index) })
+  }), [])
+  const realizeOccurrence = useCallback((id: string, originalMonth: string, amount: number, cycle: string, date: string) =>
+    forecastCommand((document) => realizeForecastInDocument(document, id, originalMonth, amount, cycle, date)), [])
+  const registerCard = useCallback((id: string, originalMonth: string, input: Parameters<typeof forecastCardInDocument>[3]) =>
+    forecastCommand((document) => forecastCardInDocument(document, id, originalMonth, input)), [])
 
   const updateAssumptions = useCallback(
     (patch: Partial<ForecastAssumptions>) => {
@@ -127,6 +72,11 @@ export function useForecast(cycleMonth = monthKey()) {
     addEvent,
     updateEvent,
     removeEvent,
+    restoreEvent,
+    linkFact,
+    unlinkFact,
+    realizeOccurrence,
+    registerCard,
     updateOccurrence,
     clearOccurrenceOverride,
     updateAssumptions,

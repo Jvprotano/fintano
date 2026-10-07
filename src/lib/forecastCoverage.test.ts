@@ -70,8 +70,8 @@ describe('cobertura cronológica de eventos', () => {
     const occurrences = upcomingOccurrences([planned, card], [], '2027-01', 1, '2026-12-29')
     expect(occurrences.map((item) => item.savedAmount)).toEqual([0, 0])
     expect(calculateFundingOutlook(fund, occurrences, '2026-12-29').pendingExpenses).toBe(2000)
-    expect(cardDueMonthForOccurrence(occurrences[0])).toBeNull()
-    expect(cardDueMonthForOccurrence(occurrences[1])).toBe('2027-02')
+    expect(cardDueMonthForOccurrence(occurrences.find((item) => item.event.id === 'planned')!)).toBeNull()
+    expect(cardDueMonthForOccurrence(occurrences.find((item) => item.event.id === 'card')!)).toBe('2027-02')
   })
 
   it('sem novo mês antes da cobrança mostra falta imediata', () => {

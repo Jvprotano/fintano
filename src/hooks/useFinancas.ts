@@ -17,10 +17,10 @@ import { calculateCardCycleAccounting, cardAdvancePaymentsForMonth } from '../li
 import { calculateMonthlyInvestmentActuals } from '../lib/investmentActuals'
 import { calculateAssetsSummary } from '../lib/assets'
 import { occurrencesInMonth, projectNetWorth } from '../lib/forecast'
-import { reconcileOccurrence, upcomingOccurrences } from '../lib/forecastCoverage'
+import { reconcileOccurrence, upcomingOccurrences, buildForecastAgenda, forecastCostsCommitted, requiresExtraCash } from '../lib/forecastCoverage'
 import { maybeCreateAutoBackup } from '../lib/backup'
 import { REPOSITORY_CHANGED_EVENT } from '../data/repository'
-import { addMonths, ledgerEntryCycleMonth, uid } from '../lib/shared'
+import { addMonths, ledgerEntryCycleMonth, localDateKey, uid } from '../lib/shared'
 import { runRepositoryCommand, type CommandResult } from '../data/repositoryCommand'
 import { closeCycleInDocument } from '../data/closingCommand'
 import type { BudgetArea, CostCategory, MonthlySnapshot, ScenarioSummary } from '../types'
@@ -81,6 +81,14 @@ export function useFinancas() {
     knownCosts,
     knownWants,
   )
+
+  const movementSources = useMemo(() => [
+    ...investments.holdings.map((row) => ({ ownerType: 'holding' as const, ownerId: row.id, entries: row.transactions })),
+    ...investments.goals.map((row) => ({ ownerType: 'goal' as const, ownerId: row.id, entries: row.transactions })),
+    ...debts.debts.map((row) => ({ ownerType: 'debt' as const, ownerId: row.id, entries: row.transactions })),
+  ], [investments.holdings, investments.goals, debts.debts])
+  const forecastAgenda = useMemo(() => buildForecastAgenda(forecast.events, actuals.months, activeCycle.month, localDateKey(), cards.entries, cards.paidInvoices, movementSources),
+    [forecast.events, actuals.months, activeCycle.month, cards.entries, cards.paidInvoices, movementSources])
 
   useEffect(() => {
     const checkBackup = () => maybeCreateAutoBackup()
@@ -257,17 +265,15 @@ export function useFinancas() {
 
   const financialCycle = useMemo(
     () => {
-      const pendingExtraExpense = forecast.monthOccurrences
-        .filter((item) => item.event.kind === 'expense' && item.event.cashTreatment !== 'planned' &&
-          item.event.cashTreatment !== 'card')
-        .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months,
-          new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
+      const pendingExtraExpense = forecastAgenda.flatMap((row) => row.items)
+        .filter((item) => item.event.kind === 'expense' && requiresExtraCash(item) && item.month <= activeCycle.month && item.status !== 'cancelled')
+        .reduce((sum, item) => sum + item.remainingAmount, 0)
       return calculateFinancialCycle({
         cashMonth: activeCycle.month,
         income: cashFlow.totalIn,
         invoiceToPay: cashFlow.invoiceToPay,
         costsOnAccount: cashFlow.costsOnAccount,
-        costsCommitted: actuals.summary.confirmedCosts + actuals.summary.pendingCosts,
+        costsCommitted: forecastCostsCommitted(actuals.summary.rows, forecastAgenda.flatMap((row) => row.items), activeCycle.month),
         wantsOnAccount: cashFlow.wantsOnAccount,
         directInvestment: cashFlow.directInvestment,
         directInvestmentCommitted: Math.max(metrics.directInvestmentTarget, cashFlow.directInvestment),
@@ -280,8 +286,8 @@ export function useFinancas() {
       })
     },
     [activeCycle.month, cardCycleAccounting.invoiceFormedByCycle.personalTotal, cashFlow,
-      actuals.summary.confirmedCosts, actuals.summary.pendingCosts, metrics.directInvestmentTarget,
-      forecast.monthOccurrences, actuals.months, cards.entries, cards.paidInvoices],
+      actuals.summary.rows, metrics.directInvestmentTarget,
+      forecastAgenda],
   )
 
   /**
@@ -299,10 +305,10 @@ export function useFinancas() {
     const occurrences = occurrencesInMonth(forecast.events, month)
     const extraIncome = occurrences
       .filter((item) => item.event.kind === 'income' && item.event.confirmed)
-      .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months, new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
+      .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months, new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices, movementSources).remainingAmount, 0)
     const extraExpense = occurrences
-      .filter((item) => item.event.kind === 'expense' && item.event.cashTreatment !== 'planned' && item.event.cashTreatment !== 'card')
-      .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months, new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
+      .filter((item) => item.event.kind === 'expense' && requiresExtraCash(item))
+      .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months, new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices, movementSources).remainingAmount, 0)
 
     return calculateAllocationPreview({
       month,
@@ -329,6 +335,7 @@ export function useFinancas() {
     actuals.months,
     cards.entries,
     cards.paidInvoices,
+    movementSources,
     thirdParties.records,
   ])
 
@@ -373,7 +380,7 @@ export function useFinancas() {
       const remainingByOccurrence = Object.fromEntries(upcomingOccurrences(
         forecast.events, actuals.months, addMonths(activeCycle.month, 1),
         forecast.assumptions.horizonMonths, new Date().toISOString().slice(0, 10),
-        cards.entries, cards.paidInvoices,
+        cards.entries, cards.paidInvoices, movementSources,
       ).map((item) => [item.id, item.remainingAmount]))
       return projectNetWorth({
         startMonth: activeCycle.month,
@@ -399,6 +406,7 @@ export function useFinancas() {
       actuals.months,
       cards.entries,
       cards.paidInvoices,
+      movementSources,
       investments.summary.financialAssets,
       monthlyContribution,
       projectedDebts,
@@ -539,6 +547,8 @@ export function useFinancas() {
     investmentActuals,
     history,
     forecast,
+    forecastAgenda,
+    movementSources,
     actuals,
     metrics,
     cashFlow,

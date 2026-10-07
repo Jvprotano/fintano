@@ -140,9 +140,9 @@ const VIEW_CONTEXT: Record<View, { eyebrow: string; title: string; description: 
     description: 'Compare o que foi planejado com o realizado nos ciclos já encerrados.',
   },
   forecast: {
-    eyebrow: 'Projeção · cenários e premissas',
+    eyebrow: 'Agenda · entradas e saídas esperadas',
     title: 'Futuro',
-    description: 'Explore possibilidades para os próximos ciclos. Projeção não é saldo disponível hoje.',
+    description: 'Acompanhe a próxima pendência e consulte projeções quando precisar. Previsão não é dinheiro disponível.',
   },
 }
 

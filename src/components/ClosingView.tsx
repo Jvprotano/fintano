@@ -85,6 +85,7 @@ export function ClosingView({
     investmentActuals,
     nextCycleAllocation,
     forecast,
+    movementSources,
     closeCurrentMonth,
   } = useFinancasStore()
   const { currentMonth, isCurrentMonthClosed } = history
@@ -137,13 +138,13 @@ export function ClosingView({
   const nextExpectedIncome = occurrencesInMonth(forecast.events, nextCycleAllocation.month)
     .filter((item) => item.event.kind === 'income' && !item.event.confirmed)
     .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months,
-      new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
+      new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices, movementSources).remainingAmount, 0)
   const allocationWithUncertainIncome = nextCycleAllocation.availableToAllocate + nextExpectedIncome
   const laterThanInvoice = occurrencesInMonth(forecast.events, nextCycleAllocation.month)
     .filter((item) => item.event.kind === 'income' && item.date &&
       Number(item.date.slice(8, 10)) > activeCycle.cycle.cardDueHintDay)
     .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months,
-      new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices).remainingAmount, 0)
+      new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices, movementSources).remainingAmount, 0)
   const allocationTone = nextCycleAllocation.shortfall > 0.005 ? 'negative' : 'accent'
   const allocationPlanDelta = nextCycleAllocation.afterPlannedWants
   const costsStatus = evaluateBudgetCeiling(

@@ -1,6 +1,7 @@
 import type {
   ExpectedEvent,
   ExpectedEventKind,
+  ExpectedEventTerms,
   ExpectedEventRecurrence,
   ExpectedOccurrence,
   ExpectedOccurrenceOverride,
@@ -29,6 +30,16 @@ function validDate(value: unknown): value is string {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
+export function eventTerms(event: ExpectedEvent): ExpectedEventTerms {
+  const { name, kind, amount, month, date, cashTreatment, cardDueMonth, confirmed, savedPct, goalId, note, planLink } = event
+  return { name, kind, amount, month, date, cashTreatment, cardDueMonth, confirmed, savedPct, goalId, note, planLink }
+}
+
+function normalizeTerms(raw: ExpectedEventTerms | undefined): ExpectedEventTerms | undefined {
+  if (!raw || typeof raw !== 'object' || !raw.name || !MONTH_RE.test(raw.month) || !Number.isFinite(raw.amount) || raw.amount <= 0) return undefined
+  return eventTerms(normalizeExpectedEvent({ ...raw, futureChanges: undefined, occurrenceOverrides: undefined }))
+}
+
 function normalizeOverrides(raw: ExpectedEvent['occurrenceOverrides']) {
   if (!raw || typeof raw !== 'object') return undefined
   const entries: [string, ExpectedOccurrenceOverride][] = []
@@ -41,7 +52,7 @@ function normalizeOverrides(raw: ExpectedEvent['occurrenceOverrides']) {
     const realizedAmount = typeof value.realizedAmount === 'number' && Number.isFinite(value.realizedAmount) && value.realizedAmount > 0
       ? value.realizedAmount : undefined
     const realizedAt = validDate(value.realizedAt) ? value.realizedAt : undefined
-    entries.push([key, { date, month, amount, cancelled: value.cancelled === true, realizedAmount, realizedAt }])
+    entries.push([key, { date, month, amount, cancelled: value.cancelled === true, realizedAmount, realizedAt, terms: normalizeTerms(value.terms), links: Array.isArray(value.links) ? value.links : undefined }])
   }
   return entries.length ? Object.fromEntries(entries) : undefined
 }
@@ -75,6 +86,9 @@ export function normalizeExpectedEvent(raw: Partial<ExpectedEvent> | undefined):
       ? raw.cashTreatment : 'extra',
     cardDueMonth: raw?.cashTreatment === 'card' && MONTH_RE.test(raw?.cardDueMonth ?? '')
       ? raw?.cardDueMonth : undefined,
+    cancelled: raw?.cancelled === true,
+    planLink: raw?.planLink && ['cost', 'want'].includes(raw.planLink.type) && raw.planLink.id ? raw.planLink : undefined,
+    futureChanges: raw?.futureChanges && Object.fromEntries(Object.entries(raw.futureChanges).filter(([month]) => MONTH_RE.test(month)).flatMap(([month, terms]) => { const normalized = normalizeTerms(terms); return normalized ? [[month, normalized]] : [] })),
     confirmed: kind === 'income' && raw?.confirmed === true,
     occurrenceOverrides: normalizeOverrides(raw?.occurrenceOverrides),
     savedPct: kind === 'income' ? savedPct : undefined,
@@ -119,29 +133,36 @@ function expectedDateInMonth(event: ExpectedEvent, month: string): string | unde
   return `${month}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
 }
 
-function toOccurrence(event: ExpectedEvent, originalMonth: string): ExpectedOccurrence | null {
+export function occurrenceFor(event: ExpectedEvent, originalMonth: string, includeCancelled = false): ExpectedOccurrence | null {
+  if (!occursIn(event, originalMonth)) return null
   const override = event.occurrenceOverrides?.[originalMonth]
-  if (override?.cancelled) return null
-  const date = override?.date ?? (override?.month ? undefined : expectedDateInMonth(event, originalMonth))
-  const month = date?.slice(0, 7) ?? override?.month ?? originalMonth
-  const amount = override?.amount ?? event.amount
-  const signedAmount = event.kind === 'income' ? amount : -amount
-  // Uma entrada só vira patrimônio na fatia que você poupa; uma saída esperada
-  // sai inteira do que sobraria.
-  const savedAmount = event.kind === 'income'
-    ? (amount * (event.savedPct ?? 100)) / 100
-    : event.cashTreatment === 'planned' || event.cashTreatment === 'card' ? 0 : -amount
-
-  return { id: `${event.id}@${originalMonth}`, event, month, originalMonth, date, amount, signedAmount, savedAmount }
+  const cancelled = event.cancelled === true || override?.cancelled === true
+  if (cancelled && !includeCancelled) return null
+  const revisionEntry = Object.entries(event.futureChanges ?? {}).filter(([month]) => month <= originalMonth).sort(([a], [b]) => b.localeCompare(a))[0]
+  const revision = revisionEntry?.[1]
+  const effective = { ...event, ...(revision ?? {}), ...(override?.terms ?? {}) }
+  const revisedMonth = revisionEntry ? addMonths(originalMonth, monthsBetween(revisionEntry[0], revisionEntry[1].month)) : originalMonth
+  const date = override?.date ?? (override?.month ? undefined : expectedDateInMonth(effective, revisedMonth))
+  const month = date?.slice(0, 7) ?? override?.month ?? revisedMonth
+  const amount = override?.amount ?? effective.amount
+  const signedAmount = effective.kind === 'income' ? amount : -amount
+  const savedAmount = cancelled || override?.links?.some((link) => link.type !== 'cash') ? 0 : effective.kind === 'income'
+    ? (amount * (effective.savedPct ?? 100)) / 100
+    : effective.cashTreatment === 'planned' || effective.cashTreatment === 'card' || effective.planLink || override?.links?.length ? 0 : -amount
+  return { id: event.id + '@' + originalMonth, event: effective, month, originalMonth, date, amount, signedAmount, savedAmount, cancelled }
 }
 
-export function occurrencesInMonth(events: ExpectedEvent[], month: string): ExpectedOccurrence[] {
+export function occurrencesInMonth(events: ExpectedEvent[], month: string, includeCancelled = false): ExpectedOccurrence[] {
   const list: ExpectedOccurrence[] = []
   for (const event of events) {
     const candidates = new Set([month, ...Object.keys(event.occurrenceOverrides ?? {})])
+    for (const [cutoff, terms] of Object.entries(event.futureChanges ?? {})) {
+      const original = addMonths(month, -monthsBetween(cutoff, terms.month))
+      if (original >= cutoff) candidates.add(original)
+    }
     for (const originalMonth of candidates) {
       if (!occursIn(event, originalMonth)) continue
-      const occurrence = toOccurrence(event, originalMonth)
+      const occurrence = occurrenceFor(event, originalMonth, includeCancelled)
       if (occurrence?.month === month) list.push(occurrence)
     }
   }
@@ -153,10 +174,11 @@ export function occurrencesInRange(
   events: ExpectedEvent[],
   startMonth: string,
   months: number,
+  includeCancelled = false,
 ): ExpectedOccurrence[] {
   const list: ExpectedOccurrence[] = []
   for (let index = 0; index < months; index += 1) {
-    list.push(...occurrencesInMonth(events, addMonths(startMonth, index)))
+    list.push(...occurrencesInMonth(events, addMonths(startMonth, index), includeCancelled))
   }
   return list
 }

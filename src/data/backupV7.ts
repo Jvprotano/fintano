@@ -9,6 +9,7 @@ import type {
   Debt,
   EmergencyFundState,
   ExpectedEvent,
+  ExpectedEventTerms,
   FinanceScenario,
   FinancialGoal,
   ForecastAssumptions,
@@ -75,6 +76,7 @@ import type {
   CyclePlanV7,
   InvestmentValuationV7,
   PlanningTemplateV7,
+  ForecastTermsV9,
 } from './backupSchemaV7'
 import { normalizeMonthlyPlan, planAsScenario, type MonthlyPlan } from '../lib/monthlyPlans'
 
@@ -213,6 +215,15 @@ function ensureAccounts(
     names.add(normalizeText(entry.cardName))
   }
   return accounts
+}
+
+function forecastTermsToBackup(terms: ExpectedEventTerms): ForecastTermsV9 {
+  const { amount, ...rest } = terms
+  return { ...rest, amountCents: toCents(amount) }
+}
+function forecastTermsFromBackup(terms: ForecastTermsV9): ExpectedEventTerms {
+  const { amountCents, ...rest } = terms
+  return { ...rest, amount: fromCents(amountCents) }
 }
 
 function snapshotToClosure(raw: Partial<MonthlySnapshot>): CycleClosureV7 {
@@ -722,6 +733,9 @@ export function repositoryToBackupV7(
           cashTreatment: event.cashTreatment,
           cardDueMonth: event.cardDueMonth,
           confirmed: event.confirmed,
+          cancelled: event.cancelled,
+          planLink: event.planLink,
+          futureChanges: event.futureChanges && Object.fromEntries(Object.entries(event.futureChanges).map(([month, terms]) => [month, forecastTermsToBackup(terms)])),
           occurrenceOverrides: event.occurrenceOverrides && Object.fromEntries(
             Object.entries(event.occurrenceOverrides).map(([month, override]) => [month, {
               date: override.date, month: override.month,
@@ -729,6 +743,8 @@ export function repositoryToBackupV7(
               cancelled: override.cancelled,
               realizedAmountCents: override.realizedAmount === undefined ? undefined : toCents(override.realizedAmount),
               realizedAt: override.realizedAt,
+              terms: override.terms && forecastTermsToBackup(override.terms),
+              links: override.links,
             }]),
           ),
           savedPct: event.savedPct,
@@ -1041,6 +1057,9 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         cashTreatment: event.cashTreatment,
         cardDueMonth: event.cardDueMonth,
         confirmed: event.confirmed,
+        cancelled: event.cancelled,
+        planLink: event.planLink,
+        futureChanges: event.futureChanges && Object.fromEntries(Object.entries(event.futureChanges).map(([month, terms]) => [month, forecastTermsFromBackup(terms)])),
         occurrenceOverrides: event.occurrenceOverrides && Object.fromEntries(
           Object.entries(event.occurrenceOverrides).map(([month, override]) => [month, {
             date: override.date, month: override.month,
@@ -1048,6 +1067,8 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
             cancelled: override.cancelled,
             realizedAmount: override.realizedAmountCents === undefined ? undefined : fromCents(override.realizedAmountCents),
             realizedAt: override.realizedAt,
+            terms: override.terms && forecastTermsFromBackup(override.terms),
+            links: override.links,
           }]),
         ),
         savedPct: event.savedPct,
@@ -1275,6 +1296,33 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const event of backup.forecast.events) {
+    const checkTerms = (terms: ForecastTermsV9 | undefined, month: string) => {
+      if (!MONTH_RE.test(month) || !terms || typeof terms !== 'object' || typeof terms.name !== 'string' || !terms.name.trim() || terms.kind !== event.kind ||
+        !Number.isSafeInteger(terms.amountCents) || terms.amountCents <= 0 || !MONTH_RE.test(terms.month) ||
+        terms.date && (!validCalendarDate(terms.date) || terms.date.slice(0, 7) !== terms.month) ||
+        terms.cashTreatment === 'card' && (!terms.cardDueMonth || !MONTH_RE.test(terms.cardDueMonth) || terms.cardDueMonth < terms.month) ||
+        terms.planLink && (!['cost', 'want'].includes(terms.planLink.type) || !terms.planLink.id)) {
+        add('error', 'forecast_terms_invalid', 'Definição preservada ou revisão da previsão inválida.', event.id)
+      }
+    }
+    if (event.cancelled !== undefined && typeof event.cancelled !== 'boolean') add('error', 'forecast_cancelled_invalid', 'Cancelamento da previsão inválido.', event.id)
+    if (event.futureChanges !== undefined && (!event.futureChanges || typeof event.futureChanges !== 'object' || Array.isArray(event.futureChanges))) add('error', 'forecast_revisions_invalid', 'Revisões da previsão inválidas.', event.id)
+    else for (const [month, terms] of Object.entries(event.futureChanges ?? {})) checkTerms(terms, month)
+    for (const [month, override] of Object.entries(event.occurrenceOverrides ?? {})) {
+      if (override.terms) checkTerms(override.terms, month)
+      if (override.links !== undefined && !Array.isArray(override.links)) add('error', 'forecast_links_invalid', 'Vínculos da ocorrência inválidos.', event.id)
+      const keys = new Set<string>()
+      for (const link of Array.isArray(override.links) ? override.links : []) {
+        if (!link || typeof link.id !== 'string' || !link.id || !['cost', 'want', 'cash', 'card', 'movement'].includes(link.type) ||
+          ['cost', 'want', 'cash'].includes(link.type) && (!('month' in link) || !MONTH_RE.test(link.month)) || link.type === 'movement' && (!['holding', 'goal', 'debt'].includes(link.ownerType) || !link.ownerId)) {
+          add('error', 'forecast_link_invalid', 'Referência de fato inválida na ocorrência.', event.id)
+          continue
+        }
+        const key = JSON.stringify(link)
+        if (keys.has(key)) add('error', 'forecast_link_duplicate', 'O mesmo fato aparece duas vezes na ocorrência.', event.id)
+        keys.add(key)
+      }
+    }
     if (event.goalId && !goalIds.has(event.goalId)) {
       add('warning', 'forecast_goal_missing', 'Evento aponta para meta inexistente.', event.id)
     }

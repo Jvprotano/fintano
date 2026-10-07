@@ -1,56 +1,109 @@
-import type { CreditCardEntry, ExpectedEvent, ExpectedOccurrence, ForecastFund, MonthlyActuals } from '../types'
+import type { ActualsSummary, CreditCardEntry, ExpectedEvent, ExpectedOccurrence, ForecastFund, ForecastFactLink, LedgerEntry, MonthlyActuals } from '../types'
 import type { PaidInvoiceSnapshot } from './cardCycleAccounting'
-import { occurrencesInRange } from './forecast'
+import { occurrencesInRange, occurrenceFor } from './forecast'
 import { addMonths, monthsBetween } from './shared'
+
+export interface ForecastMovementSource { ownerType: 'holding' | 'goal' | 'debt'; ownerId: string; entries: LedgerEntry[] }
+export function factLinkKey(link: ForecastFactLink): string {
+  return link.type === 'movement' ? 'movement:' + link.ownerType + ':' + link.ownerId + ':' + link.id : link.type === 'card' ? 'card:' + link.id : link.type + ':' + link.month + ':' + link.id
+}
+
+export function requiresExtraCash(item: ExpectedOccurrence): boolean {
+  return item.event.cashTreatment !== 'planned' && item.event.cashTreatment !== 'card' && !item.event.planLink &&
+    !item.event.occurrenceOverrides?.[item.originalMonth]?.links?.some((link) => link.type !== 'cash')
+}
+
+/** Um custo vinculado ocupa sua própria verba, incluindo o restante, uma vez. */
+export function forecastCostsCommitted(rows: ActualsSummary['rows'], items: ReconciledOccurrence[], month: string): number {
+  const expected = new Map<string, number>()
+  for (const item of items) if (item.month === month && item.status !== 'cancelled' && item.event.planLink?.type === 'cost') {
+    const id = item.event.planLink.id
+    expected.set(id, Math.max(expected.get(id) ?? 0, item.unregisteredAmount))
+  }
+  return rows.reduce((sum, row) => sum + Math.max(row.actual ?? row.planned, (row.actual ?? 0) + (expected.get(row.cost.id) ?? 0)), 0)
+}
 
 export interface ReconciledOccurrence extends ExpectedOccurrence {
   paidAmount: number
   remainingAmount: number
-  status: 'pending' | 'partial' | 'scheduled' | 'settled' | 'overdue'
+  committedAmount: number
+  unregisteredAmount: number
+  overdue: boolean
+  linked: boolean
+  status: 'pending' | 'partial' | 'scheduled' | 'settled' | 'overdue' | 'cancelled'
 }
 
 export function reconcileOccurrence(
-  occurrence: ExpectedOccurrence,
-  actuals: MonthlyActuals[],
-  today: string,
-  cards: CreditCardEntry[] = [],
-  paidInvoices: PaidInvoiceSnapshot[] = [],
+  occurrence: ExpectedOccurrence, actuals: MonthlyActuals[], today: string,
+  cards: CreditCardEntry[] = [], paidInvoices: PaidInvoiceSnapshot[] = [], movements: ForecastMovementSource[] = [],
 ): ReconciledOccurrence {
   const field = occurrence.event.kind === 'income' ? 'extraIncome' : 'extraExpenses'
-  const actualPaid = actuals.reduce((sum, cycle) => sum + cycle[field]
-    .filter((entry) => entry.sourceOccurrenceId === occurrence.id ||
-      (!entry.sourceOccurrenceId && entry.sourceEventId === occurrence.event.id &&
-        cycle.month === occurrence.originalMonth))
-    .reduce((subtotal, entry) => subtotal + entry.amount, 0), 0)
-  const cardPaid = occurrence.event.cashTreatment === 'card'
-    ? paidInvoices.flatMap((invoice) => invoice.forecastOccurrences ?? [])
-      .filter((item) => item.id === occurrence.id)
-      .reduce((sum, item) => sum + item.amount, 0)
-    : 0
-  const plannedPaid = occurrence.event.cashTreatment === 'planned'
-    ? occurrence.event.occurrenceOverrides?.[occurrence.originalMonth]?.realizedAmount ?? 0 : 0
-  const paidAmount = actualPaid + cardPaid + plannedPaid
-  const remainingAmount = Math.max(0, occurrence.amount - paidAmount)
+  const amounts = new Map<string, number>()
+  let committedAmount = 0
+  for (const cycle of actuals) for (const entry of cycle[field] ?? []) {
+    if (entry.sourceOccurrenceId === occurrence.id || (!entry.sourceOccurrenceId && entry.sourceEventId === occurrence.event.id && cycle.month === occurrence.originalMonth)) amounts.set('cash:' + cycle.month + ':' + entry.id, entry.amount)
+  }
+  const override = occurrence.event.occurrenceOverrides?.[occurrence.originalMonth]
+  const links: ForecastFactLink[] = [...(override?.links ?? [])]
+  if (occurrence.event.planLink) links.push({ ...occurrence.event.planLink, month: occurrence.month })
+  const cardIds = new Set(links.filter((link) => link.type === 'card').map((link) => link.id))
+  for (const entry of cards) if (entry.sourceForecastOccurrenceId === occurrence.id) cardIds.add(entry.id)
+  for (const invoice of paidInvoices) {
+    const matched = (invoice.entries ?? []).filter((entry) => entry.sourceForecastOccurrenceId === occurrence.id || cardIds.has(entry.id))
+    if (matched.length) for (const entry of matched) amounts.set('card:' + entry.id, entry.personalAmount)
+    else for (const [index, entry] of (invoice.forecastOccurrences ?? []).entries()) if (entry.id === occurrence.id) amounts.set('invoice:' + invoice.id + ':' + invoice.accountId + ':' + invoice.dueMonth + ':' + index, entry.amount)
+  }
+  for (const entry of cards) if (cardIds.has(entry.id) && !amounts.has('card:' + entry.id)) {
+    if (entry.isPrepaid) amounts.set('card:' + entry.id, entry.personalAmount)
+    else committedAmount += entry.personalAmount
+  }
+  for (const link of links) {
+    if (link.type === 'cost' || link.type === 'want') {
+      const cycle = actuals.find((cycle) => cycle.month === link.month)
+      const value = cycle?.[link.type === 'cost' ? 'costs' : 'wants'][link.id]
+      if (value !== undefined) amounts.set(factLinkKey(link), value)
+    } else if (link.type === 'cash') {
+      const entry = actuals.find((cycle) => cycle.month === link.month)?.[field].find((entry) => entry.id === link.id)
+      if (entry) amounts.set(factLinkKey(link), entry.amount)
+    } else if (link.type === 'movement') {
+      const entry = movements.find((source) => source.ownerId === link.ownerId && source.ownerType === link.ownerType)?.entries.find((entry) => entry.id === link.id)
+      const valid = entry && (occurrence.event.kind === 'income' ? entry.kind === 'withdrawal' : entry.kind === 'contribution' || entry.kind === 'amortization')
+      if (valid) amounts.set(factLinkKey(link), Math.abs(entry.amount))
+    }
+  }
+  const legacyMarked = occurrence.event.cashTreatment === 'planned' && links.length === 0 ? override?.realizedAmount ?? 0 : 0
+  const paidAmount = [...amounts.values()].reduce((sum, value) => sum + value, 0) + legacyMarked
+  const remainingAmount = occurrence.cancelled ? 0 : Math.max(0, occurrence.amount - paidAmount)
+  const unregisteredAmount = Math.max(0, remainingAmount - committedAmount)
   const overdue = occurrence.date ? occurrence.date < today : occurrence.month < today.slice(0, 7)
-  const status = remainingAmount <= 0.005 ? 'settled'
-    : paidAmount > 0.005 ? 'partial'
-    : cards.some((entry) => entry.sourceForecastOccurrenceId === occurrence.id) ? 'scheduled'
-    : overdue ? 'overdue' : 'pending'
-  return { ...occurrence, paidAmount, remainingAmount, status }
+  const status = occurrence.cancelled ? 'cancelled' : remainingAmount <= 0.005 ? 'settled'
+    : paidAmount > 0.005 ? 'partial' : committedAmount > 0.005 ? 'scheduled' : overdue ? 'overdue' : 'pending'
+  return { ...occurrence, paidAmount, remainingAmount, committedAmount, unregisteredAmount, overdue, linked: links.length > 0, status }
 }
 
 export function upcomingOccurrences(
-  events: ExpectedEvent[],
-  actuals: MonthlyActuals[],
-  startMonth: string,
-  months: number,
-  today: string,
-  cards: CreditCardEntry[] = [],
-  paidInvoices: PaidInvoiceSnapshot[] = [],
+  events: ExpectedEvent[], actuals: MonthlyActuals[], startMonth: string, months: number, today: string,
+  cards: CreditCardEntry[] = [], paidInvoices: PaidInvoiceSnapshot[] = [], movements: ForecastMovementSource[] = [], includeCancelled = false,
 ): ReconciledOccurrence[] {
-  return occurrencesInRange(events, startMonth, months)
-    .map((occurrence) => reconcileOccurrence(occurrence, actuals, today, cards, paidInvoices))
-    .sort((a, b) => (a.date ?? `${a.month}-99`).localeCompare(b.date ?? `${b.month}-99`))
+  return occurrencesInRange(events, startMonth, months, includeCancelled)
+    .map((occurrence) => reconcileOccurrence(occurrence, actuals, today, cards, paidInvoices, movements))
+    .sort((a, b) => (a.date ?? a.month + '-99').localeCompare(b.date ?? b.month + '-99') || a.id.localeCompare(b.id))
+}
+
+export function buildForecastAgenda(events: ExpectedEvent[], actuals: MonthlyActuals[], startMonth: string, today: string, cards: CreditCardEntry[] = [], invoices: PaidInvoiceSnapshot[] = [], movements: ForecastMovementSource[] = []) {
+  return events.map((event) => {
+    const start = event.month < startMonth ? event.month : startMonth
+    const endAnchor = event.month > startMonth ? event.month : startMonth
+    const items = upcomingOccurrences([event], actuals, start, monthsBetween(start, endAnchor) + 120, today, cards, invoices, movements, true)
+    // Mesmo uma ocorrência adiada para fora da janela conserva os fatos no detalhe.
+    for (const original of Object.keys(event.occurrenceOverrides ?? {})) {
+      const occurrence = occurrenceFor(event, original, true)
+      if (occurrence && !items.some((item) => item.id === occurrence.id)) items.push(reconcileOccurrence(occurrence, actuals, today, cards, invoices, movements))
+    }
+    items.sort((a, b) => (a.date ?? a.month + '-99').localeCompare(b.date ?? b.month + '-99'))
+    const next = items.find((item) => item.remainingAmount > 0.005 && item.status !== 'cancelled')
+    return { event, items, next }
+  }).sort((a, b) => (a.next?.date ?? (a.next ? a.next.month + '-99' : '9999')).localeCompare(b.next?.date ?? (b.next ? b.next.month + '-99' : '9999')) || a.event.name.localeCompare(b.event.name))
 }
 
 function conservativeDate(occurrence: ExpectedOccurrence): string {

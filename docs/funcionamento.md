@@ -13,7 +13,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | Cartões | Conferir/importar compras, pagar cada cartão separadamente e definir adiantamentos a terceiros e devoluções recebidas. |
 | Patrimônio | Consultar e registrar posições, reserva, metas, bens, dívidas e livros de movimentos. |
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
-| Futuro | Cadastrar entradas e saídas esperadas, ocorrências e ajustes; consultar projeções e premissas. |
+| Futuro | Acompanhar a próxima ocorrência pendente de entradas e saídas, registrar ou vincular fatos; consultar projeção e premissas sob demanda. |
 
 ## Plano, referência e simulação
 
@@ -79,4 +79,15 @@ Reserva, carteira e metas atribuem finalidade ao dinheiro existente; não duplic
 
 Fechamentos preservam folha, metas de comparação e marca patrimonial do fechamento. Aportes diretos históricos acompanham a competência do livro de movimentos. Consultar o passado não troca a competência operacional. Cadastros com fatos são arquivados em vez de apagar seu histórico.
 
-Correção histórica geral, ciclo de vida das ocorrências, destinos de aportes e projeções ainda têm melhorias pendentes; consultar a fila antes de alterar esses fluxos.
+Correção histórica geral, destinos de aportes e projeções ainda têm melhorias pendentes; consultar a fila antes de alterar esses fluxos.
+## Ocorrências e agenda
+
+A lista principal de Futuro ordena cada previsão pela próxima ocorrência pendente conciliada. O resumo mostra data e restante, incluindo vencidas e parciais; realizar uma ocorrência avança para a próxima. O detalhe permite consultar outras ocorrências e os registros realizados/cancelados. Projeção e premissas começam recolhidas.
+
+Editar permite escolher esta ocorrência ou esta e próximas pendentes. A identidade mantém o mês original mesmo após adiamento; data prevista e competência realizada continuam distintas. As liquidadas guardam a definição que acompanhou seus fatos e não são reabertas por uma revisão da série. Pagamentos e recebimentos parciais sobrevivem ao adiamento, com valor, ciclo e data real intactos. A repetição da série mantém sua origem.
+
+Cancelar ocorrência ou previsão conserva todos os fatos e vínculos; reativar recupera as pendências. Corrigir um pagamento ou compra acontece na origem. Desvincular não desfaz nem apaga o fato financeiro. A edição composta usa salvar/cancelar; falhas mantêm o rascunho.
+
+Uma saída incluída no plano identifica o custo ou Desejo correspondente e acompanha o realizado desse item no ciclo previsto. Custos vinculados reservam também o restante no Ciclo, uma vez; Desejos continuam fora dos compromissos-base. Para fatos já existentes, vincular extra, compra ou movimento compatível de posição/meta/dívida evita criar outro lançamento. A meta relacionada dá contexto; marcar uma meta não cria aporte nem reserva dinheiro.
+
+Cobrança no cartão fica lançada e ainda a pagar até o pagamento da fatura; a parte já lançada não pode ser registrada outra vez. Novas cobranças usam o calendário do cartão escolhido. A realização em conta pelo Futuro ou pelo Ciclo usa a mesma ocorrência e gravação, com o ciclo ativo como padrão e data real separada. Valores acima do restante são recusados.

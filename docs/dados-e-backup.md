@@ -32,6 +32,7 @@ O arquivo exportado tem nome `fintano-backup-v9-AAAA-MM-DD.json`. Seu esquema es
 - `planning.cycles` conserva resumos; não substitui os planos operacionais completos.
 - Avaliações importadas são preservadas, e `currentValueCents` representa o valor corrente das posições. Mudar avaliação não é aportar.
 - `cards.thirdParties` preserva compra, cartão, fatura, responsável pelo financiamento, ciclo de desembolso, valor em centavos e devoluções com IDs, ciclo e data real. Não exige que uma compra removida continue ativa; o registro confirmado mantém a descrição. Recebimentos acima do adiantamento e pares de transferência divergentes são rejeitados.
+- Previsões conservam o cancelamento reversível, revisões por mês original (`futureChanges`), definições por ocorrência (`terms`) e vínculos com fatos (`links`). As definições monetárias usam `amountCents` no backup. O ID da ocorrência mantém o mês original após adiamento; vínculos preservam tipo, ID, ciclo e origem patrimonial quando aplicável. Cancelamento ou revisão não remove o realizado.
 - Faturas pagas preservam cartão, competência, total, parte pessoal, créditos e composição disponíveis. Informação ausente não é inventada.
 - Fechamentos separam `thirdPartyAdvancedCents` e `reimbursementsReceivedCents` das entradas/saídas extras. Reverter ou corrigir esses movimentos atualiza o caixa relacionado numa gravação única. As marcas patrimoniais da data são preservadas; os aportes diretos continuam relacionados aos livros de movimentos.
 

@@ -2,7 +2,8 @@ import { useCallback, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
 import type { CostItem, ExtraIncomeEntry, MonthlyActuals, WantItem } from '../types'
 import { normalizeActuals, summarizeActuals } from '../lib/actuals'
-import { monthKey, uid } from '../lib/shared'
+import { localDateKey, monthKey, uid } from '../lib/shared'
+import { forecastCommand, realizeForecastInDocument } from '../data/forecastCommands'
 
 type CashEntryField = 'extraIncome' | 'extraExpenses'
 
@@ -150,6 +151,7 @@ export function useActuals(
     ) => {
       const cleanName = name.trim()
       if (!cleanName || amount <= 0) return false
+      if (sourceEventId && sourceOccurrenceId) return forecastCommand((document) => realizeForecastInDocument(document, sourceEventId, sourceOccurrenceId.slice(sourceEventId.length + 1), amount, targetMonth, occurredAt ?? localDateKey())).ok
       return updateMonth(targetMonth, (current) => {
         const entry: ExtraIncomeEntry = {
           id: uid(),
