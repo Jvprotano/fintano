@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
 import { recordAssetMove, changeLinkedMovementCycle, removeLinkedMovement } from '../data/financialMovement'
 import { deleteUnusedCatalog } from '../data/catalogDeletion'
+import { runRepositoryCommand } from '../data/repositoryCommand'
 import { resolveLegacyLedgerKind } from '../data/ledgerClassification'
 import type {
   EmergencyFundState,
@@ -19,6 +20,7 @@ import {
   normalizeAssetClass,
   normalizeEmergencyFund,
   normalizeHolding,
+  usableHoldingValue,
   type FinancialHolding,
   type InvestmentPurpose,
 } from '../lib/investments'
@@ -72,6 +74,7 @@ export function useInvestments(
   liabilities = 0,
   { securedLiabilities = 0, physicalAssets = 0 } = {},
   activeCycleMonth = monthKey(),
+  pensionHoldingIds: string[] = [],
 ) {
   const [storedFund, setStoredFund] = useRepositoryState<EmergencyFundState>(
     'emergencyFund',
@@ -87,8 +90,11 @@ export function useInvestments(
     [],
   )
   const holdings = useMemo(
-    () => (Array.isArray(storedHoldings) ? storedHoldings.map(normalizeHolding) : []),
-    [storedHoldings],
+    () => (Array.isArray(storedHoldings) ? storedHoldings.map((raw) => {
+      const holding = normalizeHolding(raw)
+      return pensionHoldingIds.includes(holding.id) && !holding.pension ? { ...holding, pension: {} } : holding
+    }) : []),
+    [storedHoldings, pensionHoldingIds],
   )
 
   const [storedClasses, setClasses] = useRepositoryState<InvestmentAssetClass[]>(
@@ -229,16 +235,31 @@ export function useInvestments(
           | 'purpose'
           | 'benchmark'
           | 'liquidity'
+          | 'pension'
         >
       >,
+      expectedRevision?: string | null,
     ) => {
+      const current = holdings.find((holding) => holding.id === id)
+      if (!current) return false
+      const candidate = { ...current, ...patch }
+      const pension = candidate.pension
+      if (!Number.isFinite(candidate.marketValue) || candidate.marketValue < 0 || pension && (candidate.purpose === 'emergency_fund' ||
+        [pension.employerBalance, pension.employerRestrictedBalance].some((value) => value !== undefined && (!Number.isFinite(value) || value < 0)) ||
+        pension.employerBalance !== undefined && pension.employerBalance > candidate.marketValue ||
+        pension.employerRestrictedBalance !== undefined && (pension.employerBalance === undefined || pension.employerRestrictedBalance > pension.employerBalance))) return false
+      if (expectedRevision !== undefined) return runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => ({
+        ...document, collections: { ...document.collections, investmentHoldings:
+          (document.collections.investmentHoldings as FinancialHolding[] ?? []).map((holding) => holding.id === id ? normalizeHolding({ ...holding, ...patch }) : holding),
+        },
+      }) }).ok
       return setHoldings((prev) =>
         (Array.isArray(prev) ? prev : []).map((holding) =>
           holding.id === id ? normalizeHolding({ ...holding, ...patch }) : normalizeHolding(holding),
         ),
       )
     },
-    [setHoldings],
+    [holdings, setHoldings],
   )
 
   const removeHolding = useCallback(
@@ -269,14 +290,19 @@ export function useInvestments(
       recordAssetMove('holding', holdingId, amount, cycleMonth, occurredOn, note), [activeCycleMonth])
 
   const setHoldingTransactionCycle = useCallback((holdingId: string, transactionId: string, month: string) => {
+    if (holdings.find((row) => row.id === holdingId)?.transactions.find((tx) => tx.id === transactionId)?.payrollMonth) return false
     const linked = changeLinkedMovementCycle('holding', holdingId, transactionId, month)
     if (linked !== null) return linked
     return setHoldings((prev) => prev.map((raw) => raw.id === holdingId ? { ...raw,
       transactions: raw.transactions.map((tx) => tx.id === transactionId ? { ...tx, cycleMonth: validCycleMonth(month, activeCycleMonth) } : tx),
     } : raw))
-  }, [activeCycleMonth, setHoldings])
+  }, [activeCycleMonth, holdings, setHoldings])
 
   const removeHoldingTransaction = useCallback((holdingId: string, transactionId: string) => {
+    if (holdings.find((row) => row.id === holdingId)?.transactions.find((tx) => tx.id === transactionId)?.payrollMonth) return false
+    const current = holdings.find((row) => row.id === holdingId)
+    const entry = current?.transactions.find((tx) => tx.id === transactionId)
+    if (current?.pension && !entry?.operationId && current.marketValue - (entry?.amount ?? 0) < (current.pension.employerBalance ?? current.marketValue)) return false
     const linked = removeLinkedMovement('holding', holdingId, transactionId)
     if (linked !== null) return linked
     return setHoldings((prev) => prev.map((raw) => {
@@ -286,7 +312,7 @@ export function useInvestments(
       if (!removed || holding.marketValue - removed.amount < -0.005) return holding
       return { ...holding, transactions: holding.transactions.filter((tx) => tx.id !== transactionId), marketValue: holding.marketValue - removed.amount }
     }))
-  }, [setHoldings])
+  }, [holdings, setHoldings])
 
   // Marcação a mercado: define o saldo atual sem registrar aporte/retirada.
   const setMarketValue = useCallback(
@@ -643,11 +669,11 @@ export function useInvestments(
   const goalContext = useMemo<GoalContext>(
     () => ({
       reserveBalance: summary.reserveBalance,
-      investmentsBalance: summary.totalMarketValue,
+      investmentsBalance: summary.allHoldings.filter((holding) => holdingPurpose(holding) === 'portfolio').reduce((sum, holding) => sum + usableHoldingValue(holding), 0),
       classBalances: summary.classes.map((item) => ({
         id: item.id,
         name: item.name,
-        marketValue: item.marketValue,
+        marketValue: item.holdings.reduce((sum, holding) => sum + usableHoldingValue(holding), 0),
       })),
       holdings: summary.allHoldings
         .filter((holding) => holdingPurpose(holding) === 'portfolio')
@@ -655,7 +681,7 @@ export function useInvestments(
           id: holding.id,
           name: holding.name,
           institution: holding.institution,
-          marketValue: holding.marketValue,
+          marketValue: usableHoldingValue(holding),
         })),
       goalOwnBalances,
       assetsBalance: physicalAssets,
@@ -663,7 +689,6 @@ export function useInvestments(
     }),
     [
       summary.reserveBalance,
-      summary.totalMarketValue,
       summary.classes,
       summary.allHoldings,
       goalOwnBalances,

@@ -96,6 +96,7 @@ describe('jornadas financeiras persistidas', () => {
 
   it('paga a fatura sem fechar o ciclo financeiro', () => {
     const cards = renderHook(() => useCreditCards())
+    act(() => cards.result.current.addAccount({ name: 'Itaú', closingDay: 25, dueDay: 5 }))
     act(() => {
       cards.result.current.addEntry({
         cycle: 'current',
@@ -118,6 +119,7 @@ describe('jornadas financeiras persistidas', () => {
 
   it('mantém a data da assinatura sincronizada ao editar e virar a fatura', () => {
     const cards = renderHook(() => useCreditCards())
+    act(() => cards.result.current.addAccount({ name: 'Itaú', closingDay: 25, dueDay: 5 }))
     act(() => {
       cards.result.current.setSettings({
         paymentDate: '05/10',
@@ -162,6 +164,7 @@ describe('jornadas financeiras persistidas', () => {
 
   it('antecipa de uma vez todas as parcelas restantes do cartão', () => {
     const cards = renderHook(() => useCreditCards())
+    act(() => cards.result.current.addAccount({ name: 'Itaú', closingDay: 25, dueDay: 5 }))
     act(() => {
       cards.result.current.addEntry({
         cycle: 'current',

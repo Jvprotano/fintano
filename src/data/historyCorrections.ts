@@ -8,6 +8,7 @@ import { addMonths, ledgerEntryCycleMonth, nowIso, uid } from '../lib/shared'
 import { formatCurrency } from '../lib/format'
 import { refreshMovementHistory, type MovementOwner } from './financialMovement'
 import type { InvestmentLedgerSource } from '../lib/investmentActuals'
+import { syncPayrollPension } from './payrollPension'
 
 export interface CorrectionRow {
   key: string
@@ -100,7 +101,7 @@ export function historyCorrectionMovements(doc: RepositoryDocument, month: strin
     const labels = { contribution: 'Aporte', withdrawal: 'Resgate', transfer_in: 'Transferência recebida', transfer_out: 'Transferência enviada', amortization: 'Amortização', opening_balance: 'Saldo anterior', adjustment: 'Ajuste de saldo', balance_increase: 'Aumento da dívida' }
     return [{ key, owner: row.owner, ownerId: row.id, id: tx.id, label: `${row.name} · ${tx.note ?? (tx.kind ? labels[tx.kind] : 'Movimento')}`,
       month, date: tx.date, amount: tx.amount,
-      locked: ownersOf(doc).some((owner) => owner.transactions.some((entry) => (tx.operationId ? entry.operationId === tx.operationId : entry.id === tx.id) && entry.cashTreatment === 'planned_cost')) }]
+      locked: !!tx.payrollMonth || ownersOf(doc).some((owner) => owner.transactions.some((entry) => (tx.operationId ? entry.operationId === tx.operationId : entry.id === tx.id) && entry.cashTreatment === 'planned_cost')) }]
   }))
 }
 
@@ -111,7 +112,7 @@ export function investmentSourceOf(doc: RepositoryDocument): InvestmentLedgerSou
 }
 
 function moveCycle(doc: RepositoryDocument, movement: CorrectionMovement, month: string): RepositoryDocument {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || movement.locked) throw new Error('Ciclo inválido ou amortização vinculada ao ciclo da parcela paga.')
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || movement.locked) throw new Error('Ciclo inválido ou movimento vinculado à folha ou à parcela paga.')
   const entry = ownersOf(doc).find((row) => row.owner === movement.owner && row.id === movement.ownerId)?.transactions.find((row) => row.id === movement.id)
   if (!entry) throw new Error('Movimento não encontrado.')
   const next = structuredClone(doc)
@@ -190,7 +191,10 @@ export function correctHistoryInDocument(document: RepositoryDocument, id: strin
       actualChanged = true
     }
   }
-  if (actualChanged) next.collections.actuals = [...actuals.filter((row) => row.month !== actual.month), actual].sort((a, b) => a.month.localeCompare(b.month))
+  if (actualChanged) {
+    if (actual.paycheck?.pensionAllocations) syncPayrollPension(next, actual.month, actual.paycheck)
+    next.collections.actuals = [...actuals.filter((row) => row.month !== actual.month), actual].sort((a, b) => a.month.localeCompare(b.month))
+  }
   if (actual.paycheck && changes.some((row) => ['Salário na conta', 'Previdência em folha'].includes(row.label))) snapshot.availableForBudget = money(snapshot.paycheckInAccount + snapshot.payrollInvested)
   if (draft.note.trim() !== (snapshot.note ?? '')) changes.push({ label: 'Nota', before: snapshot.note ?? '', after: draft.note.trim(), source: 'Fechamento' })
   snapshot.note = draft.note.trim() || undefined

@@ -52,7 +52,7 @@ function SnapshotEditor({ point, onClose }: { point: HistoryPoint; onClose: () =
       <h4 className="mb-2 text-sm font-medium">Competência dos movimentos</h4>
       <p className="mb-3 text-xs text-dark-text-muted">Alterar a competência preserva data e valor. Partes da mesma operação se movem juntas. Para corrigir valor ou desfazer, abra o livro em Patrimônio.</p>
       <div className="space-y-2">{base.movements.map((row) => <label key={row.key} className="flex items-center justify-between gap-4 text-xs">
-        <span>{row.label} · {formatCurrency(row.amount)} · data real {row.date.slice(0, 10)}{row.locked ? ' · acompanha a parcela paga' : ''}</span>
+        <span>{row.label} · {formatCurrency(row.amount)} · data real {row.date.slice(0, 10)}{row.locked ? ' · competência vinculada à origem' : ''}</span>
         <input type="month" disabled={row.locked} aria-label={`Competência de ${row.label}`} value={draft.months[row.key]} className={`${inputClass} w-44`}
           onChange={(event) => setDraft((prev) => ({ ...prev, months: { ...prev.months, [row.key]: event.target.value } }))} />
       </label>)}</div>

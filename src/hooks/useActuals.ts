@@ -1,6 +1,8 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRepositoryState } from '../data/repository'
-import type { CostItem, ExtraIncomeEntry, MonthlyActuals, WantItem } from '../types'
+import type { CostItem, DeductionItem, ExtraIncomeEntry, MonthlyActuals, WantItem } from '../types'
+import { setPaycheckInDocument } from '../data/payrollPension'
+import { runRepositoryCommand } from '../data/repositoryCommand'
 import { normalizeActuals, summarizeActuals } from '../lib/actuals'
 import { localDateKey, monthKey, uid } from '../lib/shared'
 import { forecastCommand, realizeForecastInDocument } from '../data/forecastCommands'
@@ -19,6 +21,7 @@ const emptyMonth = (month: string): MonthlyActuals => ({
 })
 
 const hasFacts = (actuals: MonthlyActuals) =>
+  actuals.payrollPensionLegacy ||
   Object.keys(actuals.costs).length > 0 ||
   actuals.paycheck !== undefined ||
   Object.keys(actuals.wants).length > 0 ||
@@ -35,7 +38,9 @@ export function useActuals(
   month = monthKey(),
   knownCosts: CostItem[] = costs,
   knownWants: WantItem[] = wants,
+  deductions: DeductionItem[] = [],
 ) {
+  const [paycheckError, setPaycheckError] = useState('')
   const [stored, setStored] = useRepositoryState<MonthlyActuals[]>('actuals', [])
   const months = useMemo(
     () => (Array.isArray(stored) ? stored.map(normalizeActuals) : []),
@@ -64,14 +69,11 @@ export function useActuals(
     [setStored],
   )
 
-  const setPaycheck = useCallback((value: MonthlyActuals['paycheck'] | null, targetMonth = month) =>
-    updateMonth(targetMonth, (current) => {
-      const next = { ...current }
-      if (value) next.paycheck = value
-      else delete next.paycheck
-      return next
-    }),
-  [month, updateMonth])
+  const setPaycheck = useCallback((value: MonthlyActuals['paycheck'] | null, targetMonth = month) => {
+    const result = runRepositoryCommand({ id: uid(), apply: (document) => setPaycheckInDocument(document, targetMonth, value ?? null, deductions) })
+    setPaycheckError(result.ok ? '' : result.message)
+    return result.ok
+  }, [month, deductions])
 
   /** Informa o valor pago de um custo. `null` volta ao estado pendente. */
   const setActual = useCallback(
@@ -236,6 +238,7 @@ export function useActuals(
     month,
     summary,
     setPaycheck,
+    paycheckError,
     setActual,
     setWantActual,
     fillFromPlan,

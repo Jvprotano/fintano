@@ -175,7 +175,7 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-dark-text">Folha recebida</h3>
-            <p className="text-xs text-dark-text-muted">Plano em conta: {formatCurrency(metrics.paycheckInAccount)}. Sem confirmação, não entra no caixa realizado.</p>
+            <p className="text-xs text-dark-text-muted">Plano em conta: {formatCurrency(metrics.paycheckInAccount)}. Confirmar registra automaticamente sua previdência e o aporte da empresa nas posições vinculadas em Planejar.</p>
           </div>
           <SecondaryButton onClick={() => actuals.setPaycheck({ amount: metrics.paycheckInAccount,
             payrollInvestment: metrics.investmentDeductions,
@@ -192,13 +192,13 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                 payrollInvestment: summary.paycheck?.payrollInvestment ?? 0,
                 employerInvestment: summary.paycheck?.employerInvestment ?? 0, origin: 'manual' })} /></span>
           </label>
-          <label className="app-form-label">Previdência descontada
+          <label className="app-form-label">Seu aporte · desconto em folha
             <span className="mt-1 block"><CurrencyInput value={summary.paycheck?.payrollInvestment ?? 0}
               onChange={(payrollInvestment) => actuals.setPaycheck({ amount: summary.paycheck?.amount ?? 0,
                 payrollInvestment, employerInvestment: summary.paycheck?.employerInvestment ?? 0,
                 origin: 'manual' })} /></span>
           </label>
-          <label className="app-form-label">Contrapartida recebida
+          <label className="app-form-label">Aporte da empresa · previdência
             <span className="mt-1 block"><CurrencyInput value={summary.paycheck?.employerInvestment ?? 0}
               onChange={(employerInvestment) => actuals.setPaycheck({ amount: summary.paycheck?.amount ?? 0,
                 payrollInvestment: summary.paycheck?.payrollInvestment ?? 0, employerInvestment,
@@ -208,6 +208,9 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
         <p className="mt-2 text-xs text-dark-text-muted">{summary.paycheck
           ? summary.paycheck.origin === 'confirmed_from_plan' ? 'Folha confirmada com os valores do plano.' : 'Folha informada manualmente neste ciclo.'
           : 'Folha ainda não confirmada.'}</p>
+        {summary.paycheck && !summary.paycheck.pensionAllocations && <p className="mt-2 text-xs text-dark-text-muted">Folha anterior à automação: seus aportes não serão relançados. Confira o saldo antigo pelo extrato em Patrimônio. A automação começa nas próximas folhas.</p>}
+        <p className="mt-2 text-xs text-dark-text-muted">Não repita estes aportes manualmente em Patrimônio. A empresa não reduz seu caixa e a parcela dela entra em carência até você informar a liberação no extrato.</p>
+        {actuals.paycheckError && <p role="alert" className="mt-2 text-xs text-amber-200">{actuals.paycheckError}</p>}
       </div>
 
       {cycleEvents.length > 0 && <details className="mt-4 rounded-lg border border-dark-border-subtle px-3 py-2.5">

@@ -154,7 +154,7 @@ export function IncomePanel() {
                             className={`${selectClass} !py-1.5 !text-xs`}
                           >
                             <option value="">Não vinculada</option>
-                            {investmentsSummary.allHoldings.map((holding) => (
+                            {investmentsSummary.allHoldings.filter((holding) => !holding.archivedAt && holding.purpose !== 'emergency_fund').map((holding) => (
                               <option key={holding.id} value={holding.id}>
                                 {holding.name}
                               </option>
@@ -162,11 +162,12 @@ export function IncomePanel() {
                           </select>
                         </label>
                         <span className="tabular-nums text-dark-text-secondary sm:col-span-2">
-                          Total creditado/mês:{' '}
+                          Previsto por mês:{' '}
                           <strong className="text-dark-text">
                             {formatCurrency(deduction.value + contribution)}
                           </strong>
                         </span>
+                        <p className="text-dark-text-muted sm:col-span-2">Ao confirmar a folha no Ciclo, seu desconto e a empresa entram automaticamente na posição vinculada. Carência e divisão do saldo ficam em Patrimônio.</p>
                       </div>
                     )}
                   </li>

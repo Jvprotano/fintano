@@ -14,8 +14,11 @@ export type ExtraExpenseEntry = ExtraIncomeEntry
 
 export interface MonthlyActuals {
   month: string
+  /** Folha anterior à automação; não reconstruir seus aportes após limpar/reconfirmar. */
+  payrollPensionLegacy?: boolean
   /** Folha efetivamente recebida; ausente significa que ainda não foi confirmada. */
   paycheck?: { amount: number; payrollInvestment: number; employerInvestment: number;
+    pensionAllocations?: { holdingId: string; personalWeight: number; employerWeight: number }[];
     origin?: 'manual' | 'confirmed_from_plan' }
   costs: Record<string, number>
   costOrigins?: Record<string, 'manual' | 'confirmed_from_plan'>

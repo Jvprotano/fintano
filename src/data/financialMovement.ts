@@ -1,5 +1,5 @@
-import type { Debt, FinancialGoal, LedgerEntry, MonthlySnapshot } from '../types'
-import { normalizeHolding, type FinancialHolding } from '../lib/investments'
+import type { Debt, FinanceScenario, FinancialGoal, LedgerEntry, MonthlySnapshot } from '../types'
+import { normalizeHolding, usableHoldingValue, validPensionBalance, type FinancialHolding } from '../lib/investments'
 import { normalizeGoal } from '../lib/goals'
 import { normalizeDebt } from '../lib/debts'
 import { ledgerBalance, ledgerEntryCycleMonth, ledgerOperationDates, normalizeLedger, uid } from '../lib/shared'
@@ -84,6 +84,18 @@ export function moveInDocument(document: RepositoryDocument, input: MovementInpu
   const next = structuredClone(document)
   const source = owner(next, input.source)
   const destination = owner(next, input.destination)
+  const sourceHoldingId = input.source.type === 'holding' ? input.source.id : undefined
+  let pensionEmployerAmount: number | undefined
+  if (input.source.type === 'holding') {
+    const holding = (next.collections.investmentHoldings as FinancialHolding[]).find((row) => row.id === sourceHoldingId)!
+    const linked = [...(next.collections.scenarios as FinanceScenario[] ?? []), ...(next.collections.monthlyPlans as FinanceScenario[] ?? [])]
+      .some((plan) => plan.deductions.some((row) => row.type === 'previdencia_privada' && row.linkedHoldingId === holding.id))
+    if (linked && !holding.pension) throw new Error('Informe a divisão atual da previdência por extrato em Patrimônio antes de retirar recursos.')
+    if (input.amount > usableHoldingValue(holding) + 0.005) throw new Error('A parcela em carência não pode sair da previdência. Confira a divisão do extrato.')
+    if (holding.pension?.employerBalance !== undefined) {
+      pensionEmployerAmount = -Math.max(0, input.amount - (holding.marketValue - holding.pension.employerBalance))
+    }
+  }
   if (source && source.balance + 0.005 < input.amount) throw new Error('Saldo insuficiente na origem.')
   if (input.destination.type === 'debt' && destination!.balance + 0.005 < input.amount) throw new Error('O valor excede o saldo devedor.')
   if (input.linkedCostId) {
@@ -96,13 +108,18 @@ export function moveInDocument(document: RepositoryDocument, input: MovementInpu
     if (input.source.type !== 'account' || input.destination.type !== 'debt' || paid < input.amount + allocated - 0.005) throw new Error('Confirme a parcela no Ciclo antes de registrar sua amortização.')
   }
   const metadata = { operationId, cycleMonth: input.month, ...ledgerOperationDates(input.occurredOn), kindSource: 'user' as const, note: input.note?.trim() || `${source?.label ?? 'Conta'} → ${destination?.label ?? 'Conta'}` }
-  if (source) source.set([...source.transactions, { ...metadata, id: uid(), amount: -input.amount,
+  if (source) source.set([...source.transactions, { ...metadata, id: uid(), amount: -input.amount, pensionEmployerAmount,
     kind: input.destination.type === 'account' || input.destination.type === 'debt' ? 'withdrawal' : 'transfer_out' }], source.balance - input.amount)
   if (destination) destination.set([...destination.transactions, { ...metadata, id: uid(),
     amount: input.destination.type === 'debt' ? -input.amount : input.amount,
     kind: input.destination.type === 'debt' ? 'amortization' : input.source.type === 'account' ? 'contribution' : 'transfer_in',
     ...(input.destination.type === 'debt' ? { cashTreatment: input.linkedCostId ? 'planned_cost' as const : 'extra' as const, linkedCostId: input.linkedCostId } : {}),
   }], destination.balance + (input.destination.type === 'debt' ? -input.amount : input.amount))
+  if (input.source.type === 'holding' && pensionEmployerAmount !== undefined) {
+    const original = (document.collections.investmentHoldings as FinancialHolding[]).find((row) => row.id === sourceHoldingId)!
+    const holding = (next.collections.investmentHoldings as FinancialHolding[]).find((row) => row.id === sourceHoldingId)!
+    holding.pension = { ...original.pension, employerBalance: original.pension!.employerBalance! + pensionEmployerAmount }
+  }
   return refreshMovementHistory(document, next)
 }
 
@@ -122,8 +139,17 @@ export function undoMovement(document: RepositoryDocument, operationId: string):
     // Uma origem arquivada continua precisando ser restaurada antes de alterar seu livro.
     const target = owner(next, endpoint, true)!
     const delta = target.transactions.filter((tx) => tx.operationId === operationId).reduce((sum, tx) => sum + tx.amount, 0)
+    const companyDelta = target.transactions.filter((tx) => tx.operationId === operationId).reduce((sum, tx) => sum + (tx.pensionEmployerAmount ?? 0), 0)
     if (target.balance - delta < -0.005) throw new Error('O destino já utilizou esse saldo. Reponha-o antes de desfazer.')
     target.set(target.transactions.filter((tx) => tx.operationId !== operationId), target.balance - delta)
+    if (endpoint.type === 'holding' && companyDelta) {
+      const holding = (next.collections.investmentHoldings as FinancialHolding[]).find((row) => row.id === endpoint.id)!
+      if (holding.pension?.employerBalance === undefined) throw new Error('Confira a divisão do extrato antes de desfazer o resgate.')
+      holding.pension = { ...holding.pension, employerBalance: holding.pension.employerBalance - companyDelta }
+    }
+  }
+  if ((next.collections.investmentHoldings as FinancialHolding[] ?? []).some((holding) => !validPensionBalance(holding))) {
+    throw new Error('Recomponha o saldo da previdência antes de desfazer; a divisão da empresa deve permanecer válida.')
   }
   return refreshMovementHistory(document, next)
 }

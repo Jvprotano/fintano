@@ -25,9 +25,10 @@ function cardStorage() {
     schemaVersion: 7,
     updatedAt: '2026-09-30T12:00:00.000Z',
     collections: {
+      cardAccounts: [{ id: 'itau', name: 'Itaú', currentDueMonth: '2026-10', closingDay: 25, dueDay: 5 }],
       cardSettings: { paymentDate: '05/10', currentDueMonth: '2026-10', personalSpendingLimit: 1500 },
       cardEntries: [{
-        id: 'charge-1', cycle: 'current', description: 'Mercado', purchaseDate: '10/09',
+        id: 'charge-1', accountId: 'itau', dueMonth: '2026-10', cycle: 'current', description: 'Mercado', purchaseDate: '10/09',
         cardName: 'Itaú', amount: 300, personalAmount: 300, remainingAmount: 0,
       }],
       cardPaidInvoices: [],
@@ -51,7 +52,7 @@ function closeInput(): Parameters<typeof closeCycleInDocument>[1] {
     cardByArea: {}, cashLeftover: 4600,
   }
   return {
-    month: '2026-09', snapshot,
+    month: '2026-09', snapshot, invoiceKnown: true,
     costRows: [{ id: 'cost-1', planned: 200 }, { id: 'cost-2', planned: 100 }],
     wantRows: [{ id: 'want-1', planned: 50 }],
     payInvoiceDueMonth: '2026-10',
@@ -84,7 +85,7 @@ describe('comando financeiro indivisível', () => {
     expect(after).not.toBe(before)
     const document = readRepositoryDocument(storage)
     expect((document.collections.cardPaidInvoices as unknown[])).toHaveLength(1)
-    expect((document.collections.cardSettings as { currentDueMonth: string }).currentDueMonth).toBe('2026-11')
+    expect((document.collections.cardAccounts as { currentDueMonth: string }[])[0].currentDueMonth).toBe('2026-11')
     expect(runRepositoryCommand(command, storage)).toEqual({ ok: true, alreadyApplied: true })
     expect(repositoryRevision(storage)).toBe(after)
 
@@ -96,7 +97,7 @@ describe('comando financeiro indivisível', () => {
     expect(repositoryRevision(storage)).toBe(after)
   })
 
-  it('fecha, preenche realizados e paga a fatura numa escrita, sem avanço parcial', () => {
+  it('fecha realizados confirmados e paga a fatura numa escrita, sem avanço parcial', () => {
     const storage = cardStorage()
     const seeded = readRepositoryDocument(storage)
     writeRepositoryDocument({
@@ -105,7 +106,7 @@ describe('comando financeiro indivisível', () => {
         ...seeded.collections,
         activeCycle: { month: '2026-09', salaryHintDay: 30, cardDueHintDay: 5 },
         activeScenarioId: 'scenario-1',
-        actuals: [{ month: '2026-09', costs: { 'cost-1': 250 }, wants: {}, extraIncome: [], extraExpenses: [] }],
+        actuals: [{ month: '2026-09', paycheck: { amount: 5000, payrollInvestment: 0, employerInvestment: 0 }, costs: { 'cost-1': 250, 'cost-2': 100 }, wants: { 'want-1': 50 }, extraIncome: [], extraExpenses: [] }],
         history: [],
       },
     }, storage)
@@ -127,7 +128,7 @@ describe('comando financeiro indivisível', () => {
     })
     expect(saved.collections.history).toHaveLength(1)
     expect(saved.collections.cardPaidInvoices).toHaveLength(1)
-    expect((saved.collections.cardSettings as { currentDueMonth: string }).currentDueMonth).toBe('2026-11')
+    expect((saved.collections.cardAccounts as { currentDueMonth: string }[])[0].currentDueMonth).toBe('2026-11')
     const after = repositoryRevision(storage)
     expect(runRepositoryCommand(command, storage)).toEqual({ ok: true, alreadyApplied: true })
     expect(repositoryRevision(storage)).toBe(after)
@@ -139,6 +140,7 @@ describe('comando financeiro indivisível', () => {
     writeRepositoryDocument({ ...seeded, collections: { ...seeded.collections,
       activeCycle: { month: '2026-09', salaryHintDay: 30, cardDueHintDay: 5 },
       activeScenarioId: 'simulation-2',
+      actuals: [{ month: '2026-09', paycheck: { amount: 5000, payrollInvestment: 0, employerInvestment: 0 }, costs: { 'cost-1': 250, 'cost-2': 100 }, wants: { 'want-1': 50 }, extraIncome: [], extraExpenses: [] }],
       monthlyPlans: [{ month: '2026-09', sourceTemplateId: 'scenario-1' }],
     } }, storage)
     const closed = closeCycleInDocument(readRepositoryDocument(storage), closeInput())

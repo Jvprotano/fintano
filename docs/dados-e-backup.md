@@ -52,3 +52,11 @@ O menu distingue backup público de cópias brutas de recuperação e registra e
 Ao mudar o contrato, conferir a ida e volta somente nos campos e totais afetados, com cópia isolada. Não remover informação financeira para simplificar uma tela. Campos sem função visual atual só podem ser retirados quando sua finalidade e efeito sobre os dados estiverem resolvidos.
 
 Correção histórica usa uma única gravação com a revisão vista ao abrir o rascunho. Fatos detalhados são alterados em `actuals` junto com o fechamento; alterações de competência alcançam as partes vinculadas dos livros e os ciclos revisados. Marcas patrimoniais e referências de plano são preservadas. Ajustes de agregados sem origem conservam o total, mesmo sem detalhamento de Desejos; não criam fatos artificiais. Os campos opcionais de auditoria não alteram o identificador público v9.
+
+## Previdência pela folha
+
+`actuals.paycheck.pensionAllocations` captura os destinos e pesos pessoais/empresariais usados ao confirmar a folha. Os movimentos patrimoniais guardam `payrollMonth` e `contributor`, com IDs preservados nas correções; não são aporte direto nem saída de caixa. `payrollPensionLegacy` impede relançamento de uma folha anterior à automação após limpar/reconfirmar. Folha e posições são conciliadas numa única operação.
+
+`investmentHoldings.pension` guarda o saldo empresarial atual e sua parcela em carência. Ausência é desconhecida, não zero. Os saldos informados obedecem carência ≤ empresa ≤ total. Liberação é atualização explícita pelo extrato. Resgate/transferência preserva a fatia empresarial retirada em `pensionEmployerAmount`, permitindo reversão sem perder a divisão. Metas não recebem saldo condicionado ou com divisão desconhecida.
+
+O backup v9 conserva esses campos opcionais, com valores e pesos em centavos, mantendo compatibilidade com arquivos anteriores. A validação rejeita divisão inválida, destinos inexistentes ou aportes da folha com origem/competência inconsistente. Não há migração retroativa de saldos ou movimentos manuais.

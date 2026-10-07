@@ -15,24 +15,26 @@ const wants: WantItem[] = [
 ]
 
 describe('summarizeActuals', () => {
-  it('sem nada informado, o realizado é o plano', () => {
+  it('sem confirmação, o efetivo estima somente contas e o realizado é zero', () => {
     const summary = summarizeActuals(costs, undefined, '2026-07')
-    expect(summary.effectiveCosts).toBe(3_500)
-    expect(summary.plannedCosts).toBe(3_500)
+    expect(summary.effectiveCosts).toBe(2_200)
+    expect(summary.plannedCosts).toBe(2_200)
     expect(summary.variance).toBe(0)
     expect(summary.informedCount).toBe(0)
+    expect(summary.confirmedCosts).toBe(0)
+    expect(summary.rows.some((row) => row.cost.id === 'mercado')).toBe(false)
   })
 
   it('o valor informado substitui o planejado apenas naquele item', () => {
     const summary = summarizeActuals(costs, { month: '2026-07', costs: { energia: 260 }, extraIncome: [], extraExpenses: [] }, '2026-07')
-    expect(summary.effectiveCosts).toBe(3_560)
+    expect(summary.effectiveCosts).toBe(2_260)
     expect(summary.variance).toBe(60)
     expect(summary.informedCount).toBe(1)
   })
 
   it('zero informado é uma informação, não ausência', () => {
     const summary = summarizeActuals(costs, { month: '2026-07', costs: { energia: 0 }, extraIncome: [], extraExpenses: [] }, '2026-07')
-    expect(summary.effectiveCosts).toBe(3_300)
+    expect(summary.effectiveCosts).toBe(2_000)
     expect(summary.informedCount).toBe(1)
     expect(summary.rows.find((row) => row.cost.id === 'energia')?.actual).toBe(0)
   })
@@ -81,7 +83,7 @@ describe('summarizeActuals', () => {
       { month: '2026-07', costs: { apagado: 999 }, extraIncome: [], extraExpenses: [] },
       '2026-07',
     )
-    expect(summary.effectiveCosts).toBe(4_499)
+    expect(summary.effectiveCosts).toBe(3_199)
     expect(summary.informedCount).toBe(1)
     expect(summary.rows.find((row) => row.cost.id === 'apagado')).toMatchObject({
       planned: 0, actual: 999, cost: { name: 'Custo sem cadastro' },
@@ -212,7 +214,7 @@ describe('normalizeActuals', () => {
     )
 
     expect(summary.extraIncomeTotal).toBe(1_000)
-    expect(summary.effectiveCosts).toBe(3_500)
+    expect(summary.effectiveCosts).toBe(2_200)
   })
 
   it('soma saídas extraordinárias separadamente', () => {
@@ -228,6 +230,6 @@ describe('normalizeActuals', () => {
     )
 
     expect(summary.extraExpenseTotal).toBe(1_900)
-    expect(summary.effectiveCosts).toBe(3_500)
+    expect(summary.effectiveCosts).toBe(2_200)
   })
 })

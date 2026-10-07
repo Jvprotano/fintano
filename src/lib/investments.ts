@@ -22,6 +22,7 @@ const MIN_DAYS_FOR_ANNUALIZED = 60
 export type InvestmentPurpose = 'portfolio' | 'emergency_fund'
 
 export type FinancialHolding = InvestmentHolding & {
+  pension?: { employerBalance?: number; employerRestrictedBalance?: number }
   purpose?: InvestmentPurpose
   /** Referência/rentabilidade contratada: ex. 100% CDI, Selic, IPCA + 6%. */
   benchmark?: string
@@ -30,6 +31,7 @@ export type FinancialHolding = InvestmentHolding & {
 }
 
 export type FinancialHoldingSummary = HoldingSummary & {
+  pension?: FinancialHolding['pension']
   purpose?: InvestmentPurpose
   benchmark?: string
   liquidity?: string
@@ -53,6 +55,19 @@ export type ExtendedInvestmentsSummary = InvestmentsSummary & {
 
 export function holdingPurpose(holding: FinancialHolding): InvestmentPurpose {
   return holding.purpose === 'emergency_fund' ? 'emergency_fund' : 'portfolio'
+}
+
+/** Sem a divisão do extrato, não presume que a parcela da empresa é utilizável. */
+export function usableHoldingValue(holding: FinancialHolding): number {
+  if (!holding.pension) return holding.marketValue
+  if (holding.pension.employerBalance === undefined || holding.pension.employerRestrictedBalance === undefined) return 0
+  return Math.max(0, holding.marketValue - holding.pension.employerRestrictedBalance)
+}
+
+export function validPensionBalance(holding: FinancialHolding): boolean {
+  const pension = holding.pension
+  return !pension || (pension.employerBalance === undefined || Number.isFinite(pension.employerBalance) && pension.employerBalance >= 0 && pension.employerBalance <= holding.marketValue) &&
+    (pension.employerRestrictedBalance === undefined || Number.isFinite(pension.employerRestrictedBalance) && pension.employerRestrictedBalance >= 0 && pension.employerBalance !== undefined && pension.employerRestrictedBalance <= pension.employerBalance)
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +166,10 @@ export function normalizeHolding(raw: Partial<FinancialHolding> | undefined): Fi
     purpose: raw?.purpose === 'emergency_fund' ? 'emergency_fund' : 'portfolio',
     benchmark: raw?.benchmark?.trim() || undefined,
     liquidity: raw?.liquidity?.trim() || undefined,
+    ...(raw?.pension ? { pension: {
+      ...(raw.pension.employerBalance !== undefined ? { employerBalance: Math.max(0, finiteNumber(raw.pension.employerBalance)) } : {}),
+      ...(raw.pension.employerRestrictedBalance !== undefined ? { employerRestrictedBalance: Math.max(0, finiteNumber(raw.pension.employerRestrictedBalance)) } : {}),
+    } } : {}),
     archivedAt: raw?.archivedAt && Number.isFinite(Date.parse(raw.archivedAt))
       ? raw.archivedAt : undefined,
   }

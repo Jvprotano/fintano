@@ -242,7 +242,7 @@ export function LedgerList({
                 <p className="truncate text-xs text-dark-text">
                   {tx.note || (isDeposit ? inLabel : outLabel)}
                 </p>
-                {onCycleMonthChange ? (
+                {onCycleMonthChange && !tx.payrollMonth ? (
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-dark-text-muted">
                     <span>Feito em {formatDate(tx.date)}</span>
                     {tx.kind && <span>· {KIND_LABELS[tx.kind]}</span>}
@@ -264,14 +264,15 @@ export function LedgerList({
               >
                 {isDeposit ? '+' : '−'} {formatCurrency(Math.abs(tx.amount))}
               </span>
-              <button
+              {!tx.payrollMonth && <button
                 type="button"
                 onClick={() => { if (onRemove(tx.id) === false) setClassificationError('Não foi possível desfazer a operação. Confira o saldo de destino e o armazenamento.') }}
                 className="rounded-lg p-1.5 text-dark-text-muted opacity-100 transition-all hover:bg-rose-500/[0.08] hover:text-rose-400 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
                 title="Remover movimentação"
               >
                 <Trash2 size={13} />
-              </button>
+              </button>}
+              {tx.payrollMonth && <span className="text-xs text-dark-text-muted">Via folha</span>}
               </div>
               {tx.kindSource === 'legacy_ambiguous' && onKindChange && <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-2 text-xs text-amber-100">
                 <p>Movimento antigo: a observação sugeria saldo anterior. Confirme como ele deve afetar o ciclo.</p>
