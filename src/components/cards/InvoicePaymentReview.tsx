@@ -10,6 +10,8 @@ export function InvoicePaymentReview({
   nextDueMonth,
   onConfirm,
   onCancel,
+  ownBankPayment,
+  undefinedSplits,
 }: {
   summary: CreditCardSummary
   currentDueMonth: string
@@ -17,6 +19,8 @@ export function InvoicePaymentReview({
   nextDueMonth: string
   onConfirm: () => void
   onCancel: () => void
+  ownBankPayment: number
+  undefinedSplits: number
 }) {
   return (
     <Panel className="border-primary-500/30 bg-primary-500/[0.04]">
@@ -36,6 +40,7 @@ export function InvoicePaymentReview({
         />
         <StatTile label={`Próxima: ${formatMonthLong(nextDueMonth)}`} value={formatCurrency(summary.nextTotal)} />
       </div>
+      <p className="mt-3 text-xs text-dark-text-secondary">Do meu caixa ao banco: {formatCurrency(ownBankPayment)} (minha parte + adiantamentos definidos).{undefinedSplits > 0 ? ` Há ${undefinedSplits} rateios sem definição; confira Terceiros para completar o desembolso.` : ''} Devoluções não reduzem o valor pago ao banco.</p>
       {summary.currentCreditTotal > 0 && (
         <p className="mt-3 text-xs leading-relaxed text-dark-text-muted">
           Abatimentos avulsos registrados: {formatCurrency(summary.currentCreditTotal)} · aplicados nesta fatura: {formatCurrency(summary.currentAppliedCreditTotal)}.

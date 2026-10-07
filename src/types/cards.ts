@@ -2,6 +2,19 @@ import type { BudgetArea } from './core'
 
 export type CreditCardCycle = 'current' | 'next'
 
+export interface CardThirdParty {
+  id: string
+  entryId: string
+  accountId: string
+  dueMonth: string
+  description: string
+  ownerName: string
+  amount: number
+  fundedBy: 'user' | 'third_party'
+  cashMonth: string
+  payments: { id: string; amount: number; cycleMonth: string; occurredOn: string }[]
+}
+
 export interface CreditCardEntry {
   id: string
   cycle: CreditCardCycle

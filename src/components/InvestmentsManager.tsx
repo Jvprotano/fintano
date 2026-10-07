@@ -16,6 +16,7 @@ import {
 import { CurrencyInput } from './CurrencyInput'
 import { localDateKey } from '../lib/shared'
 import { LedgerList, LedgerMoveForm } from './Ledger'
+import { FinancialMovementPanel } from './FinancialMovementPanel'
 import { ReserveSection } from './ReserveSection'
 import { GoalsSection } from './GoalsSection'
 import { AssetsManager } from './AssetsManager'
@@ -413,6 +414,7 @@ export function InvestmentsManager() {
   const activeGoals = goals.filter((goal) => !goal.archivedAt && !goal.isComplete).length
 
   return <div className="space-y-4">
+    <FinancialMovementPanel />
     <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
       <StatTile label="Patrimônio líquido" value={formatCurrency(summary.netWorth)} detail={`${formatCurrency(summary.grossAssets)} em ativos − ${formatCurrency(summary.liabilities)} em dívidas`} tone={summary.netWorth > 0 ? 'accent' : summary.netWorth < 0 ? 'negative' : 'neutral'} />
       <StatTile label="Dinheiro e investimentos" value={formatCurrency(summary.financialAssets)} detail={`${summary.allHoldings.length} ${summary.allHoldings.length === 1 ? 'posição' : 'posições'} · ${formatCurrency(summary.reserveBalance)} de reserva`} tone="neutral" />

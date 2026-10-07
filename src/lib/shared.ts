@@ -115,6 +115,9 @@ export function normalizeLedger(raw: unknown, fallbackDate = nowIso(), owner: Le
         kindSource: classification.kindSource,
         date: tx?.date || fallbackDate,
         recordedAt: tx?.recordedAt && Number.isFinite(Date.parse(tx.recordedAt)) ? tx.recordedAt : undefined,
+        operationId: tx?.operationId,
+        cashTreatment: tx?.cashTreatment,
+        linkedCostId: tx?.linkedCostId,
         note: tx?.note?.trim() || undefined,
         cycleMonth,
       }

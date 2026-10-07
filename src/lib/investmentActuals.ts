@@ -15,6 +15,8 @@ export interface MonthlyInvestmentActuals {
   directNet: number
   /** Posição já existente ao iniciar o controle; patrimônio, não fluxo do mês. */
   openingBalance: number
+  cashContributions: number
+  cashWithdrawals: number
 }
 
 export interface InvestmentLedgerSource {
@@ -33,7 +35,7 @@ export function isOpeningBalance(entry: LedgerEntry) {
 
 function monthlyLedgerNet(entries: LedgerEntry[], month: string) {
   return entries.reduce((sum, entry) => {
-    if (ledgerEntryCycleMonth(entry) !== month || isOpeningBalance(entry)) return sum
+    if (ledgerEntryCycleMonth(entry) !== month || isOpeningBalance(entry) || entry.kind === 'transfer_in' || entry.kind === 'transfer_out' || entry.kind === 'adjustment') return sum
     return sum + entry.amount
   }, 0)
 }
@@ -118,5 +120,7 @@ export function calculateMonthlyInvestmentActuals(input: InvestmentLedgerSource 
     goalsNet,
     directNet: reserveNet + holdingsNet + goalsNet,
     openingBalance,
+    cashContributions: materialEntries(input).filter((tx) => ledgerEntryCycleMonth(tx) === input.month && tx.kind === 'contribution').reduce((sum, tx) => sum + tx.amount, 0),
+    cashWithdrawals: materialEntries(input).filter((tx) => ledgerEntryCycleMonth(tx) === input.month && tx.kind === 'withdrawal').reduce((sum, tx) => sum - tx.amount, 0),
   }
 }

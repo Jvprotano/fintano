@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useActiveCycle } from './useActiveCycle'
 import { useScenarios } from './useScenarios'
+import { useCardThirdParties } from './useCardThirdParties'
 import { useCreditCards } from './useCreditCards'
 import { useAssets } from './useAssets'
 import { useDebts } from './useDebts'
@@ -19,7 +20,7 @@ import { occurrencesInMonth, projectNetWorth } from '../lib/forecast'
 import { reconcileOccurrence, upcomingOccurrences } from '../lib/forecastCoverage'
 import { maybeCreateAutoBackup } from '../lib/backup'
 import { REPOSITORY_CHANGED_EVENT } from '../data/repository'
-import { addMonths, uid } from '../lib/shared'
+import { addMonths, ledgerEntryCycleMonth, uid } from '../lib/shared'
 import { runRepositoryCommand, type CommandResult } from '../data/repositoryCommand'
 import { closeCycleInDocument } from '../data/closingCommand'
 import type { BudgetArea, CostCategory, MonthlySnapshot, ScenarioSummary } from '../types'
@@ -36,6 +37,7 @@ export function useFinancas() {
   const activeCycle = useActiveCycle()
   const scenarios = useScenarios(activeCycle.month)
   const cards = useCreditCards(activeCycle.month, activeCycle.cycle.cardDueHintDay)
+  const thirdParties = useCardThirdParties(activeCycle.month, cards.entries, cards.paidInvoices)
   const assetsState = useAssets()
   const debts = useDebts(scenarios.activeScenarioAll.costs, assetsState.assets, activeCycle.month)
 
@@ -125,6 +127,7 @@ export function useFinancas() {
     [
       activeCycle.month,
       cards.entries,
+      cards.accounts,
       cards.paidInvoices,
       cards.settings.currentDueMonth,
       cards.summary.currentPersonalTotal,
@@ -201,6 +204,10 @@ export function useFinancas() {
    * caixa usa somente fatos efetivos. Previdência em folha não sai da conta de
    * novo; só o aporte direto do livro-razão entra como saída bancária.
    */
+  const debtPayments = useMemo(() => debts.debts.flatMap((debt) => debt.transactions
+    .filter((tx) => tx.kind === 'amortization' && tx.cashTreatment === 'extra' && ledgerEntryCycleMonth(tx) === activeCycle.month)
+    .map((tx) => ({ id: tx.id, name: `Amortização · ${debt.name}`, amount: -tx.amount }))), [debts.debts, activeCycle.month])
+  const debtExtraPayments = debtPayments.reduce((sum, tx) => sum + tx.amount, 0)
   const currentCycleFacts = useMemo(() => {
     const invoiceToPay = cardCycleAccounting.invoiceThisCycle.personalTotal
     const cardAdvancePaid = cardAdvancePaymentsForMonth(cards.entries, cards.paidInvoices, activeCycle.month)
@@ -217,6 +224,11 @@ export function useFinancas() {
       extraIncome: actuals.summary.extraIncomeTotal,
       extraExpense: actuals.summary.extraExpenseTotal,
       cardAdvancePaid,
+      debtExtraPayments,
+      thirdPartyAdvanced: thirdParties.advanced,
+      reimbursementsReceived: thirdParties.received,
+      investmentWithdrawals: investmentActuals.cashWithdrawals,
+      cashInvestmentContributions: investmentActuals.cashContributions,
       costsOnAccountActual: costsOnAccount,
       costsPlanned: costsOnAccountPlanned,
       wantsOnAccountActual: actuals.summary.confirmedWants,
@@ -238,6 +250,8 @@ export function useFinancas() {
     cards.entries,
     cards.paidInvoices,
     investmentActuals,
+    debtExtraPayments,
+    thirdParties,
   ])
   const cashFlow = currentCycleFacts.cash
 
@@ -257,8 +271,8 @@ export function useFinancas() {
         wantsOnAccount: cashFlow.wantsOnAccount,
         directInvestment: cashFlow.directInvestment,
         directInvestmentCommitted: Math.max(metrics.directInvestmentTarget, cashFlow.directInvestment),
-        extraExpense: cashFlow.extraExpense + cashFlow.cardAdvancePaid,
-        extraExpenseCommitted: cashFlow.extraExpense + cashFlow.cardAdvancePaid + pendingExtraExpense,
+        extraExpense: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments + cashFlow.thirdPartyAdvanced,
+        extraExpenseCommitted: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments + cashFlow.thirdPartyAdvanced + pendingExtraExpense,
         // A reserva do próximo caixa usa a parte pessoal da fatura que encerra
         // o ciclo ativo.
         nextInvoicePersonal: cardCycleAccounting.invoiceFormedByCycle.personalTotal,
@@ -300,8 +314,8 @@ export function useFinancas() {
       // conta (Viagens, Qualidade de vida etc.). O cartão já foi abatido inteiro
       // pela fatura acima.
       plannedWants: nextMetrics.wantsOnAccount,
-      extraIncome,
-      extraExpense,
+      extraIncome: extraIncome + thirdParties.records.flatMap((row) => row.payments).filter((row) => row.cycleMonth === month).reduce((sum, row) => sum + row.amount, 0),
+      extraExpense: extraExpense + thirdParties.records.filter((row) => row.fundedBy === 'user' && row.cashMonth === month).reduce((sum, row) => sum + row.amount, 0),
     })
   }, [
     activeCycle.month,
@@ -315,6 +329,7 @@ export function useFinancas() {
     actuals.months,
     cards.entries,
     cards.paidInvoices,
+    thirdParties.records,
   ])
 
   const monthlyContribution = useMemo(() => {
@@ -383,7 +398,6 @@ export function useFinancas() {
       forecast.events,
       actuals.months,
       cards.entries,
-      cards.accounts,
       cards.paidInvoices,
       investments.summary.financialAssets,
       monthlyContribution,
@@ -399,6 +413,7 @@ export function useFinancas() {
    */
   const closeCurrentMonth = useCallback(
     (month = activeCycle.month, note?: string, options?: { payInvoice?: boolean; expectedRevision?: string | null; operationId?: string }): CommandResult => {
+      if (thirdParties.pendingInMonth.length) return { ok: false, reason: 'rejected', message: 'Defina quem paga os rateios deste ciclo em Terceiros, na aba Cartões, antes de fechar.' }
 
       const costsByCategory: Partial<Record<CostCategory, number>> = {}
       actuals.summary.byCategory.forEach((value, category) => {
@@ -413,8 +428,8 @@ export function useFinancas() {
       const costs = actuals.summary.effectiveCosts
       const balance =
         (actuals.summary.paycheck?.amount ?? 0) +
-        actuals.summary.extraIncomeTotal -
-        actuals.summary.extraExpenseTotal -
+        actuals.summary.extraIncomeTotal + thirdParties.received - thirdParties.advanced -
+        actuals.summary.extraExpenseTotal - debtExtraPayments -
         costs -
         actuals.summary.effectiveWants -
         investmentActuals.directNet
@@ -426,9 +441,11 @@ export function useFinancas() {
         availableForBudget: (actuals.summary.paycheck?.amount ?? 0) + investmentActuals.payroll,
         paycheckInAccount: actuals.summary.paycheck?.amount ?? 0,
         extraIncome: actuals.summary.extraIncomeTotal,
+        thirdPartyAdvanced: thirdParties.advanced,
+        reimbursementsReceived: thirdParties.received,
         extraIncomeEntries: actuals.summary.extraIncome,
-        extraExpense: actuals.summary.extraExpenseTotal,
-        extraExpenseEntries: actuals.summary.extraExpenses,
+        extraExpense: actuals.summary.extraExpenseTotal + debtExtraPayments,
+        extraExpenseEntries: [...actuals.summary.extraExpenses, ...debtPayments],
         costs,
         costsPlanned: planComparison.costs,
         wants: actuals.summary.effectiveWants,
@@ -503,6 +520,9 @@ export function useFinancas() {
       investmentActuals,
       investments.summary,
       planComparison,
+      debtPayments,
+      debtExtraPayments,
+      thirdParties,
     ],
   )
 
@@ -511,6 +531,7 @@ export function useFinancas() {
     planComparison,
     scenarios,
     cards,
+    thirdParties,
     cardCycleAccounting,
     assets,
     debts,

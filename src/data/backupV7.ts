@@ -2,6 +2,7 @@ import type {
   Asset,
   BudgetArea,
   CostCategory,
+  CardThirdParty,
   CreditCardAccount,
   CreditCardEntry,
   CreditCardSettings,
@@ -159,6 +160,9 @@ function ledgerToV7(
       ),
       occurredAt,
       recordedAt: entry.recordedAt,
+      operationId: entry.operationId,
+      cashTreatment: entry.cashTreatment,
+      linkedCostId: entry.linkedCostId,
       note: entry.note?.trim() || undefined,
     }
   })
@@ -173,6 +177,9 @@ function ledgerFromV7(entries: DomainLedgerEntryV7[], ownerType: LedgerOwnerType
       cycleMonth: entry.competenceMonth,
       date: entry.occurredAt,
       recordedAt: entry.recordedAt,
+      operationId: entry.operationId,
+      cashTreatment: entry.cashTreatment,
+      linkedCostId: entry.linkedCostId,
       kind: entry.kind,
       kindSource: entry.kindSource ?? (entry.kind === 'opening_balance' && entry.amountCents > 0
         ? 'legacy_ambiguous' : undefined),
@@ -227,6 +234,8 @@ function snapshotToClosure(raw: Partial<MonthlySnapshot>): CycleClosureV7 {
     },
     cash: {
       paycheckCents: toCents(snapshot.paycheckInAccount),
+      thirdPartyAdvancedCents: toCents(snapshot.thirdPartyAdvanced ?? 0),
+      reimbursementsReceivedCents: toCents(snapshot.reimbursementsReceived ?? 0),
       extraIncomeCents: toCents(snapshot.extraIncome),
       extraIncomeEntries: snapshot.extraIncomeEntries.map((entry) => ({
         id: entry.id,
@@ -300,6 +309,8 @@ function closureToSnapshot(closure: CycleClosureV7): MonthlySnapshot {
     availableForBudget,
     paycheckInAccount: fromCents(closure.cash.paycheckCents),
     extraIncome,
+    thirdPartyAdvanced: fromCents(closure.cash.thirdPartyAdvancedCents ?? 0),
+    reimbursementsReceived: fromCents(closure.cash.reimbursementsReceivedCents ?? 0),
     extraIncomeEntries: closure.cash.extraIncomeEntries.map((entry) => ({
       id: entry.id,
       name: entry.name,
@@ -339,7 +350,7 @@ function closureToSnapshot(closure: CycleClosureV7): MonthlySnapshot {
     investmentPlanCaptured: true,
     investedPlanned: fromCents(closure.plan.personalInvestmentCents),
     balance:
-      fromCents(closure.cash.paycheckCents) + extraIncome - extraExpense - costs - wants - directInvestedAtClose,
+      fromCents(closure.cash.paycheckCents) + extraIncome + fromCents(closure.cash.reimbursementsReceivedCents ?? 0) - fromCents(closure.cash.thirdPartyAdvancedCents ?? 0) - extraExpense - costs - wants - directInvestedAtClose,
     savingsRate: availableForBudget + extraIncome > 0 ? (invested / (availableForBudget + extraIncome)) * 100 : 0,
     costsByCategory: Object.fromEntries(
       Object.entries(closure.costByCategoryCents).map(([key, value]) => [key, fromCents(value)]),
@@ -1202,6 +1213,33 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   const accountIds = ids(backup.cards.accounts, 'Cartão')
+  if (backup.cards.thirdParties !== undefined && !Array.isArray(backup.cards.thirdParties)) {
+    add('error', 'third_parties_invalid', 'Adiantamentos a terceiros têm formato inválido.')
+  }
+  const thirdParties = Array.isArray(backup.cards.thirdParties) ? backup.cards.thirdParties : []
+  ids(thirdParties, 'Adiantamento a terceiro')
+  const thirdPartyEntryIds = new Set<string>()
+  const paymentIds = new Set<string>()
+  for (const row of thirdParties) {
+    if (!row.entryId || thirdPartyEntryIds.has(row.entryId) || !accountIds.has(row.accountId) ||
+      !MONTH_RE.test(row.dueMonth) || !MONTH_RE.test(row.cashMonth) || !['user', 'third_party'].includes(row.fundedBy) ||
+      !Number.isSafeInteger(row.amountCents) || row.amountCents <= 0 || !Array.isArray(row.payments)) {
+      add('error', 'third_party_invalid', 'Compra ou valor do adiantamento a terceiro inválido.', row.id)
+    }
+    thirdPartyEntryIds.add(row.entryId)
+    let received = 0
+    for (const payment of Array.isArray(row.payments) ? row.payments : []) {
+      if (!payment.id || paymentIds.has(payment.id) || !Number.isSafeInteger(payment.amountCents) || payment.amountCents <= 0 ||
+        !MONTH_RE.test(payment.cycleMonth) || !validCalendarDate(payment.occurredOn)) {
+        add('error', 'reimbursement_invalid', 'Devolução de terceiro inválida.', row.id)
+      }
+      paymentIds.add(payment.id)
+      received += payment.amountCents
+    }
+    if (received > row.amountCents || row.fundedBy === 'third_party' && received > 0) {
+      add('error', 'reimbursement_excess', 'Devolução excede o adiantamento registrado.', row.id)
+    }
+  }
   const holdingIds = ids(backup.investments.holdings, 'Posição')
   for (const holding of backup.investments.holdings) {
     if (!Number.isSafeInteger(holding.currentValueCents) || holding.currentValueCents < 0) {
@@ -1354,6 +1392,11 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const entry of backup.investments.ledgerEntries) {
+    if (entry.operationId !== undefined && (typeof entry.operationId !== 'string' || !entry.operationId.trim()) ||
+      entry.cashTreatment !== undefined && (!['extra', 'planned_cost'].includes(entry.cashTreatment) || entry.ownerType !== 'debt' || entry.kind !== 'amortization') ||
+      entry.cashTreatment === 'planned_cost' && !entry.linkedCostId) {
+      add('error', 'movement_link_invalid', 'Vínculo ou tratamento de caixa do movimento inválido.', entry.id)
+    }
     if (!isLedgerEntryKind(entry.kind)) {
       add('error', 'ledger_kind_invalid', 'Movimento possui tipo inválido.', entry.id)
     }
@@ -1367,6 +1410,15 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     if (!ownerExists) {
       add('error', 'ledger_owner_missing', 'Movimentação aponta para entidade inexistente.', entry.id)
     }
+  }
+  const operations = new Map<string, DomainLedgerEntryV7[]>()
+  for (const entry of backup.investments.ledgerEntries) if (entry.operationId) operations.set(entry.operationId, [...(operations.get(entry.operationId) ?? []), entry])
+  for (const [id, entries] of operations) {
+    const transfer = entries.some((entry) => entry.kind === 'transfer_in' || entry.kind === 'transfer_out')
+    const paired = entries.length === 2 && entries[0].competenceMonth === entries[1].competenceMonth && entries[0].occurredAt === entries[1].occurredAt
+    const validTransfer = paired && entries.some((entry) => entry.kind === 'transfer_in' && entry.amountCents > 0) && entries.some((entry) => entry.kind === 'transfer_out' && entry.amountCents < 0) && entries[0].amountCents + entries[1].amountCents === 0
+    const validAmortization = paired && entries.some((entry) => entry.kind === 'withdrawal') && entries.some((entry) => entry.kind === 'amortization' && entry.cashTreatment === 'extra') && entries[0].amountCents === entries[1].amountCents && entries[0].amountCents < 0
+    if (transfer ? !validTransfer : entries.length !== 1 && !validAmortization) add('error', 'movement_pair_invalid', 'Operação possui movimentos vinculados incompletos ou divergentes.', id)
   }
   for (const valuation of backup.investments.valuations) {
     if (!Number.isFinite(Date.parse(valuation.asOf))) {
@@ -1583,6 +1635,9 @@ export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = 
     }) : undefined
   return {
     ...base, schemaVersion: 9,
+    cards: { ...base.cards, thirdParties: collection<CardThirdParty[]>(document, 'cardThirdParties', []).map(({ amount, payments, ...row }) => ({
+      ...row, amountCents: toCents(amount), payments: payments.map(({ amount, ...payment }) => ({ ...payment, amountCents: toCents(amount) })),
+    })) },
     profile: { ...base.profile, recurringTemplateId: typeof document.collections.recurringTemplateId === 'string'
       ? document.collections.recurringTemplateId : base.profile.activePlanningTemplateId },
     planning: { ...base.planning, monthlyPlans },
@@ -1596,6 +1651,9 @@ export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = 
 
 export function backupV9ToRepository(backup: FinTanoBackupV9): RepositoryDocument {
   const base = backupV8ToRepository({ ...backup, schemaVersion: 8 })
+  base.collections.cardThirdParties = (backup.cards.thirdParties ?? []).map(({ amountCents, payments, ...row }) => ({
+    ...row, amount: fromCents(amountCents), payments: payments.map(({ amountCents, ...payment }) => ({ ...payment, amount: fromCents(amountCents) })),
+  }))
   base.collections.recurringTemplateId = backup.profile.recurringTemplateId ?? backup.profile.activePlanningTemplateId
   const currentById = new Map(backup.investments.holdings.map((holding) => [holding.id, fromCents(holding.currentValueCents)]))
   base.collections.investmentHoldings = (base.collections.investmentHoldings as FinancialHolding[]).map((holding) => ({

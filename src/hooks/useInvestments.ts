@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
+import { recordAssetMove, changeLinkedMovementCycle, removeLinkedMovement } from '../data/financialMovement'
 import { deleteUnusedCatalog } from '../data/catalogDeletion'
 import { resolveLegacyLedgerKind } from '../data/ledgerClassification'
 import type {
@@ -263,77 +264,29 @@ export function useInvestments(
   const resolveHoldingKind = useCallback((holdingId: string, entryId: string, kind: LedgerEntryKind) =>
     resolveLegacyLedgerKind('holding', holdingId, entryId, kind), [])
 
-  // Aporte/retirada: ajusta também o valor de mercado (retirada limitada a ele).
   const addHoldingTransaction = useCallback(
-    (holdingId: string, amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) => {
-      const competence = validCycleMonth(cycleMonth, activeCycleMonth)
-      return setHoldings((prev) =>
-        (Array.isArray(prev) ? prev : []).map((raw) => {
-          const holding = normalizeHolding(raw)
-          if (holding.id !== holdingId) return holding
-          const delta = amount < 0 ? -Math.min(-amount, holding.marketValue) : amount
-          if (delta === 0) return holding
-          return {
-            ...holding,
-            transactions: [
-              ...holding.transactions,
-              {
-                id: uid(),
-                amount: delta,
-                kind: delta > 0 ? 'contribution' : 'withdrawal',
-                kindSource: 'user',
-                cycleMonth: competence,
-                ...ledgerOperationDates(occurredOn),
-                note: note?.trim() || undefined,
-              },
-            ],
-            marketValue: Math.max(0, holding.marketValue + delta),
-          }
-        }),
-      )
-    },
-    [activeCycleMonth, setHoldings],
-  )
+    (holdingId: string, amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) =>
+      recordAssetMove('holding', holdingId, amount, cycleMonth, occurredOn, note), [activeCycleMonth])
 
-  const setHoldingTransactionCycle = useCallback(
-    (holdingId: string, transactionId: string, cycleMonth: string) => {
-      const competence = validCycleMonth(cycleMonth, activeCycleMonth)
-      setHoldings((prev) =>
-        (Array.isArray(prev) ? prev : []).map((raw) => {
-          const holding = normalizeHolding(raw)
-          if (holding.id !== holdingId) return holding
-          return {
-            ...holding,
-            transactions: holding.transactions.map((transaction) =>
-              transaction.id === transactionId
-                ? { ...transaction, cycleMonth: competence }
-                : transaction,
-            ),
-          }
-        }),
-      )
-    },
-    [activeCycleMonth, setHoldings],
-  )
+  const setHoldingTransactionCycle = useCallback((holdingId: string, transactionId: string, month: string) => {
+    const linked = changeLinkedMovementCycle('holding', holdingId, transactionId, month)
+    if (linked !== null) return linked
+    return setHoldings((prev) => prev.map((raw) => raw.id === holdingId ? { ...raw,
+      transactions: raw.transactions.map((tx) => tx.id === transactionId ? { ...tx, cycleMonth: validCycleMonth(month, activeCycleMonth) } : tx),
+    } : raw))
+  }, [activeCycleMonth, setHoldings])
 
-  const removeHoldingTransaction = useCallback(
-    (holdingId: string, transactionId: string) => {
-      setHoldings((prev) =>
-        (Array.isArray(prev) ? prev : []).map((raw) => {
-          const holding = normalizeHolding(raw)
-          if (holding.id !== holdingId) return holding
-          const removed = holding.transactions.find((tx) => tx.id === transactionId)
-          if (!removed) return holding
-          return {
-            ...holding,
-            transactions: holding.transactions.filter((tx) => tx.id !== transactionId),
-            marketValue: Math.max(0, holding.marketValue - removed.amount),
-          }
-        }),
-      )
-    },
-    [setHoldings],
-  )
+  const removeHoldingTransaction = useCallback((holdingId: string, transactionId: string) => {
+    const linked = removeLinkedMovement('holding', holdingId, transactionId)
+    if (linked !== null) return linked
+    return setHoldings((prev) => prev.map((raw) => {
+      const holding = normalizeHolding(raw)
+      if (holding.id !== holdingId) return holding
+      const removed = holding.transactions.find((tx) => tx.id === transactionId)
+      if (!removed || holding.marketValue - removed.amount < -0.005) return holding
+      return { ...holding, transactions: holding.transactions.filter((tx) => tx.id !== transactionId), marketValue: holding.marketValue - removed.amount }
+    }))
+  }, [setHoldings])
 
   // Marcação a mercado: define o saldo atual sem registrar aporte/retirada.
   const setMarketValue = useCallback(
@@ -620,27 +573,8 @@ export function useInvestments(
   )
 
   const addGoalTransaction = useCallback(
-    (goalId: string, amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) => {
-      const competence = validCycleMonth(cycleMonth, activeCycleMonth)
-      return setGoals((prev) =>
-        prev.map((goal) => {
-          if (goal.id !== goalId) return goal
-          const transactions = applyLedgerMove(goal.transactions, amount, note, competence, occurredOn)
-          if (!transactions) return goal
-          const balance = ledgerBalance(transactions)
-          return {
-            ...goal,
-            transactions,
-            completedAt:
-              goal.targetAmount > 0 && balance >= goal.targetAmount
-                ? (goal.completedAt ?? nowIso())
-                : undefined,
-          }
-        }),
-      )
-    },
-    [activeCycleMonth, setGoals],
-  )
+    (goalId: string, amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) =>
+      recordAssetMove('goal', goalId, amount, cycleMonth, occurredOn, note), [activeCycleMonth])
   const deleteEmptyGoal = useCallback((id: string) => deleteUnusedCatalog('goal', id), [])
   const resolveGoalKind = useCallback((goalId: string, entryId: string, kind: LedgerEntryKind) =>
     resolveLegacyLedgerKind('goal', goalId, entryId, kind), [])
@@ -648,7 +582,9 @@ export function useInvestments(
   const setGoalTransactionCycle = useCallback(
     (goalId: string, transactionId: string, cycleMonth: string) => {
       const competence = validCycleMonth(cycleMonth, activeCycleMonth)
-      setGoals((prev) =>
+      const linked = changeLinkedMovementCycle('goal', goalId, transactionId, competence)
+      if (linked !== null) return linked
+      return setGoals((prev) =>
         prev.map((goal) =>
           goal.id === goalId
             ? {
@@ -668,7 +604,9 @@ export function useInvestments(
 
   const removeGoalTransaction = useCallback(
     (goalId: string, transactionId: string) => {
-      setGoals((prev) =>
+      const linked = removeLinkedMovement('goal', goalId, transactionId)
+      if (linked !== null) return linked
+      return setGoals((prev) =>
         prev.map((goal) =>
           goal.id === goalId
             ? { ...goal, transactions: goal.transactions.filter((tx) => tx.id !== transactionId) }

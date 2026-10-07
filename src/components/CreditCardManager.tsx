@@ -18,6 +18,7 @@ import { CurrencyInput } from './CurrencyInput'
 import { CardImportPanel } from './cards/CardImportPanel'
 import { CardAccountsPanel } from './cards/CardAccountsPanel'
 import { CardSummaryPanels } from './cards/CardSummaryPanels'
+import { CardThirdPartyPanel } from './cards/CardThirdPartyPanel'
 import { CardAreaCell } from './cards/CardAreaCell'
 import { CardEntryForm } from './cards/CardEntryForm'
 import { InvoiceCreditForm } from './cards/InvoiceCreditForm'
@@ -35,7 +36,6 @@ import { formatCurrency, formatMonthLong } from '../lib/format'
 import { addMonths, normalizeText } from '../lib/shared'
 import {
   buildRemainingAmount,
-  parseSpreadsheet,
 } from '../lib/cardImport'
 import { useCardsStore, useFinancasStore, useMetrics } from '../context/financasStore'
 import type { CreditCardCycle, CreditCardEntry } from '../types'
@@ -61,21 +61,21 @@ export function CreditCardManager() {
   const {
     entries,
     migrationError,
+    entryError,
     accounts,
     settings,
     paidInvoices,
     addEntry,
     updateEntry,
     removeEntry,
-    replaceEntries,
-    appendEntries,
+    restoreEntry,
     anticipateInstallments,
     payInvoice,
     confirmEmptyInvoice,
     setSettings,
   } = useCardsStore()
   const { availableForBudget, budgetComparison, plannedOnCard } = useMetrics()
-  const { activeCycle, cardCycleAccounting } = useFinancasStore()
+  const { activeCycle, cardCycleAccounting, thirdParties } = useFinancasStore()
   const [paymentAccountId, setPaymentAccountId] = useState<string | null>(null)
   const [importAccountId, setImportAccountId] = useState('')
   const paymentAccount = accounts.find((account) => account.id === paymentAccountId)
@@ -87,6 +87,10 @@ export function CreditCardManager() {
   const afterClosingPaymentDueMonth = addMonths(activeCycle.month, 2)
   const summary = useMemo(() => calculateCreditCardSummary(entries, settings), [entries, settings])
   const paymentSummary = useMemo(() => calculateCreditCardSummary(entries.filter((entry) => entry.accountId === paymentAccountId), settings), [entries, paymentAccountId, settings])
+  const paymentThirds = thirdParties.records.filter((row) => row.accountId === paymentAccountId && row.dueMonth === paymentDueMonth && row.fundedBy === 'user' &&
+    entries.some((entry) => entry.id === row.entryId && !entry.isPrepaid))
+  const undefinedPaymentSplits = entries.filter((row) => row.accountId === paymentAccountId && row.dueMonth === paymentDueMonth && !row.entryType && !row.isPrepaid && row.amount > row.personalAmount &&
+    !thirdParties.records.some((record) => record.entryId === row.id)).length
   // Agosto + fatura de Setembro é o estado normal. Se a fatura de Setembro já
   // foi paga antes de fechar Agosto, Outubro + ciclo Agosto também é esperado.
   const unexpectedDueAccounts = accounts.filter((account) => {
@@ -101,9 +105,8 @@ export function CreditCardManager() {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortState | null>(null)
   const [importText, setImportText] = useState('')
-  const [importError, setImportError] = useState('')
   const [importCycle, setImportCycle] = useState<CreditCardCycle>('current')
-  const [replaceOnImport, setReplaceOnImport] = useState(true)
+  const [replaceOnImport, setReplaceOnImport] = useState(false)
 
   const [anticipateId, setAnticipateId] = useState<string | null>(null)
   const [anticipateCount, setAnticipateCount] = useState(1)
@@ -171,14 +174,11 @@ export function CreditCardManager() {
 
   const handleUndoDelete = () => {
     if (!pendingUndo) return
-    const { id: _id, ...rest } = pendingUndo
-    void _id
-    if (!addEntry(rest)) return
+    if (!restoreEntry(pendingUndo)) return
     setPendingUndo(null)
     if (undoTimer.current) clearTimeout(undoTimer.current)
   }
 
-  const parsedImport = useMemo(() => parseSpreadsheet(importText), [importText])
 
   const anticipatingEntry = anticipateId
     ? (entries.find((entry) => entry.id === anticipateId) ?? null)
@@ -202,19 +202,7 @@ export function CreditCardManager() {
       ? (summary.currentPersonalTotal / settings.personalSpendingLimit) * 100
       : 0
 
-  const handleImport = () => {
-    if (!parsedImport.length) return
-    if (!importAccount) return
-    const incoming = parsedImport.map((entry) => ({ ...entry, accountId: importAccount.id,
-      cardName: importAccount.name, dueMonth: importCycle === 'current' ? currentDueMonth : nextDueMonth }))
-    const saved = replaceOnImport
-      ? replaceEntries(importCycle, incoming)
-      : appendEntries(importCycle, incoming)
-    if (!saved) { setImportError('Não foi possível salvar a importação. Confira o armazenamento e tente novamente.'); return }
-    setImportError('')
-    setImportText('')
-    setView(importCycle)
-  }
+  const handleImport = () => { setImportText(''); setView(importCycle) }
 
   const handleInstallmentChange = (
     entry: CreditCardEntry,
@@ -320,7 +308,7 @@ export function CreditCardManager() {
                 {history.length > 0 && <details className="text-xs text-dark-text-secondary"><summary className="cursor-pointer">Faturas pagas ({history.length})</summary><div className="mt-2 space-y-2">{[...history].reverse().map((invoice) => <details key={invoice.id ?? `${invoice.accountId}-${invoice.dueMonth}`} className="rounded-lg border border-dark-border bg-dark-card p-2"><summary className="cursor-pointer">{formatMonthLong(invoice.dueMonth)} · {formatCurrency(invoice.total ?? 0)} · paga em {invoice.paidAt.slice(0, 10)}</summary><p className="mt-2">Minha parte: {formatCurrency(invoice.personalTotal)}. {invoice.entries ? `${invoice.entries.length} lançamentos preservados.` : 'Composição legada não disponível.'}</p>{invoice.entries?.map((entry) => <div key={entry.id} className="flex justify-between gap-2 border-t border-dark-border-subtle py-1"><span>{entry.description}</span><span className="tabular-nums">{entry.entryType === 'invoiceCredit' ? '−' : ''}{formatCurrency(entry.amount)}</span></div>)}</details>)}</div></details>}
               </div>
               {showPaySummary && paymentAccountId === account.id && <div className="mt-3">
-                <InvoicePaymentReview summary={paymentSummary} currentDueMonth={paymentDueMonth} currentSpendingMonth={addMonths(paymentDueMonth, -1)} nextDueMonth={addMonths(paymentDueMonth, 1)} onConfirm={handlePayInvoice} onCancel={() => { setShowPaySummary(false); setPaymentAccountId(null) }} />
+                <InvoicePaymentReview ownBankPayment={paymentSummary.currentPersonalTotal + paymentThirds.reduce((sum, row) => sum + row.amount, 0)} undefinedSplits={undefinedPaymentSplits} summary={paymentSummary} currentDueMonth={paymentDueMonth} currentSpendingMonth={addMonths(paymentDueMonth, -1)} nextDueMonth={addMonths(paymentDueMonth, 1)} onConfirm={handlePayInvoice} onCancel={() => { setShowPaySummary(false); setPaymentAccountId(null) }} />
                 {paymentError && <p role="alert" className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{paymentError}</p>}
               </div>}
             </section>
@@ -357,7 +345,7 @@ export function CreditCardManager() {
         <StatTile
           label="Não é meu"
           value={formatCurrency(summary.currentThirdPartyTotal)}
-          detail={summary.currentThirdPartyTotal > 0 ? 'a receber de terceiros' : undefined}
+          detail={summary.currentThirdPartyTotal > 0 ? `${formatCurrency(thirdParties.outstanding)} adiantados ainda a receber` : undefined}
         />
         <StatTile
           label={summary.availablePersonalLimit >= 0 ? 'Limite disponível' : 'Acima do limite'}
@@ -858,21 +846,24 @@ export function CreditCardManager() {
           </select>
         </label>
         <CardImportPanel
+          key={importAccount?.id}
+          account={importAccount}
+          entries={entries}
           text={importText}
           onTextChange={setImportText}
           cycle={importCycle}
           onCycleChange={setImportCycle}
           replace={replaceOnImport}
           onReplaceChange={setReplaceOnImport}
-          detectedCount={parsedImport.length}
           currentDueMonth={currentDueMonth}
           nextDueMonth={nextDueMonth}
           onImport={handleImport}
         />
-        {importError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{importError}</p>}
         </div>
       )}
 
+      {entryError && <p role="alert" className="text-xs text-rose-200">{entryError}</p>}
+      <CardThirdPartyPanel />
       <CardSummaryPanels
         summary={summary}
         accounting={cardCycleAccounting}

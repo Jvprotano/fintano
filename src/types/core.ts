@@ -24,5 +24,8 @@ export interface LedgerEntry {
   date: string
   /** Instante em que o movimento novo foi registrado; pode faltar nos legados. */
   recordedAt?: string
+  operationId?: string
+  cashTreatment?: 'extra' | 'planned_cost'
+  linkedCostId?: string
   note?: string
 }

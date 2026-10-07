@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
+import { recordMovement, changeLinkedMovementCycle, removeLinkedMovement } from '../data/financialMovement'
 import { deleteUnusedCatalog } from '../data/catalogDeletion'
 import { resolveLegacyLedgerKind } from '../data/ledgerClassification'
 import type { Asset, CostItem, Debt, DebtKind, LedgerEntryKind } from '../types'
@@ -90,6 +91,11 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = [], activeCyc
   const addDebtTransaction = useCallback(
     (id: string, amount: number, note?: string, cycleMonth = activeCycleMonth, occurredOn?: string) => {
       const competence = /^\d{4}-(0[1-9]|1[0-2])$/.test(cycleMonth) ? cycleMonth : activeCycleMonth
+      if (amount < 0) {
+        const now = new Date()
+        return recordMovement({ source: { type: 'account' }, destination: { type: 'debt', id },
+          amount: -amount, month: competence, occurredOn: occurredOn ?? now.toLocaleDateString('sv-SE'), note }).ok
+      }
       return setStored((prev) =>
         prev.map((debt) => {
           if (debt.id !== id) return debt
@@ -115,6 +121,8 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = [], activeCyc
 
   const setDebtTransactionCycle = useCallback((debtId: string, transactionId: string, cycleMonth: string) => {
     const competence = /^\d{4}-(0[1-9]|1[0-2])$/.test(cycleMonth) ? cycleMonth : activeCycleMonth
+    const linked = changeLinkedMovementCycle('debt', debtId, transactionId, competence)
+    if (linked !== null) return linked
     return setStored((prev) => prev.map((debt) => debt.id === debtId ? {
       ...debt, transactions: debt.transactions.map((tx) => tx.id === transactionId
         ? { ...tx, cycleMonth: competence } : tx),
@@ -123,7 +131,9 @@ export function useDebts(costs: CostItem[] = [], assets: Asset[] = [], activeCyc
 
   const removeDebtTransaction = useCallback(
     (debtId: string, transactionId: string) => {
-      setStored((prev) =>
+      const linked = removeLinkedMovement('debt', debtId, transactionId)
+      if (linked !== null) return linked
+      return setStored((prev) =>
         prev.map((debt) => {
           if (debt.id !== debtId) return debt
           const removed = debt.transactions.find((tx) => tx.id === transactionId)

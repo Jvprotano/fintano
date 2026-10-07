@@ -84,6 +84,8 @@ export interface MonthlySnapshot {
   paycheckInAccount: number
   extraIncome: number
   extraIncomeEntries: ExtraIncomeEntry[]
+  thirdPartyAdvanced?: number
+  reimbursementsReceived?: number
   extraExpense: number
   extraExpenseEntries: ExtraExpenseEntry[]
   costs: number

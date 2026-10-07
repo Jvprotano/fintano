@@ -240,6 +240,9 @@ export interface DomainLedgerEntryV7 {
   competenceMonth: MonthKey
   occurredAt: string
   recordedAt?: string
+  operationId?: string
+  cashTreatment?: 'extra' | 'planned_cost'
+  linkedCostId?: string
   kindSource?: 'user' | 'legacy_inferred' | 'legacy_ambiguous'
   note?: string
 }
@@ -332,6 +335,8 @@ export interface CycleClosureV7 {
   }
   cash: {
     paycheckCents: MoneyCents
+    thirdPartyAdvancedCents?: MoneyCents
+    reimbursementsReceivedCents?: MoneyCents
     extraIncomeCents: MoneyCents
     extraIncomeEntries: { id: string; name: string; amountCents: MoneyCents; sourceForecastEventId?: string; sourceOccurrenceId?: string; occurredAt?: string }[]
     extraExpenseCents: MoneyCents
@@ -400,8 +405,9 @@ export interface FinTanoBackupV8 extends Omit<FinTanoBackupV7, 'schemaVersion' |
 }
 
 /** v9 explicita o valor atual sem reduzir o histórico de avaliações aceito no arquivo. */
-export interface FinTanoBackupV9 extends Omit<FinTanoBackupV8, 'schemaVersion' | 'investments'> {
+export interface FinTanoBackupV9 extends Omit<FinTanoBackupV8, 'schemaVersion' | 'investments' | 'cards'> {
   schemaVersion: 9
+  cards: FinTanoBackupV8['cards'] & { thirdParties?: CardThirdPartyV9[] }
   profile: FinTanoBackupV8['profile'] & { recurringTemplateId?: string }
   planning: FinTanoBackupV8['planning'] & { monthlyPlans?: MonthlyPlanV9[] }
   investments: Omit<FinTanoBackupV8['investments'], 'holdings'> & {
@@ -419,4 +425,10 @@ export interface MonthlyPlanV9 {
   customized: boolean
   fixedReference?: { fixedAt: string; template: PlanningTemplateV7 }
   data: Omit<PlanningTemplateV7, 'id' | 'name' | 'createdAt' | 'updatedAt'>
+}
+
+export interface CardThirdPartyV9 {
+  id: string; entryId: string; accountId: string; dueMonth: MonthKey; cashMonth: MonthKey
+  description: string; ownerName: string; amountCents: MoneyCents; fundedBy: 'user' | 'third_party'
+  payments: { id: string; amountCents: MoneyCents; cycleMonth: MonthKey; occurredOn: string }[]
 }

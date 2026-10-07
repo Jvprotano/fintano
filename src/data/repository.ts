@@ -39,7 +39,7 @@ export const LEGACY_DOMAIN_KEYS = {
   investmentHoldings: 'uf_investment_holdings_v1',
 } as const
 
-export type RepositoryCollection = keyof typeof LEGACY_DOMAIN_KEYS | 'backupCarryover' | 'monthlyPlans' | 'recurringTemplateId'
+export type RepositoryCollection = keyof typeof LEGACY_DOMAIN_KEYS | 'backupCarryover' | 'monthlyPlans' | 'recurringTemplateId' | 'cardThirdParties'
 
 export interface RepositoryDocument {
   schemaVersion: typeof REPOSITORY_SCHEMA_VERSION
@@ -55,7 +55,7 @@ export type RepositoryInspection =
 const ARRAY_COLLECTIONS = new Set<RepositoryCollection>([
   'scenarios', 'actuals', 'assets', 'debts', 'cardAccounts', 'cardEntries',
   'cardPaidInvoices', 'forecastEvents', 'forecastFunds', 'goals', 'history',
-  'investmentClasses', 'investmentHoldings', 'monthlyPlans',
+  'investmentClasses', 'investmentHoldings', 'monthlyPlans', 'cardThirdParties',
 ])
 const OBJECT_COLLECTIONS = new Set<RepositoryCollection>([
   'cardSettings', 'emergencyFund', 'forecastAssumptions', 'backupCarryover',

@@ -7,6 +7,11 @@ export interface CurrentCycleFactsInput {
   extraIncome: number
   extraExpense: number
   cardAdvancePaid?: number
+  investmentWithdrawals?: number
+  cashInvestmentContributions?: number
+  debtExtraPayments?: number
+  thirdPartyAdvanced?: number
+  reimbursementsReceived?: number
   invoiceToPay: number
   costsOnAccountActual: number
   costsPlanned: number
@@ -58,11 +63,15 @@ export function buildCurrentCycleFacts(input: CurrentCycleFactsInput): CurrentCy
     extraIncome: input.extraIncome,
     extraExpense: input.extraExpense,
     cardAdvancePaid: input.cardAdvancePaid,
+    investmentWithdrawals: input.investmentWithdrawals,
+    debtExtraPayments: input.debtExtraPayments,
+    thirdPartyAdvanced: input.thirdPartyAdvanced,
+    reimbursementsReceived: input.reimbursementsReceived,
     costsOnAccount: input.costsOnAccountActual,
     costsOnCard: input.costsOnCardPlanned,
     wantsOnAccount: input.wantsOnAccountActual,
     wantsOnCard: input.wantsOnCardPlanned,
-    directInvestment: input.directInvestmentActual,
+    directInvestment: input.cashInvestmentContributions ?? input.directInvestmentActual,
     invoiceToPay: input.invoiceToPay,
   })
 

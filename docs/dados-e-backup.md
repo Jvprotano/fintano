@@ -11,6 +11,7 @@ V17 identifica a base do produto. O backup atualmente exportado usa `schemaVersi
 | Modelos e simulações | `scenarios`, `recurringTemplateId` e `activeScenarioId` |
 | Folha, custos, Desejos e extras realizados | `actuals`, por competência |
 | Cartões, compras e faturas pagas | `cardAccounts`, `cardEntries`, `cardPaidInvoices` e `cardSettings` |
+| Adiantamentos e devoluções de terceiros | `cardThirdParties`, com identidade da compra e pagamentos parciais |
 | Investimentos e movimentos | `investmentHoldings`, `emergencyFund` e livros de metas |
 | Bens, dívidas e metas | `assets`, `debts` e `goals` |
 | Eventos e premissas | `forecastEvents` e `forecastAssumptions` |
@@ -26,12 +27,13 @@ O arquivo exportado tem nome `fintano-backup-v9-AAAA-MM-DD.json`. Seu esquema es
 - Valores monetários `*Cents` são inteiros em centavos. O runtime converte para reais nos campos operacionais.
 - Competências usam `AAAA-MM`; datas e instantes têm seus campos próprios.
 - IDs e referências entre cartões, posições, metas, eventos e movimentos devem sobreviver à ida e volta.
-- `kind`, origem, arquivamento, competência e datas de movimentos são conservados. Texto da observação não determina o tipo.
+- `kind`, origem, arquivamento, competência e datas de movimentos são conservados. `operationId` vincula as partes; `cashTreatment` distingue amortização extra de principal de parcela já paga, com `linkedCostId`. Texto da observação não determina o tipo.
 - `planning.monthlyPlans` guarda o plano completo por competência. `fixedReference` guarda data e cópia independente do plano; não deve ser removido por edição ou importação.
 - `planning.cycles` conserva resumos; não substitui os planos operacionais completos.
 - Avaliações importadas são preservadas, e `currentValueCents` representa o valor corrente das posições. Mudar avaliação não é aportar.
+- `cards.thirdParties` preserva compra, cartão, fatura, responsável pelo financiamento, ciclo de desembolso, valor em centavos e devoluções com IDs, ciclo e data real. Não exige que uma compra removida continue ativa; o registro confirmado mantém a descrição. Recebimentos acima do adiantamento e pares de transferência divergentes são rejeitados.
 - Faturas pagas preservam cartão, competência, total, parte pessoal, créditos e composição disponíveis. Informação ausente não é inventada.
-- Fechamentos preservam os fatos próprios da data; os aportes diretos continuam relacionados aos livros de movimentos.
+- Fechamentos separam `thirdPartyAdvancedCents` e `reimbursementsReceivedCents` das entradas/saídas extras. Reverter ou corrigir esses movimentos atualiza o caixa relacionado numa gravação única. As marcas patrimoniais da data são preservadas; os aportes diretos continuam relacionados aos livros de movimentos.
 
 Os formatos aceitos pelo leitor atual continuam aceitos. Não criar trabalho para manter versões de produto anteriores. A reorganização documental não altera os conversores existentes nem os dados pessoais.
 

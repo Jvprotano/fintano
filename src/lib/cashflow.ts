@@ -22,6 +22,10 @@ export interface CashFlowInput {
   extraExpense?: number
   /** Pagamentos avulsos do cartão que já saíram do caixa neste ciclo. */
   cardAdvancePaid?: number
+  investmentWithdrawals?: number
+  debtExtraPayments?: number
+  thirdPartyAdvanced?: number
+  reimbursementsReceived?: number
   costsOnAccount: number
   costsOnCard: number
   wantsOnAccount: number
@@ -39,14 +43,18 @@ export function calculateCashFlow(input: CashFlowInput): CashFlowSummary {
   const cardAdvancePaid = Math.max(0, input.cardAdvancePaid ?? 0)
 
   const plannedOnCard = input.costsOnCard + input.wantsOnCard
-  const totalIn = input.paycheck + extraIncome
+  const investmentWithdrawals = input.investmentWithdrawals ?? 0
+  const debtExtraPayments = input.debtExtraPayments ?? 0
+  const thirdPartyAdvanced = input.thirdPartyAdvanced ?? 0
+  const reimbursementsReceived = input.reimbursementsReceived ?? 0
+  const totalIn = input.paycheck + extraIncome + investmentWithdrawals + reimbursementsReceived
   const totalOut =
     input.invoiceToPay +
     input.costsOnAccount +
     input.wantsOnAccount +
     input.directInvestment +
     extraExpense +
-    cardAdvancePaid
+    cardAdvancePaid + debtExtraPayments + thirdPartyAdvanced
 
   return {
     paycheck: input.paycheck,
@@ -61,6 +69,10 @@ export function calculateCashFlow(input: CashFlowInput): CashFlowSummary {
     directInvestment: input.directInvestment,
     extraExpense,
     cardAdvancePaid,
+    investmentWithdrawals,
+    debtExtraPayments,
+    thirdPartyAdvanced,
+    reimbursementsReceived,
     totalOut,
     leftover: totalIn - totalOut,
     cardPlanGap: input.invoiceToPay - plannedOnCard,

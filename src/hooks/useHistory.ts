@@ -151,7 +151,7 @@ export function useHistory(cycleMonth = monthKey(), investmentSource?: Investmen
                 : 0,
             balance:
               merged.paycheckInAccount +
-              merged.extraIncome -
+              merged.extraIncome + (merged.reimbursementsReceived ?? 0) - (merged.thirdPartyAdvanced ?? 0) -
               merged.extraExpense -
               merged.costs -
               merged.wants -

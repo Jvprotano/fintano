@@ -80,6 +80,7 @@ export function ClosingView({
     financialCycle,
     actuals,
     cards,
+    thirdParties,
     cardCycleAccounting,
     investmentActuals,
     nextCycleAllocation,
@@ -105,8 +106,9 @@ export function ClosingView({
   const closingInvoiceAlreadyPaid = cardCycleAccounting.invoiceFormedByCycle.paid
   const currentInvoiceKnown = cardCycleAccounting.invoiceThisCycle.amountKnown
   const incomeKnown = actuals.summary.paycheck !== null
+  const cashCompositionKnown = incomeKnown && currentInvoiceKnown && thirdParties.pendingInMonth.length === 0
   const closingReady = actuals.summary.paycheck !== null && missingActualRows.length === 0 &&
-    missingWantActualRows.length === 0 && invoiceKnown && currentInvoiceKnown
+    missingWantActualRows.length === 0 && invoiceKnown && currentInvoiceKnown && thirdParties.pendingInMonth.length === 0
   const currentDueMonth = cards.accounts[0]?.currentDueMonth ?? cards.settings.currentDueMonth ?? activeCycle.month
   const canPayClosingInvoiceTogether =
     cards.accounts.length === 1 &&
@@ -170,20 +172,18 @@ export function ClosingView({
           <StatTile
             label="Disponível para Desejos"
             value={
-              currentInvoiceKnown && incomeKnown
+              cashCompositionKnown
                 ? formatCurrency(financialCycle.discretionaryAvailable)
                 : '—'
             }
-            detail="após fatura, contas e aporte incluindo pendências do plano"
-            tone={!currentInvoiceKnown || !incomeKnown ? 'neutral' : financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
+            detail={thirdParties.pendingInMonth.length ? 'defina quem paga os rateios em Cartões' : 'após fatura, contas e aporte incluindo pendências do plano'}
+            tone={!cashCompositionKnown ? 'neutral' : financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
           />
           <StatTile
             label="Entrou no ciclo"
             value={formatCurrency(cashFlow.totalIn)}
             detail={
-              cashFlow.extraIncome > 0.005
-                ? `${formatCurrency(cashFlow.paycheck)} de salário + ${formatCurrency(cashFlow.extraIncome)} extras`
-                : actuals.summary.paycheck ? 'folha confirmada em conta' : 'folha ainda não confirmada'
+              `${actuals.summary.paycheck ? 'folha confirmada' : 'folha ainda não confirmada'}${cashFlow.extraIncome > 0 ? ` · ${formatCurrency(cashFlow.extraIncome)} extras` : ''}${cashFlow.investmentWithdrawals > 0 ? ` · ${formatCurrency(cashFlow.investmentWithdrawals)} resgatados` : ''}${cashFlow.reimbursementsReceived > 0 ? ` · ${formatCurrency(cashFlow.reimbursementsReceived)} devolvidos por terceiros` : ''}`
             }
             tone={cashFlow.totalIn > 0 ? 'positive' : 'neutral'}
           />
@@ -194,12 +194,13 @@ export function ClosingView({
           />
           <StatTile
             label="Após Desejos destinados"
-            value={currentInvoiceKnown && incomeKnown ? formatCurrency(financialCycle.remainingAfterWants) : '—'}
+            value={cashCompositionKnown ? formatCurrency(financialCycle.remainingAfterWants) : '—'}
             detail={`${formatCurrency(cashFlow.wantsOnAccount)} efetivamente destinados fora do cartão`}
-            tone={!currentInvoiceKnown || !incomeKnown ? 'neutral' : financialCycle.remainingAfterWants < -0.005 ? 'negative' : financialCycle.remainingAfterWants > 0.005 ? 'positive' : 'neutral'}
+            tone={!cashCompositionKnown ? 'neutral' : financialCycle.remainingAfterWants < -0.005 ? 'negative' : financialCycle.remainingAfterWants > 0.005 ? 'positive' : 'neutral'}
           />
         </div>
 
+        {thirdParties.pendingInMonth.length > 0 && <p className="mt-3 text-xs text-amber-200">Há {thirdParties.pendingInMonth.length} rateios sem definição no caixa deste ciclo. Defina em Terceiros se você adianta ou se a pessoa paga diretamente ao banco.</p>}
         {currentInvoiceKnown && (
           <dl className="mt-3 grid gap-x-5 gap-y-2 rounded-lg border border-dark-border-subtle bg-dark-surface/35 px-3 py-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
             <div className="flex items-center justify-between gap-3">
@@ -224,6 +225,8 @@ export function ClosingView({
                 <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.cardAdvancePaid)}</dd>
               </div>
             )}
+            {cashFlow.thirdPartyAdvanced > 0 && <div className="flex items-center justify-between gap-3"><dt className="text-dark-text-muted">Adiantado a terceiros</dt><dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.thirdPartyAdvanced)}</dd></div>}
+            {cashFlow.debtExtraPayments > 0 && <div className="flex items-center justify-between gap-3"><dt className="text-dark-text-muted">Amortizações extraordinárias</dt><dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.debtExtraPayments)}</dd></div>}
           </dl>
         )}
 
@@ -247,6 +250,7 @@ export function ClosingView({
             description="Planejamento do próximo salário, depois da fatura formada agora, contas e aporte-base."
             actions={<SecondaryButton onClick={onGoToPlanning}>Ajustar planejamento</SecondaryButton>}
           />
+          {thirdParties.unclassified.some((entry) => entry.dueMonth === nextCycleAllocation.month) && <p className="mt-3 text-xs text-amber-200">Prévia parcial: ainda há rateios sem definição de quem paga. Confira Terceiros em Cartões.</p>}
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <StatTile
               label="Base para alocar"
@@ -335,13 +339,13 @@ export function ClosingView({
           <StatTile
             label="Movimentos extraordinários"
             value={formatCurrency(
-              actuals.summary.extraIncomeTotal - actuals.summary.extraExpenseTotal,
+              actuals.summary.extraIncomeTotal - actuals.summary.extraExpenseTotal - cashFlow.debtExtraPayments,
             )}
-            detail={`entrou ${formatCurrency(actuals.summary.extraIncomeTotal)} · saiu ${formatCurrency(actuals.summary.extraExpenseTotal)}`}
+            detail={`entrou ${formatCurrency(actuals.summary.extraIncomeTotal)} · saiu ${formatCurrency(actuals.summary.extraExpenseTotal + cashFlow.debtExtraPayments)}`}
             tone={
-              actuals.summary.extraIncomeTotal - actuals.summary.extraExpenseTotal > 0.005
+              actuals.summary.extraIncomeTotal - actuals.summary.extraExpenseTotal - cashFlow.debtExtraPayments > 0.005
                 ? 'positive'
-                : actuals.summary.extraExpenseTotal - actuals.summary.extraIncomeTotal > 0.005
+                : actuals.summary.extraExpenseTotal + cashFlow.debtExtraPayments - actuals.summary.extraIncomeTotal > 0.005
                   ? 'negative'
                   : 'neutral'
             }

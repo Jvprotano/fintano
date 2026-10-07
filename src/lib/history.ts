@@ -92,6 +92,8 @@ export function normalizeSnapshot(raw: Partial<MonthlySnapshot> | undefined): Mo
       ),
     ),
     extraIncomeEntries,
+    thirdPartyAdvanced: finiteNumber(raw?.thirdPartyAdvanced),
+    reimbursementsReceived: finiteNumber(raw?.reimbursementsReceived),
     extraExpense: Math.max(
       0,
       finiteNumber(
@@ -194,7 +196,7 @@ export function projectHistoryInvestments(
       savingsRate: incomeBase > 0 ? (invested / incomeBase) * 100 : 0,
       balance:
         snapshot.paycheckInAccount +
-        snapshot.extraIncome -
+        snapshot.extraIncome + (snapshot.reimbursementsReceived ?? 0) - (snapshot.thirdPartyAdvanced ?? 0) -
         snapshot.extraExpense -
         snapshot.costs -
         snapshot.wants -

@@ -75,6 +75,7 @@ export function LedgerMoveForm({
 }) {
   const [amount, setAmount] = useState(0)
   const [note, setNote] = useState('')
+  const [moveError, setMoveError] = useState('')
   const [occurredOn, setOccurredOn] = useState(localDateKey)
   const [cycleSelection, setCycleSelection] = useState(() => ({
     source: cycleMonth ?? '',
@@ -88,7 +89,11 @@ export function LedgerMoveForm({
   const commit = (button: 'primary' | 'secondary') => {
     if (amount <= 0 || !occurredOn || (cycleMonth && !selectedCycleMonth)) return
     const positive = invert ? button === 'secondary' : button === 'primary'
-    if (!onMove((positive ? 1 : -1) * amount, note, selectedCycleMonth || cycleMonth, occurredOn)) return
+    if (!onMove((positive ? 1 : -1) * amount, note, selectedCycleMonth || cycleMonth, occurredOn)) {
+      setMoveError('Não foi possível registrar. Confira o saldo, o valor, a data e o ciclo; os campos foram preservados.')
+      return
+    }
+    setMoveError('')
     setAmount(0)
     setNote('')
     setOccurredOn(localDateKey())
@@ -173,6 +178,7 @@ export function LedgerMoveForm({
           </span>
         </div>
       )}
+      {moveError && <p role="alert" className="mt-2 text-xs text-rose-200">{moveError}</p>}
     </form>
   )
 }
@@ -187,11 +193,11 @@ export function LedgerList({
   onKindChange,
 }: {
   transactions: LedgerEntry[]
-  onRemove: (id: string) => void
+  onRemove: (id: string) => void | boolean
   inLabel?: string
   outLabel?: string
   /** Habilita a correção de competência, inclusive para dados antigos. */
-  onCycleMonthChange?: (id: string, cycleMonth: string) => void
+  onCycleMonthChange?: (id: string, cycleMonth: string) => boolean | void
   onKindChange?: (id: string, kind: LedgerEntryKind) => boolean
   /** Numa dívida, quem merece a cor de bom é a saída (a amortização). */
   invert?: boolean
@@ -243,7 +249,7 @@ export function LedgerList({
                     <CycleMonthControl
                       compact
                       value={ledgerEntryCycleMonth(tx)}
-                      onChange={(selected) => onCycleMonthChange(tx.id, selected)}
+                      onChange={(selected) => { if (onCycleMonthChange(tx.id, selected) === false) setClassificationError('Não foi possível alterar o ciclo desta operação.') }}
                       label={`Ciclo de ${tx.note || (isDeposit ? inLabel : outLabel)}`}
                     />
                   </div>
@@ -260,7 +266,7 @@ export function LedgerList({
               </span>
               <button
                 type="button"
-                onClick={() => onRemove(tx.id)}
+                onClick={() => { if (onRemove(tx.id) === false) setClassificationError('Não foi possível desfazer a operação. Confira o saldo de destino e o armazenamento.') }}
                 className="rounded-lg p-1.5 text-dark-text-muted opacity-100 transition-all hover:bg-rose-500/[0.08] hover:text-rose-400 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
                 title="Remover movimentação"
               >

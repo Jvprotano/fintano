@@ -26,6 +26,7 @@ import {
 import { HistoryOverview } from './history/HistoryOverview'
 import { HistoryTrendExplorer } from './history/HistoryTrendExplorer'
 import { LegacyInvoices } from './history/LegacyInvoices'
+import { CardThirdPartyPanel } from './cards/CardThirdPartyPanel'
 
 /**
  * Correção de um mês já fechado. Refechar substituiria tudo pelos números de
@@ -386,6 +387,7 @@ export function HistoryView() {
           médio real.
         </EmptyState>
         <LegacyInvoices />
+      <CardThirdPartyPanel history />
       </div>
     )
   }
@@ -598,6 +600,8 @@ export function HistoryView() {
                             : ''}
                         </span>
                       )}
+                      {(point.thirdPartyAdvanced ?? 0) > 0.005 && <span className="mt-0.5 block text-xs text-dark-text-muted">{formatCurrency(point.thirdPartyAdvanced!)} adiantados a terceiros</span>}
+                      {(point.reimbursementsReceived ?? 0) > 0.005 && <span className="mt-0.5 block text-xs text-dark-text-muted">{formatCurrency(point.reimbursementsReceived!)} devolvidos por terceiros</span>}
                     </td>
                     <td
                       className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary"
@@ -687,6 +691,7 @@ export function HistoryView() {
         )}
       </Panel>
       <LegacyInvoices />
+      <CardThirdPartyPanel history />
     </div>
   )
 }

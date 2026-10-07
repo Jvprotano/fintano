@@ -63,15 +63,17 @@ function parseBudgetArea(raw: string): BudgetArea | undefined {
 }
 
 /** Lê linhas coladas do Sheets/Excel e devolve lançamentos prontos. */
-export function parseSpreadsheet(text: string): ParsedCardEntry[] {
+export interface ParsedImportRow { line: number; description: string; entry?: ParsedCardEntry; reason?: string }
+
+export function parseSpreadsheetReport(text: string): ParsedImportRow[] {
   const lines = text
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
+    .map((content, index) => ({ content: content.trimEnd(), line: index + 1 }))
+    .filter((row) => row.content)
 
   if (!lines.length) return []
 
-  const firstRow = splitSpreadsheetLine(lines[0]).map(normalizeText)
+  const firstRow = splitSpreadsheetLine(lines[0].content).map(normalizeText)
   const hasHeader = firstRow.some((cell) =>
     ['descricao', 'data', 'cartao', 'fatura', 'e meu'].includes(cell),
   )
@@ -91,19 +93,14 @@ export function parseSpreadsheet(text: string): ParsedCardEntry[] {
     area: detectColumnIndex(headers, ['area', 'área', 'tipo', 'categoria']),
   }
 
-  const parsedRows: Array<ParsedCardEntry | null> = body.map((line) => {
+  const parsedRows: ParsedImportRow[] = body.map(({ content: line, line: lineNumber }) => {
+    const discard = (reason: string): ParsedImportRow => ({ line: lineNumber, description: line, reason })
     const cells = splitSpreadsheetLine(line)
     const description = (cells[indexes.description >= 0 ? indexes.description : 0] ?? '').trim()
     const marker = normalizeText(description)
 
-    if (
-      !description ||
-      marker.includes('total') ||
-      marker.includes('disponivel') ||
-      marker.includes('proxima fatura')
-    ) {
-      return null
-    }
+    if (!description) return discard('Descrição ausente.')
+    if (/^(total(?: geral| da fatura)?|subtotal|saldo disponivel|disponivel|proxima fatura)\s*:?$/.test(marker) && !(cells[indexes.date >= 0 ? indexes.date : 1] ?? '').trim()) return discard('Linha de resumo, não é uma compra.')
 
     const amount = parseCurrencyLike(cells[indexes.amount >= 0 ? indexes.amount : 3] ?? '')
     const personalRaw = cells[indexes.personal >= 0 ? indexes.personal : 4] ?? ''
@@ -129,9 +126,13 @@ export function parseSpreadsheet(text: string): ParsedCardEntry[] {
       .join(' ')
       .trim()
 
-    if (!amount && !personalAmount) return null
+    const rawValues = [cells[indexes.amount >= 0 ? indexes.amount : 3] ?? '', personalRaw, remainingRaw]
+    if (rawValues.some((raw) => raw.trim() && !/^-?\s*(?:R\$\s*)?[\d.,\s]+$/.test(raw.trim())) ||
+      [amount, personalAmount, remainingAmount].some((value) => Math.abs(value * 100 - Math.round(value * 100)) > 0.00001) ||
+      amount <= 0 || personalAmount < 0 || personalAmount > amount || remainingAmount < 0) return discard('Valor inválido; abatimentos devem ser registrados no formulário próprio.')
+    if (!/\d/.test(cells[indexes.amount >= 0 ? indexes.amount : 3] ?? '')) return discard('Valor da fatura ausente.')
 
-    return {
+    return { line: lineNumber, description, entry: {
       description: installmentTotal ? stripInstallmentToken(description) : description,
       purchaseDate: (cells[indexes.date >= 0 ? indexes.date : 1] ?? '').trim(),
       cardName: (cells[indexes.card >= 0 ? indexes.card : 2] ?? 'Cartão').trim() || 'Cartão',
@@ -139,14 +140,18 @@ export function parseSpreadsheet(text: string): ParsedCardEntry[] {
       personalAmount,
       remainingAmount,
       budgetArea,
-      ownerName: personalAmount < amount ? extraText || 'Outro' : '',
+      ownerName: personalAmount < amount ? extraText || undefined : '',
       ownerNote: extraText,
       installmentCurrent,
       installmentTotal,
-      isRecurring: isRecurring || undefined,
-      isPrepaid: isPrepaid || undefined,
-    }
+      isRecurring: indexes.recurring >= 0 ? isRecurring : undefined,
+      isPrepaid: indexes.prepaid >= 0 ? isPrepaid : undefined,
+    } }
   })
 
-  return parsedRows.filter((entry): entry is ParsedCardEntry => entry !== null)
+  return parsedRows
+}
+
+export function parseSpreadsheet(text: string): ParsedCardEntry[] {
+  return parseSpreadsheetReport(text).flatMap((row) => row.entry ? [row.entry] : [])
 }

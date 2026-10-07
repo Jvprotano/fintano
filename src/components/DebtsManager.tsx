@@ -399,7 +399,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
 
           <LedgerMoveForm
             onMove={(amount, note, cycleMonth, occurredOn) => debts.addDebtTransaction(debt.id, amount, note, cycleMonth, occurredOn)}
-            inLabel="Amortizar"
+            inLabel="Amortizar extra"
             outLabel="Aumentar saldo"
             invert
             disableOut={false}
