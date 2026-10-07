@@ -13,7 +13,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | Cartões | Conferir/importar compras, pagar cada cartão separadamente e definir adiantamentos a terceiros e devoluções recebidas. |
 | Patrimônio | Consultar e registrar posições, reserva, metas, bens, dívidas e livros de movimentos. |
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
-| Futuro | Acompanhar a próxima ocorrência pendente de entradas e saídas, registrar ou vincular fatos; consultar projeção e premissas sob demanda. |
+| Futuro | Agrupar metas e dividir entradas previstas entre elas; acompanhar ocorrências, registrar ou vincular fatos e consultar projeção sob demanda. |
 
 ## Plano, referência e simulação
 
@@ -79,7 +79,19 @@ Reserva, carteira e metas atribuem finalidade ao dinheiro existente; não duplic
 
 Fechamentos preservam folha, metas de comparação e marca patrimonial do fechamento. Aportes diretos históricos acompanham a competência do livro de movimentos. Consultar o passado não troca a competência operacional. Cadastros com fatos são arquivados em vez de apagar seu histórico.
 
-Destinos de aportes e projeções continuam pendentes e a execução está pausada após a ordem 4; consultar a fila antes de retomar esses fluxos.
+A revisão geral dos destinos de aportes e projeções continua pendente e a fila está pausada após a ordem 4. O planejamento de entradas para metas abaixo foi autorizado como ajuste específico; não retoma os demais itens.
+
+## Metas e entradas previstas
+
+Em Futuro, **Organizar grupos** reúne metas de acumulação pelo mesmo nome, como Eurotrip 2027. O grupo soma os objetivos e suas necessidades; não cria outro saldo. Indicadores patrimoniais ficam separados. A edição tem salvar/cancelar e recusa uma revisão desatualizada.
+
+**Destinar entradas** escolhe uma ocorrência concreta, como o décimo terceiro de dezembro/2026, e divide valores entre várias metas. **Dividir pelo que falta** sugere uma divisão proporcional às necessidades restantes após as outras entradas destinadas, limitada à parcela que se planeja guardar e ao que falta para cada meta. É possível ajustar os valores antes de salvar. Destinações a metas de outros grupos são preservadas e consomem a mesma verba. Um valor destinado nesta ocorrência não é repetido automaticamente no décimo terceiro do ano seguinte. A associação antiga “Meta relacionada” continua sendo apenas contexto.
+
+O resumo mostra dinheiro já guardado, falta sem as entradas, entradas que cobrem as metas e falta se elas ocorrerem, com o ritmo mensal até os prazos. Os detalhes mostram a origem de cada parte. Só entradas previstas até o mês-alvo reduzem a necessidade condicional; entradas posteriores e atrasadas são identificadas. Metas sem prazo ou com prazo vencido não entram no ritmo mensal. Não incluir dinheiro acima da necessidade de uma meta como cobertura de outra; a sobra exige revisar a divisão.
+
+Receber não é guardar. Em recebimentos parciais, a parcela ainda esperada de cada destinação cai proporcionalmente ao restante da entrada. A parcela recebida aparece como contexto e só conta no guardado quando destinada à posição/meta em Patrimônio. Cancelar ou adiar para depois do prazo retira a cobertura prevista, preservando os fatos e a divisão. Reduzir o valor ou o percentual guardado exige primeiro ajustar uma divisão que exceda a nova verba.
+
+Exemplo: metas de R$ 14.350, com R$ 1.000 já destinados, exigem R$ 13.350 sem depender de entradas. Destinar R$ 7.500 do décimo terceiro e R$ 1.200 do dissídio deixa R$ 4.650 a guardar se ambas ocorrerem, ou R$ 465/mês de outubro/2026 a julho/2027, incluindo esses meses. A base continua exigindo R$ 13.350. Todos os valores deste planejamento são nominais em reais; ele não estima câmbio, conversão ou taxas da viagem. Ajustar alvo e prazo da meta conforme o orçamento e a data em que os recursos precisam estar preparados.
 ## Ocorrências e agenda
 
 A lista principal de Futuro ordena cada previsão pela próxima ocorrência pendente conciliada. O resumo mostra data e restante, incluindo vencidas e parciais; realizar uma ocorrência avança para a próxima. O detalhe permite consultar outras ocorrências e os registros realizados/cancelados. Projeção e premissas começam recolhidas.

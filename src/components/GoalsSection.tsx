@@ -115,6 +115,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
           {goal.archivedAt && <Tag>Arquivada</Tag>}
           {goal.archivedAt && goal.ownBalance > 0 && <Tag>Saldo ainda no patrimônio</Tag>}
           {goal.targetMonth && <Tag>{formatMonthKey(goal.targetMonth)}</Tag>}
+          {goal.groupName && <Tag>{goal.groupName}</Tag>}
           {goal.includedLabels.length > 0 && <span className="truncate">{goal.includedLabels.join(' + ')}</span>}
           {lateBy > 0 && !goal.isComplete && <span className="text-amber-400">{formatMonths(lateBy)} atrasada</span>}
         </div>

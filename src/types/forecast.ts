@@ -10,6 +10,8 @@ export type ForecastFactLink =
 export type ExpectedEventTerms = Pick<ExpectedEvent, 'name' | 'kind' | 'amount' | 'month' | 'date' | 'cashTreatment' | 'cardDueMonth' | 'confirmed' | 'savedPct' | 'goalId' | 'note' | 'planLink'>
 
 export interface ExpectedOccurrenceOverride {
+  /** Destinação planejada desta entrada; não cria aporte nem saldo. */
+  goalAllocations?: { goalId: string; amount: number }[]
   date?: string
   month?: string
   amount?: number

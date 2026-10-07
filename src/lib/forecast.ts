@@ -52,7 +52,7 @@ function normalizeOverrides(raw: ExpectedEvent['occurrenceOverrides']) {
     const realizedAmount = typeof value.realizedAmount === 'number' && Number.isFinite(value.realizedAmount) && value.realizedAmount > 0
       ? value.realizedAmount : undefined
     const realizedAt = validDate(value.realizedAt) ? value.realizedAt : undefined
-    entries.push([key, { date, month, amount, cancelled: value.cancelled === true, realizedAmount, realizedAt, terms: normalizeTerms(value.terms), links: Array.isArray(value.links) ? value.links : undefined }])
+    entries.push([key, { date, month, amount, cancelled: value.cancelled === true, realizedAmount, realizedAt, terms: normalizeTerms(value.terms), links: Array.isArray(value.links) ? value.links : undefined, goalAllocations: value.goalAllocations }])
   }
   return entries.length ? Object.fromEntries(entries) : undefined
 }

@@ -35,6 +35,7 @@ import { CHART_PALETTE, RECURRENCE_LABELS } from '../types/constants'
 import { repositoryRevision } from '../data/repositoryCommand'
 import { cardDueMonthForOccurrence, type ReconciledOccurrence } from '../lib/forecastCoverage'
 import { ForecastEventOccurrences } from './ForecastCommitments'
+import { GoalFundingPanel } from './GoalFundingPanel'
 
 // ---------------------------------------------------------------------------
 // Futuro.
@@ -210,7 +211,8 @@ function EventForm({ onClose, event, occurrence }: { onClose: () => void; event?
       </details>
 
       {cashTreatment === 'planned' && kind === 'expense' && <label className="block"><span className="app-form-label mb-1 block">Item do plano que já cobre esta saída</span><select className={inputClass} value={planChoice} onChange={(e) => setPlanChoice(e.target.value)}><option value="">Escolha o item</option>{plan.costs.filter((row) => !row.archivedAt && row.paidWith !== 'card').map((row) => <option key={row.id} value={'cost:' + row.id}>{row.name} · custo</option>)}{plan.wants.filter((row) => !row.archivedAt && row.paidWith === 'account').map((row) => <option key={row.id} value={'want:' + row.id}>{row.name} · Desejos</option>)}</select></label>}
-      <label className="block"><span className="app-form-label mb-1 block">Meta relacionada (opcional)</span><select className={inputClass} value={goalId} onChange={(e) => setGoalId(e.target.value)}><option value="">Sem meta</option>{store.investments.goals.filter((row) => !row.archivedAt).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+      <label className="block"><span className="app-form-label mb-1 block">Meta relacionada (contexto opcional)</span><select className={inputClass} value={goalId} onChange={(e) => setGoalId(e.target.value)}><option value="">Sem meta</option>{store.investments.goals.filter((row) => !row.archivedAt).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+      {kind === 'income' && <p className="text-xs text-dark-text-muted">Para financiar uma ou várias metas, salve a previsão e use Destinar entradas em Metas e entradas previstas, acima da agenda.</p>}
       {event && event.recurrence !== 'once' && <label className="block"><span className="app-form-label mb-1 block">Aplicar alteração</span><select className={inputClass} value={scope} onChange={(e) => setScope(e.target.value as 'this' | 'following')}><option value="this">Esta ocorrência</option><option value="following">Esta e próximas pendentes</option></select></label>}
       {error && <div role="alert" className="text-xs text-rose-200">{error}<SecondaryButton className="ml-2" onClick={() => { setRevision(repositoryRevision()); setError('') }}>Revisar dados atuais</SecondaryButton></div>}
       <div className="flex gap-2">
@@ -371,16 +373,17 @@ export function ForecastView() {
     : undefined
   const equityBuiltInHorizon = projection.reduce((sum, point) => sum + point.equityBuilt, 0)
   const worstUnfunded = Math.max(...projection.map((point) => point.unfunded))
-  const datedGoals = investments.goals.filter((goal) => goal.targetMonth && goal.targetAmount > 0)
+  const datedGoals = investments.goals.filter((goal) => !goal.archivedAt && goal.kind === 'tracking' && goal.targetMonth && goal.targetAmount > 0)
 
   return (
     <div className="space-y-4">
+      <GoalFundingPanel />
       {datedGoals.length > 0 && (
         <Panel padded={false} className="overflow-hidden">
           <div className="border-b border-dark-border-subtle px-5 py-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-dark-text">
               <Flag size={15} className="text-dark-text-muted" />
-              Metas com prazo
+              Indicadores com prazo
             </h3>
             <p className="mt-0.5 text-xs text-dark-text-muted">
               Metas que englobam seus investimentos são julgadas pela projeção; as outras, pelo

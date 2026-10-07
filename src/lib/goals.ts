@@ -116,6 +116,7 @@ export function normalizeGoal(raw: Partial<FinancialGoal> | undefined, index = 0
   return {
     id: raw?.id || uid(),
     name: raw?.name?.trim() || 'Meta',
+    groupName: kind === 'funding' ? raw?.groupName?.trim() || undefined : undefined,
     targetAmount: Math.max(0, finiteNumber(raw?.targetAmount)),
     targetMonth: /^\d{4}-\d{2}$/.test(raw?.targetMonth ?? '') ? raw?.targetMonth : undefined,
     color: raw?.color || GOAL_PRESET_COLORS[index % GOAL_PRESET_COLORS.length],

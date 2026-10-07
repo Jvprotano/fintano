@@ -279,6 +279,7 @@ export interface DebtV7 {
 export interface GoalV7 {
   id: string
   name: string
+  groupName?: string
   targetAmountCents: MoneyCents
   targetMonth?: MonthKey
   color: string
@@ -308,7 +309,7 @@ export interface ForecastEventV7 {
   cancelled?: boolean
   planLink?: ExpectedEventTerms['planLink']
   futureChanges?: Record<string, ForecastTermsV9>
-  occurrenceOverrides?: Record<string, { date?: string; month?: MonthKey; amountCents?: MoneyCents; cancelled?: boolean; realizedAmountCents?: MoneyCents; realizedAt?: string; terms?: ForecastTermsV9; links?: ForecastFactLink[] }>
+  occurrenceOverrides?: Record<string, { date?: string; month?: MonthKey; amountCents?: MoneyCents; cancelled?: boolean; realizedAmountCents?: MoneyCents; realizedAt?: string; terms?: ForecastTermsV9; links?: ForecastFactLink[]; goalAllocations?: { goalId: string; amountCents: MoneyCents }[] }>
   savedPct?: number
   goalId?: string
   note?: string

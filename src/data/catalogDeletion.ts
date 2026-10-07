@@ -45,7 +45,7 @@ export function deleteUnusedCatalog(kind: CatalogKind, id: string, scenarioId?: 
       if (kind === 'goal') {
         const target = goals.find((item) => item.id === id)
         if (!target || target.transactions?.length || target.includes?.length ||
-          events.some((event) => event.goalId === id) || funds.some((fund) => fund.goalId === id)) return null
+          events.some((event) => event.goalId === id || Object.values(event.occurrenceOverrides ?? {}).some((override) => override.goalAllocations?.some((row) => row.goalId === id))) || funds.some((fund) => fund.goalId === id)) return null
         return { ...document, collections: { ...collections, goals: goals.filter((item) => item.id !== id) } }
       }
 

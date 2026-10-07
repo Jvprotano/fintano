@@ -9,6 +9,7 @@ import { addMonths, localDateKey, uid } from '../lib/shared'
 import { normalizeCreditCardEntry, syncGeneratedNextEntries } from '../lib/creditCards'
 import { withCardEntrySpendingMonth } from '../lib/cardCycleAccounting'
 import { cardDueMonthForOccurrence } from '../lib/forecastCoverage'
+import { goalIncomeAllocationError } from '../lib/goalFunding'
 import type { CreditCardAccount } from '../types'
 
 const monthValid = (month: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
@@ -31,6 +32,13 @@ export function documentOccurrence(document: RepositoryDocument, event: Expected
 }
 
 function writeEvent(document: RepositoryDocument, event: ExpectedEvent): RepositoryDocument {
+  for (const [month, override] of Object.entries(event.occurrenceOverrides ?? {})) {
+    if (!override.goalAllocations?.length) continue
+    const item = occurrenceFor(event, month, true)
+    if (!item) continue
+    const error = goalIncomeAllocationError(override.goalAllocations, item.amount * (item.event.savedPct ?? 100) / 100)
+    if (error) throw new Error(error + ' Revise a divisão desta entrada em Metas e entradas previstas antes de reduzir o valor ou a parcela guardada.')
+  }
   return { ...document, collections: { ...document.collections, forecastEvents: (document.collections.forecastEvents as ExpectedEvent[] ?? []).map((row) => row.id === event.id ? normalizeExpectedEvent(event) : row) } }
 }
 
@@ -68,6 +76,7 @@ export function freezeForecastFacts(document: RepositoryDocument, event: Expecte
 }
 
 function validateTerms(terms: ExpectedEventTerms) {
+  if (terms.savedPct !== undefined && (!Number.isFinite(terms.savedPct) || terms.savedPct < 0 || terms.savedPct > 100)) throw new Error('A parte guardada deve ficar entre 0% e 100%.')
   if (!terms.name.trim() || !moneyValid(terms.amount) || !monthValid(terms.month) || terms.date && (!dateValid(terms.date) || terms.date.slice(0, 7) !== terms.month) ||
     terms.cashTreatment === 'card' && (!terms.cardDueMonth || !monthValid(terms.cardDueMonth) || terms.cardDueMonth < terms.month)) throw new Error('Confira nome, valor, mês e data da previsão.')
   if (terms.planLink && terms.kind !== 'expense') throw new Error('O vínculo com o plano deve ser uma saída.')

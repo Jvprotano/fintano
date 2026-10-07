@@ -709,6 +709,7 @@ export function repositoryToBackupV7(
     goals: goals.map((goal) => ({
       id: goal.id,
       name: goal.name,
+      groupName: goal.groupName,
       targetAmountCents: toCents(goal.targetAmount),
       targetMonth: goal.targetMonth,
       color: goal.color,
@@ -749,6 +750,7 @@ export function repositoryToBackupV7(
               realizedAt: override.realizedAt,
               terms: override.terms && forecastTermsToBackup(override.terms),
               links: override.links,
+              goalAllocations: override.goalAllocations?.map((item) => ({ goalId: item.goalId, amountCents: toCents(item.amount) })),
             }]),
           ),
           savedPct: event.savedPct,
@@ -899,6 +901,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
   const goals: FinancialGoal[] = backup.goals.map((goal) => ({
     id: goal.id,
     name: goal.name,
+    groupName: goal.groupName,
     targetAmount: fromCents(goal.targetAmountCents),
     targetMonth: goal.targetMonth,
     color: goal.color,
@@ -1073,6 +1076,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
             realizedAt: override.realizedAt,
             terms: override.terms && forecastTermsFromBackup(override.terms),
             links: override.links,
+            goalAllocations: override.goalAllocations?.map((item) => ({ goalId: item.goalId, amount: fromCents(item.amountCents) })),
           }]),
         ),
         savedPct: event.savedPct,
@@ -1314,6 +1318,23 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     else for (const [month, terms] of Object.entries(event.futureChanges ?? {})) checkTerms(terms, month)
     for (const [month, override] of Object.entries(event.occurrenceOverrides ?? {})) {
       if (override.terms) checkTerms(override.terms, month)
+      if (override.goalAllocations !== undefined) {
+        const allocations = override.goalAllocations
+        const seen = new Set<string>()
+        let total = 0
+        if (!Array.isArray(allocations) || event.kind !== 'income') add('error', 'goal_income_invalid', 'Divisão de entrada entre metas inválida.', event.id)
+        else for (const allocation of allocations) {
+          if (!allocation || typeof allocation.goalId !== 'string' || !goalIds.has(allocation.goalId) ||
+            backup.goals.find((goal) => goal.id === allocation.goalId)?.kind === 'tracking' || seen.has(allocation.goalId) ||
+            !Number.isSafeInteger(allocation.amountCents) || allocation.amountCents <= 0) {
+            add('error', 'goal_income_allocation_invalid', 'A divisão deve identificar metas de acumulação distintas e valores positivos em centavos.', event.id)
+          } else { seen.add(allocation.goalId); total += allocation.amountCents }
+        }
+        const revision = Object.entries(event.futureChanges ?? {}).filter(([key]) => key <= month).sort(([a], [b]) => b.localeCompare(a))[0]?.[1]
+        const amount = override.amountCents ?? override.terms?.amountCents ?? revision?.amountCents ?? event.amountCents
+        const savedPct = override.terms?.savedPct ?? revision?.savedPct ?? event.savedPct ?? 100
+        if (!Number.isFinite(savedPct) || savedPct < 0 || savedPct > 100 || total > Math.round(amount * savedPct / 100)) add('error', 'goal_income_overallocated', 'A soma destinada às metas excede a parte guardada desta entrada.', event.id)
+      }
       if (override.links !== undefined && !Array.isArray(override.links)) add('error', 'forecast_links_invalid', 'Vínculos da ocorrência inválidos.', event.id)
       const keys = new Set<string>()
       for (const link of Array.isArray(override.links) ? override.links : []) {
@@ -1337,6 +1358,7 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const goal of backup.goals) {
+    if (goal.groupName !== undefined && typeof goal.groupName !== 'string') add('error', 'goal_group_invalid', 'Nome do grupo de metas inválido.', goal.id)
     if (goal.archivedAt && !Number.isFinite(Date.parse(goal.archivedAt))) {
       add('error', 'goal_archive_invalid', 'Meta tem data de arquivamento inválida.', goal.id)
     }

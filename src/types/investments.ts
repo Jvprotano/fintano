@@ -27,6 +27,8 @@ export type GoalKind = 'funding' | 'tracking'
 export interface FinancialGoal {
   id: string
   name: string
+  /** Agrupa objetivos relacionados, sem criar outro saldo. */
+  groupName?: string
   targetAmount: number
   targetMonth?: string
   color: string
