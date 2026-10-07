@@ -21,6 +21,7 @@ import { ReserveSection } from './ReserveSection'
 import { GoalsSection } from './GoalsSection'
 import { AssetsManager } from './AssetsManager'
 import { DebtsManager } from './DebtsManager'
+import { PensionBalance } from './PensionBalance'
 import {
   DonutChart,
   EmptyState,
@@ -37,7 +38,7 @@ import {
 import { formatCurrency, inputClass } from '../lib/format'
 import { useFinancasStore, useInvestmentsStore } from '../context/financasStore'
 import type { FinancialHoldingSummary, InvestmentPurpose } from '../lib/investments'
-import { holdingPurpose } from '../lib/investments'
+import { holdingPurpose, usableHoldingValue } from '../lib/investments'
 import {
   CHART_PALETTE,
   INVESTMENT_CLASS_PRESET_COLORS,
@@ -68,7 +69,8 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
     setHoldingTransactionCycle,
     setMarketValue,
   } = useInvestmentsStore()
-  const { activeCycle } = useFinancasStore()
+  const { activeCycle, scenarios } = useFinancasStore()
+  const isPension = !!holding.pension || scenarios.activeScenario.deductions.some((row) => row.type === 'previdencia_privada' && row.linkedHoldingId === holding.id)
   const [expanded, setExpanded] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const purpose = holdingPurpose(holding)
@@ -79,6 +81,17 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
       .map((allocation) => ({ goal: goal.name, amount: allocation.allocated, color: goal.color })),
   )
   const missingLocation = !holding.institution?.trim()
+  const movementForm = (
+    <LedgerMoveForm
+        onMove={(amount, note, cycleMonth, occurredOn) =>
+          addHoldingTransaction(holding.id, amount, note, cycleMonth, occurredOn)
+        }
+        inLabel="Aportar"
+        outLabel="Resgatar"
+        disableOut={holding.marketValue <= 0}
+        cycleMonth={activeCycle.month}
+      />
+  )
 
   return <div className={`overflow-hidden rounded-2xl border bg-dark-surface/35 transition-colors ${expanded ? 'border-dark-text-muted/30' : 'border-dark-border/70 hover:border-dark-text-muted/25'}`}>
     <button type="button" onClick={() => setExpanded((prev) => !prev)} aria-expanded={expanded} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.025]">
@@ -95,6 +108,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1">
           <Tag>{purpose === 'emergency_fund' ? 'Reserva de emergência' : 'Carteira'}</Tag>
+          {isPension && <Tag>Previdência · {holding.pension?.employerRestrictedBalance === undefined ? 'divisão pendente' : `${formatCurrency(holding.pension.employerRestrictedBalance)} da empresa em carência`}</Tag>}
           {holding.archivedAt && <Tag>Arquivada</Tag>}
           {holding.archivedAt && holding.marketValue > 0 && <Tag>Saldo ainda no patrimônio</Tag>}
           {allocations.map((allocation) => <Tag key={allocation.goal}><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: allocation.color }} />{allocation.goal}: {formatCurrency(allocation.amount)}</Tag>)}
@@ -110,20 +124,17 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
 
     {expanded && <div className="space-y-4 border-t border-dark-border/60 bg-dark-card/40 px-4 py-4">
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-        <div className="rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5"><span className="block text-dark-text-muted">Aportado</span><strong className="mt-0.5 block tabular-nums text-dark-text">{formatCurrency(holding.invested)}</strong></div>
+        <div className="rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5"><span className="block text-dark-text-muted">{isPension ? 'Saldo anterior + aportes pessoais e empresariais' : 'Aportado'}</span><strong className="mt-0.5 block tabular-nums text-dark-text">{formatCurrency(holding.invested)}</strong></div>
         <div className="rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5"><span className="block text-dark-text-muted">Rendimento</span><strong className="mt-0.5 block"><GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} /></strong></div>
         <div className="col-span-2 rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5 sm:col-span-1"><span className="block text-dark-text-muted">Retorno anualizado</span><strong className="mt-0.5 block tabular-nums text-dark-text">{holding.annualizedPct === null ? '—' : `${holding.annualizedPct >= 0 ? '+' : ''}${holding.annualizedPct.toFixed(1)}%`}</strong></div>
       </div>
 
-      <LedgerMoveForm
-        onMove={(amount, note, cycleMonth, occurredOn) =>
-          addHoldingTransaction(holding.id, amount, note, cycleMonth, occurredOn)
-        }
-        inLabel="Aportar"
-        outLabel="Resgatar"
-        disableOut={holding.marketValue <= 0}
-        cycleMonth={activeCycle.month}
-      />
+      {isPension && <PensionBalance holding={holding} />}
+      {isPension ? <details className="rounded-xl border border-dark-border p-3">
+        <summary className="cursor-pointer text-sm font-medium text-dark-text-secondary">Aporte pessoal extra ou resgate</summary>
+        <p className="my-3 text-xs text-dark-text-muted">Use apenas para movimentações pela conta. Folha e empresa entram automaticamente pelo Ciclo.</p>
+        {movementForm}
+      </details> : movementForm}
 
       <div className="rounded-2xl border border-dark-border/70 bg-dark-input/20 p-3 sm:p-4">
         <div className="mb-3">
@@ -131,9 +142,9 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
           <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Saldo, classificação e identificação do produto.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <FormField label="Saldo atual" hint="marcação a mercado"><CurrencyInput value={holding.marketValue} onChange={(value) => setMarketValue(holding.id, value)} className="!py-2" /></FormField>
+          {!isPension && <FormField label="Saldo atual" hint="marcação a mercado"><CurrencyInput value={holding.marketValue} onChange={(value) => setMarketValue(holding.id, value)} className="!py-2" /></FormField>}
           <FormField label="Classe"><select value={holding.assetClassId} onChange={(event) => updateHolding(holding.id, { assetClassId: event.target.value })} className={`${inputClass} h-[42px]`}>{investmentClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FormField>
-          <FormField label="Finalidade"><select value={purpose} onChange={(event) => updateHolding(holding.id, { purpose: event.target.value as InvestmentPurpose })} className={`${inputClass} h-[42px]`}><option value="portfolio">Carteira / metas</option><option value="emergency_fund">Reserva de emergência</option></select></FormField>
+          {!isPension && <FormField label="Finalidade"><select value={purpose} onChange={(event) => updateHolding(holding.id, { purpose: event.target.value as InvestmentPurpose })} className={`${inputClass} h-[42px]`}><option value="portfolio">Carteira / metas</option><option value="emergency_fund">Reserva de emergência</option></select></FormField>}
           <FormField label="Produto"><input value={holding.name} onChange={(event) => updateHolding(holding.id, { name: event.target.value })} className={`${inputClass} !py-2`} placeholder="Ex.: CDB Itaú 110% CDI" /></FormField>
           <FormField label="Instituição"><input value={holding.institution ?? ''} onChange={(event) => updateHolding(holding.id, { institution: event.target.value })} className={`${inputClass} !py-2`} placeholder="Ex.: Itaú, XP, Nubank" /></FormField>
           <FormField label="Referência"><input value={holding.benchmark ?? ''} onChange={(event) => updateHolding(holding.id, { benchmark: event.target.value })} className={`${inputClass} !py-2`} placeholder="Ex.: 110% CDI" /></FormField>
@@ -237,7 +248,7 @@ function BalanceEquation({ financialAssets, physicalAssets, liabilities, netWort
       <span className="self-center text-center text-xl text-dark-text-muted">−</span>
       <div className="rounded-xl border border-dark-border/70 bg-dark-input/35 p-4"><span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">Tudo que você deve</span><strong className="mt-1 block text-lg tabular-nums text-dark-text">{formatCurrency(liabilities)}</strong><span className="mt-1 block text-xs text-dark-text-muted">saldo devedor atual</span></div>
       <span className="self-center text-center text-xl text-dark-text-muted">=</span>
-      <div className={`rounded-xl border p-4 ${netWorth >= 0 ? 'border-primary-500/25 bg-primary-500/[0.07]' : 'border-rose-500/25 bg-rose-500/[0.07]'}`}><span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">Patrimônio líquido</span><strong className={`mt-1 block text-lg tabular-nums ${netWorth >= 0 ? 'text-primary-300' : 'text-rose-300'}`}>{formatCurrency(netWorth)}</strong><span className="mt-1 block text-xs text-dark-text-muted">o que efetivamente é seu</span></div>
+      <div className={`rounded-xl border p-4 ${netWorth >= 0 ? 'border-primary-500/25 bg-primary-500/[0.07]' : 'border-rose-500/25 bg-rose-500/[0.07]'}`}><span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">Patrimônio líquido</span><strong className={`mt-1 block text-lg tabular-nums ${netWorth >= 0 ? 'text-primary-300' : 'text-rose-300'}`}>{formatCurrency(netWorth)}</strong><span className="mt-1 block text-xs text-dark-text-muted">inclui saldos sujeitos a carência</span></div>
     </div>
   </Panel>
 }
@@ -256,7 +267,7 @@ function PayrollInvestmentsPanel({ onNavigate }: { onNavigate: (section: Section
       <PanelHeader
         title="Previdência em folha"
         icon={<CircleDollarSign size={16} />}
-        description="Contribuições recorrentes do cenário ativo. São fluxo do ciclo; o saldo acumulado pertence a uma posição patrimonial."
+        description="Plano mensal: confirmar a folha no Ciclo registra os aportes automaticamente. Não repita o lançamento em Posições."
         actions={
           <SecondaryButton onClick={() => onNavigate('holdings')}>
             Conferir posições
@@ -291,7 +302,7 @@ function PayrollInvestmentsPanel({ onNavigate }: { onNavigate: (section: Section
                 {formatCurrency(employer)}
               </span>
               <strong className="text-xs text-primary-300">
-                <span className="block text-xs font-normal text-dark-text-muted">Creditado/mês</span>
+                <span className="block text-xs font-normal text-dark-text-muted">Previsto/mês</span>
                 {formatCurrency(deduction.value + employer)}
               </strong>
             </div>
@@ -322,9 +333,9 @@ function PayrollInvestmentsPanel({ onNavigate }: { onNavigate: (section: Section
           !summary.allHoldings.some((holding) => holding.id === deduction.linkedHoldingId),
       ) && (
         <p className="mt-3 rounded-lg border border-amber-500/15 bg-amber-500/[0.045] px-3 py-2 text-xs leading-relaxed text-dark-text-muted">
-          Vincule cada previdência, em Planejar, a uma posição com seu saldo atual. O FinTano não
-          inventa o patrimônio acumulado a partir da contribuição mensal nem lança o aporte duas
-          vezes.
+          Vincule cada previdência, em Planejar, a uma posição de carteira. Em Posições, informe
+          a divisão atual do extrato entre você, empresa e carência. A automação começa nas novas folhas;
+          saldos e folhas anteriores não são relançados.
         </p>
       )}
     </Panel>
@@ -345,11 +356,16 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
     return [...values.entries()].map(([label, value], index) => ({ id: label, label, value, color: INVESTMENT_CLASS_PRESET_COLORS[index % INVESTMENT_CLASS_PRESET_COLORS.length] }))
   }, [summary])
   const allocatedToGoals = goals.filter((goal) => goal.kind === 'funding').reduce((sum, goal) => sum + goal.allocatedBalance, 0)
+  const pensionRestricted = summary.allHoldings.reduce((sum, holding) => sum + (holding.pension?.employerRestrictedBalance ?? 0), 0)
+  const pensionUnknown = summary.allHoldings.filter((holding) => holding.pension && (holding.pension.employerBalance === undefined || holding.pension.employerRestrictedBalance === undefined)).reduce((sum, holding) => sum + holding.marketValue, 0)
+  const usablePortfolio = summary.allHoldings.filter((holding) => holdingPurpose(holding) === 'portfolio').reduce((sum, holding) => sum + usableHoldingValue(holding), 0)
   const purposeSegments = [
     { id: 'reserve', label: 'Reserva de emergência', value: summary.reserveBalance, color: CHART_PALETTE.blue },
     { id: 'goals', label: 'Destinado a metas', value: allocatedToGoals, color: CHART_PALETTE.violet },
-    { id: 'free', label: 'Carteira sem destino específico', value: Math.max(0, summary.portfolioMarketValue - allocatedToGoals), color: CHART_PALETTE.aqua },
+    { id: 'free', label: 'Carteira sem destino específico', value: Math.max(0, usablePortfolio - allocatedToGoals), color: CHART_PALETTE.aqua },
     { id: 'unlocated', label: 'Metas sem posição', value: summary.goalsBalance, color: CHART_PALETTE.muted },
+    { id: 'pension-restricted', label: 'Empresa em carência', value: pensionRestricted, color: CHART_PALETTE.muted },
+    { id: 'pension-unknown', label: 'Previdência: divisão pendente', value: pensionUnknown, color: CHART_PALETTE.muted },
   ]
   const goalsWithoutSources = goals.filter((goal) => goal.kind === 'funding' && goal.current <= 0 && !goal.isComplete)
   const positionsWithoutInstitution = summary.allHoldings.filter((holding) => !holding.institution?.trim())
@@ -417,7 +433,7 @@ export function InvestmentsManager() {
     <FinancialMovementPanel />
     <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
       <StatTile label="Patrimônio líquido" value={formatCurrency(summary.netWorth)} detail={`${formatCurrency(summary.grossAssets)} em ativos − ${formatCurrency(summary.liabilities)} em dívidas`} tone={summary.netWorth > 0 ? 'accent' : summary.netWorth < 0 ? 'negative' : 'neutral'} />
-      <StatTile label="Dinheiro e investimentos" value={formatCurrency(summary.financialAssets)} detail={`${summary.allHoldings.length} ${summary.allHoldings.length === 1 ? 'posição' : 'posições'} · ${formatCurrency(summary.reserveBalance)} de reserva`} tone="neutral" />
+      <StatTile label="Saldo financeiro total" value={formatCurrency(summary.financialAssets)} detail={`${summary.allHoldings.length} ${summary.allHoldings.length === 1 ? 'posição' : 'posições'} · ${formatCurrency(summary.reserveBalance)} de reserva`} tone="neutral" />
       <StatTile label="Dívidas" value={formatCurrency(summary.liabilities)} detail={summary.liabilities > 0 ? `${formatCurrency(debts.summary.totalMonthlyInterest)}/mês de juros` : 'nenhuma dívida cadastrada'} tone="neutral" />
       <StatTile label="Rendimento financeiro" value={`${summary.financialGain >= 0 ? '+' : '−'} ${formatCurrency(Math.abs(summary.financialGain))}`} detail={summary.financialInvested > 0 ? `${((summary.financialGain / summary.financialInvested) * 100).toFixed(1)}% sobre o aportado · ${activeGoals} meta${activeGoals === 1 ? '' : 's'} aberta${activeGoals === 1 ? '' : 's'}` : undefined} tone={summary.financialGain > 0 ? 'positive' : summary.financialGain < 0 ? 'negative' : 'neutral'} />
     </div>

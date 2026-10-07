@@ -165,6 +165,9 @@ function ledgerToV7(
       operationId: entry.operationId,
       cashTreatment: entry.cashTreatment,
       linkedCostId: entry.linkedCostId,
+      payrollMonth: entry.payrollMonth,
+      contributor: entry.contributor,
+      ...(entry.pensionEmployerAmount !== undefined ? { pensionEmployerAmountCents: toCents(entry.pensionEmployerAmount) } : {}),
       note: entry.note?.trim() || undefined,
     }
   })
@@ -182,6 +185,9 @@ function ledgerFromV7(entries: DomainLedgerEntryV7[], ownerType: LedgerOwnerType
       operationId: entry.operationId,
       cashTreatment: entry.cashTreatment,
       linkedCostId: entry.linkedCostId,
+      payrollMonth: entry.payrollMonth,
+      contributor: entry.contributor,
+      ...(entry.pensionEmployerAmountCents !== undefined ? { pensionEmployerAmount: fromCents(entry.pensionEmployerAmountCents) } : {}),
       kind: entry.kind,
       kindSource: entry.kindSource ?? (entry.kind === 'opening_balance' && entry.amountCents > 0
         ? 'legacy_ambiguous' : undefined),
@@ -529,9 +535,13 @@ export function repositoryToBackupV7(
     actuals: {
       cycles: actuals.map((cycle) => ({
         month: cycle.month,
+        ...(cycle.payrollPensionLegacy ? { payrollPensionLegacy: true } : {}),
         ...(cycle.paycheck ? { paycheck: { amountCents: toCents(cycle.paycheck.amount),
           payrollInvestmentCents: toCents(cycle.paycheck.payrollInvestment),
           employerInvestmentCents: toCents(cycle.paycheck.employerInvestment),
+          ...(cycle.paycheck.pensionAllocations ? { pensionAllocations: cycle.paycheck.pensionAllocations.map((row) => ({
+            holdingId: row.holdingId, personalWeightCents: toCents(row.personalWeight), employerWeightCents: toCents(row.employerWeight),
+          })) } : {}),
           origin: cycle.paycheck.origin } } : {}),
         costPayments: Object.entries(cycle.costs).map(([planItemId, amount]) => ({
           planItemId,
@@ -667,6 +677,10 @@ export function repositoryToBackupV7(
         purpose: holdingPurpose(holding),
         benchmark: holding.benchmark,
         liquidity: holding.liquidity,
+        ...(holding.pension ? { pension: {
+          ...(holding.pension.employerBalance !== undefined ? { employerBalanceCents: toCents(holding.pension.employerBalance) } : {}),
+          ...(holding.pension.employerRestrictedBalance !== undefined ? { employerRestrictedBalanceCents: toCents(holding.pension.employerRestrictedBalance) } : {}),
+        } } : {}),
         archivedAt: holding.archivedAt,
       })),
       valuations: holdings.map((holding) => ({
@@ -844,9 +858,13 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
   const scenarios: FinanceScenario[] = backup.planning.templates.map(templateToScenario)
   const actuals: MonthlyActuals[] = backup.actuals.cycles.map((cycle) => ({
     month: cycle.month,
+    ...(cycle.payrollPensionLegacy ? { payrollPensionLegacy: true } : {}),
     ...(cycle.paycheck ? { paycheck: { amount: fromCents(cycle.paycheck.amountCents),
       payrollInvestment: fromCents(cycle.paycheck.payrollInvestmentCents),
       employerInvestment: fromCents(cycle.paycheck.employerInvestmentCents),
+      ...(cycle.paycheck.pensionAllocations ? { pensionAllocations: cycle.paycheck.pensionAllocations.map((row) => ({
+        holdingId: row.holdingId, personalWeight: fromCents(row.personalWeightCents), employerWeight: fromCents(row.employerWeightCents),
+      })) } : {}),
       origin: cycle.paycheck.origin ?? 'manual' } } : {}),
     costs: Object.fromEntries(
       cycle.costPayments.map((item) => [item.planItemId, fromCents(item.amountCents)]),
@@ -896,6 +914,10 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     purpose: holding.purpose,
     benchmark: holding.benchmark,
     liquidity: holding.liquidity,
+    ...(holding.pension ? { pension: {
+      ...(holding.pension.employerBalanceCents !== undefined ? { employerBalance: fromCents(holding.pension.employerBalanceCents) } : {}),
+      ...(holding.pension.employerRestrictedBalanceCents !== undefined ? { employerRestrictedBalance: fromCents(holding.pension.employerRestrictedBalanceCents) } : {}),
+    } } : {}),
     archivedAt: holding.archivedAt,
   }))
   const goals: FinancialGoal[] = backup.goals.map((goal) => ({
@@ -1271,11 +1293,26 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   }
   const holdingIds = ids(backup.investments.holdings, 'Posição')
   for (const holding of backup.investments.holdings) {
+    const pension = holding.pension
+    if (pension && (typeof pension !== 'object' ||
+      pension.employerBalanceCents !== undefined && (!Number.isSafeInteger(pension.employerBalanceCents) || pension.employerBalanceCents < 0 || pension.employerBalanceCents > holding.currentValueCents) ||
+      pension.employerRestrictedBalanceCents !== undefined && (!Number.isSafeInteger(pension.employerRestrictedBalanceCents) || pension.employerRestrictedBalanceCents < 0 || pension.employerBalanceCents === undefined || pension.employerRestrictedBalanceCents > pension.employerBalanceCents))) {
+      add('error', 'pension_balance_invalid', 'Divisão ou carência da previdência inválida.', holding.id)
+    }
     if (!Number.isSafeInteger(holding.currentValueCents) || holding.currentValueCents < 0) {
       add('error', 'holding_current_invalid', 'Posição possui valor atual inválido.', holding.id)
     }
   }
   const classIds = ids(backup.investments.classes, 'Classe de ativo')
+  for (const cycle of backup.actuals.cycles) {
+    const allocations = cycle.paycheck?.pensionAllocations
+    if (cycle.payrollPensionLegacy !== undefined && typeof cycle.payrollPensionLegacy !== 'boolean' ||
+      allocations !== undefined && (!Array.isArray(allocations) || allocations.some((row) => !row || !holdingIds.has(row.holdingId) ||
+        !Number.isSafeInteger(row.personalWeightCents) || row.personalWeightCents < 0 || !Number.isSafeInteger(row.employerWeightCents) || row.employerWeightCents < 0) ||
+        new Set(allocations.map((row) => row.holdingId)).size !== allocations.length)) {
+      add('error', 'pension_allocations_invalid', 'Destinos automáticos da previdência inválidos.', cycle.month)
+    }
+  }
   const assetIds = ids(backup.balanceSheet.assets, 'Bem')
   const costIds = new Set(backup.planning.templates.flatMap((template) => template.costs.map((cost) => cost.id)))
   ids(backup.investments.valuations, 'Avaliação de posição')
@@ -1466,6 +1503,16 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const entry of backup.investments.ledgerEntries) {
+    if (entry.payrollMonth !== undefined || entry.contributor !== undefined) {
+      if (!MONTH_RE.test(entry.payrollMonth ?? '') || entry.payrollMonth !== entry.competenceMonth ||
+        !['personal', 'employer'].includes(entry.contributor ?? '') || entry.ownerType !== 'holding' || entry.kind !== 'contribution' || entry.amountCents <= 0 || entry.operationId) {
+        add('error', 'payroll_entry_invalid', 'Aporte automático da folha inválido.', entry.id)
+      }
+    }
+    if (entry.pensionEmployerAmountCents !== undefined && (!Number.isSafeInteger(entry.pensionEmployerAmountCents) || entry.pensionEmployerAmountCents > 0 ||
+      entry.pensionEmployerAmountCents < entry.amountCents || entry.ownerType !== 'holding' || !['withdrawal', 'transfer_out'].includes(entry.kind) || !entry.operationId)) {
+      add('error', 'pension_withdrawal_invalid', 'Parcela empresarial do resgate inválida.', entry.id)
+    }
     if (entry.operationId !== undefined && (typeof entry.operationId !== 'string' || !entry.operationId.trim()) ||
       entry.cashTreatment !== undefined && (!['extra', 'planned_cost'].includes(entry.cashTreatment) || entry.ownerType !== 'debt' || entry.kind !== 'amortization') ||
       entry.cashTreatment === 'planned_cost' && !entry.linkedCostId) {

@@ -27,5 +27,10 @@ export interface LedgerEntry {
   operationId?: string
   cashTreatment?: 'extra' | 'planned_cost'
   linkedCostId?: string
+  /** Aporte automático da folha; nunca representa uma nova saída da conta. */
+  payrollMonth?: string
+  contributor?: 'personal' | 'employer'
+  /** Parte empresarial retirada de uma previdência, negativa; preservada para reversão. */
+  pensionEmployerAmount?: number
   note?: string
 }

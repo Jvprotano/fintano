@@ -50,10 +50,16 @@ export function useFinancas() {
     [assetsState, assetsSummary],
   )
 
+  const pensionHoldingIds = useMemo(() => [...new Set([
+    ...scenarios.scenarios.flatMap((row) => row.deductions),
+    ...scenarios.monthlyPlans.flatMap((row) => row.deductions),
+    ...scenarios.activeScenario.deductions,
+  ].filter((row) => row.type === 'previdencia_privada' && row.linkedHoldingId).map((row) => row.linkedHoldingId!))],
+  [scenarios.scenarios, scenarios.monthlyPlans, scenarios.activeScenario.deductions])
   const investments = useInvestments(debts.summary.totalBalance, {
     securedLiabilities: debts.summary.securedBalance,
     physicalAssets: assets.summary.totalValue,
-  }, activeCycle.month)
+  }, activeCycle.month, pensionHoldingIds)
   const historyInvestmentSource = useMemo(
     () => ({
       emergencyFund: investments.emergencyFund,
@@ -80,6 +86,7 @@ export function useFinancas() {
     activeCycle.month,
     knownCosts,
     knownWants,
+    scenarios.activeScenario.deductions,
   )
 
   const movementSources = useMemo(() => [

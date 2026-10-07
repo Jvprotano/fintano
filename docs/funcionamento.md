@@ -73,7 +73,13 @@ Remover uma movimentação vinculada desfaz todas as suas partes, inclusive caix
 
 Saldo inicial compõe patrimônio, mas não aporte do ciclo. Tipo, competência e data dos movimentos têm significado próprio; observação livre não muda seu efeito financeiro.
 
-Previdência descontada em folha é investimento pessoal e não sai novamente do caixa. A contrapartida da empresa aumenta o total creditado, sem aumentar renda disponível ou consumir aporte pessoal. Avaliação de mercado altera valor patrimonial, sem criar aporte.
+Previdência descontada em folha é investimento pessoal e não sai novamente do caixa. Em Planejar, vincular cada previdência a uma posição de carteira e definir o desconto pessoal e a contribuição da empresa. Confirmar uma nova folha no Ciclo grava os dois aportes automaticamente nas posições vinculadas, na competência ativa. Reconfirmar atualiza os mesmos registros; corrigir ou limpar a folha concilia o saldo na mesma gravação. A empresa não aumenta a renda disponível nem consome aporte pessoal. O formulário manual da posição é para aportes pessoais extras pela conta; não repetir nele a folha ou a empresa.
+
+Em Patrimônio → Posições, a previdência separa saldo pessoal, saldo da empresa com direito adquirido e saldo empresarial em carência. Conferir por extrato permite salvar saldo total, saldo total da empresa e quanto dela ainda está em carência, incluindo rendimentos, com salvar/cancelar. Novos aportes da empresa entram em carência; quando houver liberação pelo plano, atualizar a divisão pelo extrato. O sistema não presume datas ou regras de liberação. Direito adquirido não significa liquidez imediata.
+
+Saldos antigos não têm divisão presumida: informar a composição do extrato uma vez. Até conhecer a divisão, a posição não financia metas nem permite saída de recursos no controle. A parcela conhecida em carência também não financia metas ou resgates/transferências; o saldo pessoal sai primeiro, seguido da parcela empresarial adquirida. O patrimônio total inclui o saldo condicionado, identificado como tal. Atualizar avaliação/divisão não cria aporte; o livro mostra separadamente os aportes automáticos pessoais e empresariais.
+
+Folhas já confirmadas antes da automação não são relançadas, inclusive após limpar e reconfirmar. Sua composição patrimonial deve ser conferida por extrato; a automação começa nos ciclos com novas folhas. Destinos capturados na confirmação permanecem os mesmos após editar o plano. Correção de folha histórica com automação atualiza a posição atual, preservando a marca patrimonial do fechamento. Os aportes automáticos são corrigidos pela folha, sem exclusão ou mudança de competência isolada no livro.
 
 Reserva, carteira e metas atribuem finalidade ao dinheiro existente; não duplicam ativos. Bens físicos e dívidas entram no patrimônio líquido. Destinar saldo a uma meta não cria dinheiro novo.
 

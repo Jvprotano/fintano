@@ -6,6 +6,7 @@ import { CurrencyInput } from './CurrencyInput'
 import { FormField, Panel, PrimaryButton } from './ui'
 import { formatCurrency, inputClass } from '../lib/format'
 import { ledgerBalance, localDateKey } from '../lib/shared'
+import { usableHoldingValue } from '../lib/investments'
 
 export function FinancialMovementPanel() {
   const { investments, debts, activeCycle, scenarios } = useFinancasStore()
@@ -19,7 +20,7 @@ export function FinancialMovementPanel() {
   const [note, setNote] = useState('')
   const [message, setMessage] = useState('')
   const assets = [
-    ...investments.holdings.filter((row) => !row.archivedAt).map((row) => ({ key: `holding:${row.id}`, name: `Posição: ${row.name}`, balance: row.marketValue })),
+    ...investments.holdings.filter((row) => !row.archivedAt).map((row) => ({ key: `holding:${row.id}`, name: `Posição: ${row.name}`, balance: usableHoldingValue(row) })),
     ...investments.goals.filter((row) => !row.archivedAt && row.kind === 'funding').map((row) => ({ key: `goal:${row.id}`, name: `Meta: ${row.name}`, balance: ledgerBalance(row.transactions) })),
   ]
   const liabilities = debts.debts.filter((row) => !row.archivedAt).map((row) => ({ key: `debt:${row.id}`, name: row.name, balance: row.balance, linkedCostId: row.linkedCostId }))

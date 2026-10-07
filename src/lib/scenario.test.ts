@@ -156,7 +156,7 @@ describe('calculateScenario — competência e caixa', () => {
     const metrics = calculateScenario(
       scenario({
         wants: [
-          { id: 'card', name: 'Cartão', plannedAmount: 2_800, paidWith: 'card' },
+          { id: 'card', name: 'Cartão', kind: 'card_envelope' as const, plannedAmount: 2_800, paidWith: 'card' },
           { id: 'yt', name: 'YT Premium', plannedAmount: 54, paidWith: 'card' },
           { id: 'gym', name: 'Academia', plannedAmount: 80, paidWith: 'card' },
           { id: 'trip', name: 'Viagens', plannedAmount: 300, paidWith: 'account' },
@@ -175,7 +175,7 @@ describe('calculateScenario — competência e caixa', () => {
     const metrics = calculateScenario(
       scenario({
         wants: [
-          { id: 'card', name: 'Cartão', plannedAmount: 2_800, paidWith: 'card' },
+          { id: 'card', name: 'Cartão', kind: 'card_envelope' as const, plannedAmount: 2_800, paidWith: 'card' },
           {
             id: 'extra',
             name: 'Compra fora do limite',
@@ -303,7 +303,7 @@ describe('ordem dos desejos no planejamento', () => {
   const wants = [
     { id: 'trip', name: 'Viagens', plannedAmount: 300, paidWith: 'account' as const },
     { id: 'yt', name: 'YT Premium', plannedAmount: 54, paidWith: 'card' as const },
-    { id: 'card', name: 'Cartão', plannedAmount: 2_800, paidWith: 'card' as const },
+    { id: 'card', name: 'Cartão', kind: 'card_envelope' as const, plannedAmount: 2_800, paidWith: 'card' as const },
     { id: 'gym', name: 'Academia', plannedAmount: 80, paidWith: 'card' as const },
     {
       id: 'extra',

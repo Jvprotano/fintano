@@ -44,11 +44,13 @@ export function normalizeActuals(raw: Partial<MonthlyActuals> | undefined): Mont
 
   return {
     month: /^\d{4}-\d{2}$/.test(raw?.month ?? '') ? (raw?.month as string) : monthKey(),
+    ...(raw?.payrollPensionLegacy ? { payrollPensionLegacy: true } : {}),
     ...(raw?.paycheck && typeof raw.paycheck === 'object' &&
       Number.isFinite(raw.paycheck.amount) && raw.paycheck.amount >= 0
       ? { paycheck: { amount: raw.paycheck.amount,
         payrollInvestment: Math.max(0, finiteNumber(raw.paycheck.payrollInvestment)),
         employerInvestment: Math.max(0, finiteNumber(raw.paycheck.employerInvestment)),
+        ...(raw.paycheck.pensionAllocations ? { pensionAllocations: raw.paycheck.pensionAllocations.map((row) => ({ ...row })) } : {}),
         origin: raw.paycheck.origin === 'confirmed_from_plan' ? 'confirmed_from_plan' : 'manual' } }
       : {}),
     costs,

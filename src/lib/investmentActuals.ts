@@ -35,7 +35,7 @@ export function isOpeningBalance(entry: LedgerEntry) {
 
 function monthlyLedgerNet(entries: LedgerEntry[], month: string) {
   return entries.reduce((sum, entry) => {
-    if (ledgerEntryCycleMonth(entry) !== month || isOpeningBalance(entry) || entry.kind === 'transfer_in' || entry.kind === 'transfer_out' || entry.kind === 'adjustment') return sum
+    if (entry.payrollMonth || ledgerEntryCycleMonth(entry) !== month || isOpeningBalance(entry) || entry.kind === 'transfer_in' || entry.kind === 'transfer_out' || entry.kind === 'adjustment') return sum
     return sum + entry.amount
   }, 0)
 }
@@ -62,7 +62,7 @@ function materialEntries(input: InvestmentLedgerSource): LedgerEntry[] {
       .filter((holding) => holdingPurpose(holding) === 'portfolio')
       .flatMap((holding) => holding.transactions),
     ...input.goals.flatMap((goal) => goal.transactions),
-  ].filter((entry) => !isOpeningBalance(entry))
+  ].filter((entry) => !isOpeningBalance(entry) && !entry.payrollMonth)
 }
 
 /**

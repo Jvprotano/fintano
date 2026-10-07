@@ -127,8 +127,10 @@ export interface CyclePlanV7 {
 }
 
 export interface CycleActualsV7 {
+  payrollPensionLegacy?: boolean
   month: MonthKey
   paycheck?: { amountCents: MoneyCents; payrollInvestmentCents: MoneyCents; employerInvestmentCents: MoneyCents;
+    pensionAllocations?: { holdingId: string; personalWeightCents: MoneyCents; employerWeightCents: MoneyCents }[];
     origin?: 'manual' | 'confirmed_from_plan' }
   costPayments: { planItemId: string; amountCents: MoneyCents; origin?: 'manual' | 'confirmed_from_plan' }[]
   wantPayments: { planItemId: string; amountCents: MoneyCents; origin?: 'manual' | 'confirmed_from_plan' }[]
@@ -204,6 +206,7 @@ export interface InvestmentClassV7 {
 }
 
 export interface InvestmentHoldingV7 {
+  pension?: { employerBalanceCents?: MoneyCents; employerRestrictedBalanceCents?: MoneyCents }
   id: string
   name: string
   assetClassId: string
@@ -234,6 +237,9 @@ export type LedgerEntryKind =
   | 'adjustment'
 
 export interface DomainLedgerEntryV7 {
+  payrollMonth?: MonthKey
+  contributor?: 'personal' | 'employer'
+  pensionEmployerAmountCents?: MoneyCents
   id: string
   ownerType: LedgerOwnerType
   ownerId: string
