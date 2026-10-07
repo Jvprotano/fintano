@@ -37,7 +37,7 @@ export function useFinancas() {
   const activeCycle = useActiveCycle()
   const scenarios = useScenarios(activeCycle.month)
   const cards = useCreditCards(activeCycle.month, activeCycle.cycle.cardDueHintDay)
-  const thirdParties = useCardThirdParties(activeCycle.month, cards.entries, cards.paidInvoices)
+  const thirdParties = useCardThirdParties(activeCycle.month, cards.entries)
   const assetsState = useAssets()
   const debts = useDebts(scenarios.activeScenarioAll.costs, assetsState.assets, activeCycle.month)
 
@@ -421,7 +421,6 @@ export function useFinancas() {
    */
   const closeCurrentMonth = useCallback(
     (month = activeCycle.month, note?: string, options?: { payInvoice?: boolean; expectedRevision?: string | null; operationId?: string }): CommandResult => {
-      if (thirdParties.pendingInMonth.length) return { ok: false, reason: 'rejected', message: 'Defina quem paga os rateios deste ciclo em Terceiros, na aba Cartões, antes de fechar.' }
 
       const costsByCategory: Partial<Record<CostCategory, number>> = {}
       actuals.summary.byCategory.forEach((value, category) => {

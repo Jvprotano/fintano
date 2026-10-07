@@ -80,7 +80,6 @@ export function ClosingView({
     financialCycle,
     actuals,
     cards,
-    thirdParties,
     cardCycleAccounting,
     investmentActuals,
     nextCycleAllocation,
@@ -107,9 +106,9 @@ export function ClosingView({
   const closingInvoiceAlreadyPaid = cardCycleAccounting.invoiceFormedByCycle.paid
   const currentInvoiceKnown = cardCycleAccounting.invoiceThisCycle.amountKnown
   const incomeKnown = actuals.summary.paycheck !== null
-  const cashCompositionKnown = incomeKnown && currentInvoiceKnown && thirdParties.pendingInMonth.length === 0
+  const cashCompositionKnown = incomeKnown && currentInvoiceKnown
   const closingReady = actuals.summary.paycheck !== null && missingActualRows.length === 0 &&
-    missingWantActualRows.length === 0 && invoiceKnown && currentInvoiceKnown && thirdParties.pendingInMonth.length === 0
+    missingWantActualRows.length === 0 && invoiceKnown && currentInvoiceKnown
   const currentDueMonth = cards.accounts[0]?.currentDueMonth ?? cards.settings.currentDueMonth ?? activeCycle.month
   const canPayClosingInvoiceTogether =
     cards.accounts.length === 1 &&
@@ -177,7 +176,7 @@ export function ClosingView({
                 ? formatCurrency(financialCycle.discretionaryAvailable)
                 : '—'
             }
-            detail={thirdParties.pendingInMonth.length ? 'defina quem paga os rateios em Cartões' : 'após fatura, contas e aporte incluindo pendências do plano'}
+            detail="após fatura, contas e aporte incluindo pendências do plano"
             tone={!cashCompositionKnown ? 'neutral' : financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
           />
           <StatTile
@@ -201,7 +200,6 @@ export function ClosingView({
           />
         </div>
 
-        {thirdParties.pendingInMonth.length > 0 && <p className="mt-3 text-xs text-amber-200">Há {thirdParties.pendingInMonth.length} rateios sem definição no caixa deste ciclo. Defina em Terceiros se você adianta ou se a pessoa paga diretamente ao banco.</p>}
         {currentInvoiceKnown && (
           <dl className="mt-3 grid gap-x-5 gap-y-2 rounded-lg border border-dark-border-subtle bg-dark-surface/35 px-3 py-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
             <div className="flex items-center justify-between gap-3">
@@ -251,7 +249,6 @@ export function ClosingView({
             description="Planejamento do próximo salário, depois da fatura formada agora, contas e aporte-base."
             actions={<SecondaryButton onClick={onGoToPlanning}>Ajustar planejamento</SecondaryButton>}
           />
-          {thirdParties.unclassified.some((entry) => entry.dueMonth === nextCycleAllocation.month) && <p className="mt-3 text-xs text-amber-200">Prévia parcial: ainda há rateios sem definição de quem paga. Confira Terceiros em Cartões.</p>}
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <StatTile
               label="Base para alocar"
