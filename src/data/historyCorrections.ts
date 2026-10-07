@@ -112,7 +112,7 @@ export function investmentSourceOf(doc: RepositoryDocument): InvestmentLedgerSou
 }
 
 function moveCycle(doc: RepositoryDocument, movement: CorrectionMovement, month: string): RepositoryDocument {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || movement.locked) throw new Error('Ciclo inválido ou amortização vinculada ao ciclo da parcela paga.')
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || movement.locked) throw new Error('Ciclo inválido ou movimento vinculado à folha ou à parcela paga.')
   const entry = ownersOf(doc).find((row) => row.owner === movement.owner && row.id === movement.ownerId)?.transactions.find((row) => row.id === movement.id)
   if (!entry) throw new Error('Movimento não encontrado.')
   const next = structuredClone(doc)

@@ -127,7 +127,8 @@ export function payInvoiceInDocument(
     .map((entry) => normalizeEntryForDueMonth({ ...entry, accountId: account.id, dueMonth: nextDueMonth }, nextDueMonth))
   return withThirdParties({ ...migrated, collections: { ...migrated.collections,
     cardAccounts: accounts.map((item) => item.id === account.id ? { ...item, currentDueMonth: nextDueMonth } : item),
-    cardEntries: [...accountEntries.filter((entry) => entry.accountId !== account.id), ...next, ...carried],
+    cardEntries: [...accountEntries.filter((entry) => entry.accountId !== account.id),
+      ...syncEntriesForDueMonth([...next, ...carried], nextDueMonth)],
     cardPaidInvoices: [...existing, snapshot].sort((a, b) => a.paidAt.localeCompare(b.paidAt)),
   } }, thirdPartiesForEntries(migrated.collections.cardThirdParties as CardThirdParty[] ?? [], current))
 }

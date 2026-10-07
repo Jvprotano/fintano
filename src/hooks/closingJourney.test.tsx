@@ -26,7 +26,7 @@ describe('fechamento integrado do ciclo', () => {
           id: 'charge-1', accountId: 'itau', dueMonth: '2026-10', cycle: 'current', description: 'Mercado', purchaseDate: '10/09',
           cardName: 'Itaú', amount: 300, personalAmount: 300, remainingAmount: 0,
         }],
-        cardPaidInvoices: [], actuals: [{ month: '2026-09', paycheck: { amount: 5000, payrollInvestment: 0, employerInvestment: 0 }, costs: { 'cost-1': 100 }, wants: {}, extraIncome: [], extraExpenses: [] }], history: [],
+        cardPaidInvoices: [{ id: 'previous', accountId: 'itau', dueMonth: '2026-09', total: 0, personalTotal: 0, paidAt: '2026-09-05T12:00:00.000Z' }], actuals: [{ month: '2026-09', paycheck: { amount: 5000, payrollInvestment: 0, employerInvestment: 0 }, costs: { 'cost-1': 100 }, wants: {}, extraIncome: [], extraExpenses: [] }], history: [],
       },
     })
 
@@ -42,7 +42,7 @@ describe('fechamento integrado do ciclo', () => {
     expect((saved.activeCycle as { month: string }).month).toBe('2026-10')
     expect((saved.actuals as Array<{ costs: Record<string, number> }>)[0].costs).toEqual({ 'cost-1': 100 })
     expect(saved.history).toHaveLength(1)
-    expect((saved.cardPaidInvoices as unknown[])).toHaveLength(1)
+    expect((saved.cardPaidInvoices as unknown[])).toHaveLength(2)
     expect(app.result.current.activeCycle.month).toBe('2026-10')
     expect(app.result.current.cards.accounts[0].currentDueMonth).toBe('2026-11')
     app.unmount()
