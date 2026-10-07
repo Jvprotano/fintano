@@ -9,6 +9,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
+import { Card } from './Card'
 import {
   EmptyState,
   Panel,
@@ -251,12 +252,16 @@ function ExpectedEventsPanel() {
   const [showForm, setShowForm] = useState(false)
   const pending = forecastAgenda.filter((row) => row.next)
   const done = forecastAgenda.filter((row) => !row.next)
-  return <Panel><PanelHeader title="Entradas e saídas esperadas" icon={<CalendarClock size={16} />} description="A próxima pendência de cada previsão, pelo restante conciliado. Registrar no Ciclo ou aqui atualiza a mesma ocorrência." actions={!showForm && <SecondaryButton onClick={() => setShowForm(true)}><Plus size={14} /> Nova previsão</SecondaryButton>} />
+  return <Card title="Entradas e saídas esperadas" icon={<CalendarClock size={16} />} collapsible storageKey="forecast-expected-events">
+    <div className="flex items-start justify-between gap-4">
+      <p className="text-sm text-dark-text-muted">A próxima pendência de cada previsão, pelo restante conciliado. Registrar no Ciclo ou aqui atualiza a mesma ocorrência.</p>
+      {!showForm && <SecondaryButton onClick={() => setShowForm(true)}><Plus size={14} /> Nova previsão</SecondaryButton>}
+    </div>
     {showForm && <EventForm onClose={() => setShowForm(false)} />}
     {!forecast.events.length && <div className="mt-4"><EmptyState icon={<CalendarClock size={24} />} title="Nada previsto ainda">Cadastre uma entrada ou saída com o mês ou dia esperado.</EmptyState></div>}
     <ul className="mt-4 space-y-2">{pending.map((row) => <EventRow key={row.event.id} event={row.event} />)}</ul>
     {done.length > 0 && <details className="mt-4 text-xs text-dark-text-muted"><summary className="cursor-pointer">Concluídas e canceladas ({done.length})</summary><ul className="mt-2 space-y-2">{done.map((row) => <EventRow key={row.event.id} event={row.event} />)}</ul></details>}
-  </Panel>
+  </Card>
 }
 
 /**

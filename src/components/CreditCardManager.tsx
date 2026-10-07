@@ -3,6 +3,7 @@ import {
   ArrowUpDown,
   ChevronDown,
   ChevronUp,
+  CreditCard,
   FastForward,
   Filter,
   HandCoins,
@@ -15,6 +16,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
+import { Card } from './Card'
 import { CardImportPanel } from './cards/CardImportPanel'
 import { CardAccountsPanel } from './cards/CardAccountsPanel'
 import { CardSummaryPanels } from './cards/CardSummaryPanels'
@@ -281,8 +283,8 @@ export function CreditCardManager() {
   return (
     <div className="space-y-4">
       {accounts.length === 0 && <CardAccountsPanel />}
-      {accounts.length > 0 && <Panel>
-        <PanelHeader title="Faturas dos cartões" description="Todas as faturas abertas, com pagamento e histórico próprios de cada cartão." />
+      {accounts.length > 0 && <Card title="Faturas dos cartões" icon={<CreditCard size={17} />} collapsible storageKey="card-invoices">
+        <p className="text-sm text-dark-text-muted">Todas as faturas abertas, com pagamento e histórico próprios de cada cartão.</p>
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
           {accounts.map((account) => {
             const dueMonth = account.currentDueMonth ?? settings.currentDueMonth ?? activeCycle.month
@@ -310,7 +312,7 @@ export function CreditCardManager() {
             </section>
           })}
         </div>
-      </Panel>}
+      </Card>}
       {unexpectedDueAccounts.length > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-4 py-3 text-sm leading-relaxed text-amber-100/90">
           <strong className="font-semibold text-amber-200">Confira o calendário: {unexpectedDueAccounts.map((account) => account.name).join(', ')}.</strong>{' '}
