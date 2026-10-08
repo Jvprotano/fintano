@@ -159,3 +159,13 @@ Extras, custos e Desejos com origem são corrigidos nos fatos correspondentes, c
 A competência dos movimentos pode ser revisada no mesmo rascunho. Todas as partes vinculadas mudam juntas; a data real e o valor continuam os do fato. Aportes e caixa dos ciclos envolvidos são reconciliados e os fechamentos existentes registram o motivo e os ciclos revisados. Amortização de parcela confirmada acompanha o ciclo de seu pagamento. O patrimônio passado não é substituído pelos saldos de hoje. Para corrigir valor ou desfazer uma operação patrimonial, usar o livro de movimentos em Patrimônio.
 
 Faturas pagas podem ser consultadas com sua composição disponível. Um total histórico não substitui compras, créditos ou o pagamento ao banco: a edição isolada do agregado só existe quando não há fatura preservada. As referências de plano continuam as capturadas no fechamento.
+
+## Fotografia para análise externa
+
+O botão de análise no cabeçalho gera uma fotografia do plano operacional e da competência ativa, pelas mesmas consultas do Ciclo, das faturas, da agenda conciliada e do Futuro. O texto distingue plano de realizado confirmado, desconhecido de zero explícito e identifica totais parciais quando salário ou fatura não estão confirmados. A sobra é o cálculo do ciclo com fatura paga/a pagar, sem representar saldo bancário conferido.
+
+A fotografia inclui compromissos e origens, aportes brutos e líquidos, resgates, amortizações, extras, custos e Desejos sem truncar os detalhes; total ao banco, parte pessoal e parte não pessoal coberta pelo repasse; saldos e datas de avaliação, metas e destinos; agenda pendente até o horizonte projetado, com valores realizados, restantes e vínculos; base sem entradas incertas e hipótese com entradas esperadas, premissas e primeira insuficiência. Referências já incluídas nos totais não representam novas operações. Receber, aportar e avaliar continuam distintos.
+
+Revise e, se necessário, edite o texto antes de **Copiar texto**. A cópia usa exatamente o conteúdo mostrado. Se as fontes mudarem durante a revisão, o rascunho é conservado e **Atualizar fotografia** substitui o texto pela leitura atual. Fechar ou Escape descarta essa revisão local; reabrir gera uma nova fotografia. O foco por Tab permanece no diálogo.
+
+**Abrir ChatGPT** e **Abrir no Claude** copiam o texto revisado e abrem o serviço sem dados financeiros na URL. Colar, revisar e enviar são ações manuais. Gerar ou editar a fotografia não envia informações nem altera registros financeiros, persistência ou backup. Se a cópia falhar, o texto continua disponível para seleção manual.

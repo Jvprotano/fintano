@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Bot, Check, Clipboard, ExternalLink, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { useFinancasStore } from '../context/financasStore'
 import {
-  buildClaudeDeepLink,
+  buildFinancialAnalysisSnapshot,
   buildFinancialAnalysisPrompt,
-  type FinancialAnalysisSnapshot,
 } from '../lib/aiAnalysis'
 import { PrimaryButton, SecondaryButton } from './ui'
 
@@ -26,81 +25,44 @@ async function copyText(text: string) {
 }
 
 export function AIAnalysisDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return open ? <AnalysisContent onClose={onClose} /> : null
+}
+
+function AnalysisContent({ onClose }: { onClose: () => void }) {
   const store = useFinancasStore()
   const titleId = useId()
   const descriptionId = useId()
   const closeRef = useRef<HTMLButtonElement>(null)
   const [feedback, setFeedback] = useState('')
 
-  const scenario = store.scenarios.activeScenario
-  const facts = store.currentCycleFacts
-  const snapshot: FinancialAnalysisSnapshot = {
-    cycleMonth: store.activeCycle.month,
-    scenarioName: scenario.name,
-    paycheck: facts.cash.paycheck,
-    extraIncome: facts.cash.extraIncome,
-    totalIncome: facts.cash.totalIn,
-    invoiceToPay: store.financialCycle.invoiceToPay,
-    costsPlanned: facts.plan.costs,
-    costsActual: facts.actual.costsOnAccount,
-    wantsPlanned: facts.plan.wantsOnAccount,
-    wantsActual: facts.actual.wantsOnAccount,
-    investmentsPlanned: facts.plan.personalInvestment,
-    directInvestmentActual: facts.actual.directInvestment,
-    payrollInvestment: facts.actual.payrollInvestment,
-    employerInvestment: facts.actual.employerInvestment,
-    personalInvestment: facts.actual.personalInvestment,
-    creditedInvestment: facts.actual.creditedInvestment,
-    extraExpenses: store.actuals.summary.extraExpenseTotal,
-    cashLeftover: facts.cash.leftover,
-    discretionaryAvailable: store.financialCycle.discretionaryAvailable,
-    nextInvoiceActual: store.financialCycle.nextInvoicePersonal,
-    nextInvoicePlanned: store.financialCycle.plannedNextInvoice,
-    nextCycleMonth: store.nextCycleAllocation.month,
-    nextCycleAvailableToAllocate: store.nextCycleAllocation.availableToAllocate,
-    nextCycleAfterPlannedWants: store.nextCycleAllocation.afterPlannedWants,
-    remainingCardInstallments: store.cards.summary.remainingPersonalInstallmentsTotal,
-    financialAssets: store.investments.summary.financialAssets,
-    physicalAssets: store.investments.summary.physicalAssets,
-    liabilities: store.investments.summary.liabilities,
-    financialNetWorth: store.investments.summary.financialNetWorth,
-    netWorth: store.investments.summary.netWorth,
-    emergencyFund: store.investments.emergencyFund.current,
-    debtBalance: store.debts.summary.totalBalance,
-    debtInstallments: store.debts.summary.totalInstallment,
-    debtMonthlyInterest: store.debts.summary.totalMonthlyInterest,
-    costs: store.actuals.summary.rows.map((row) => ({
-      name: row.cost.name,
-      planned: row.planned,
-      actual: row.effective,
-      payment: row.cost.paidWith === 'card' ? 'cartao' : 'conta',
-    })),
-    wants: scenario.wants.map((want) => ({
-      name: want.name,
-      planned: want.plannedAmount,
-      payment: want.paidWith === 'account' ? 'conta' : 'cartao',
-      detail: want.includedInCardPlan ? 'incluído no envelope Cartão' : undefined,
-    })),
-    debts: store.debts.summary.debts
-      .filter((debt) => !debt.isSettled)
-      .map((debt) => ({
-        name: debt.name,
-        amount: debt.balance,
-        detail: `${debt.monthlyRatePct.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% a.m. · parcela ${debt.installment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
-      })),
+  const generated = useMemo(() => buildFinancialAnalysisPrompt(buildFinancialAnalysisSnapshot(store)), [store])
+  const [source, setSource] = useState(generated)
+  const [prompt, setPrompt] = useState(generated)
+  const changed = source !== generated
+  const dialogRef = useRef<HTMLElement>(null)
+  const refresh = () => {
+    setSource(generated)
+    setPrompt(generated)
+    setFeedback('Fotografia atualizada. Revise o texto antes de copiar.')
   }
-  const prompt = buildFinancialAnalysisPrompt(snapshot)
   const handleClose = useCallback(() => {
     setFeedback('')
     onClose()
   }, [onClose])
 
   useEffect(() => {
-    if (!open) return
     const previous = document.activeElement as HTMLElement | null
     const frame = requestAnimationFrame(() => closeRef.current?.focus())
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') handleClose()
+      if (event.key === 'Tab') {
+        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button, a[href], textarea')
+        if (!controls?.length) return
+        const first = controls[0]
+        const last = controls[controls.length - 1]
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => {
@@ -108,28 +70,24 @@ export function AIAnalysisDialog({ open, onClose }: { open: boolean; onClose: ()
       document.removeEventListener('keydown', handleKeyDown)
       previous?.focus()
     }
-  }, [handleClose, open])
+  }, [handleClose])
 
   const handleCopy = async () => {
     try {
       await copyText(prompt)
-      setFeedback('Prompt copiado.')
+      setFeedback('Texto copiado.')
     } catch {
       setFeedback('Não foi possível copiar automaticamente. Selecione o texto acima.')
     }
   }
 
-  const handleChatGPT = () => {
+  const handleService = (name: string, url: string) => {
     const copy = copyText(prompt)
-    window.open('https://chatgpt.com/', '_blank', 'noopener,noreferrer')
+    window.open(url, '_blank', 'noopener,noreferrer')
     void copy
-      .then(() => setFeedback('Prompt copiado. Cole no ChatGPT com Ctrl+V para enviar.'))
-      .catch(() => setFeedback('ChatGPT aberto, mas a cópia falhou. Selecione o texto acima.'))
+      .then(() => setFeedback(`Texto copiado. Cole no ${name} com Ctrl+V para revisar e enviar.`))
+      .catch(() => setFeedback(`${name} aberto, mas a cópia falhou. Selecione o texto acima.`))
   }
-
-  if (!open) return null
-
-  const claudeLink = buildClaudeDeepLink(prompt)
 
   return (
     <div
@@ -139,6 +97,7 @@ export function AIAnalysisDialog({ open, onClose }: { open: boolean; onClose: ()
       }}
     >
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -173,18 +132,23 @@ export function AIAnalysisDialog({ open, onClose }: { open: boolean; onClose: ()
             <ShieldCheck size={15} className="mt-0.5 shrink-0 text-primary-400" />
             <span>
               O FinTano não chama uma API nem envia nada sozinho. O texto inclui nomes e valores do
-              cenário; ele só sai deste navegador quando você copiar ou abrir um dos serviços.
+              cenário; abrir um serviço apenas copia o texto e abre uma conversa vazia. Você decide o que colar e enviar.
             </span>
           </div>
 
+          {changed && (
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-amber-200" role="status">
+              <span>As fontes mudaram. Este texto conserva a fotografia anterior e suas edições.</span>
+              <SecondaryButton onClick={refresh}>Atualizar fotografia</SecondaryButton>
+            </div>
+          )}
           <label className="mt-4 block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
               Mensagem que será compartilhada
             </span>
             <textarea
-              readOnly
               value={prompt}
-              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) => { setPrompt(event.currentTarget.value); setFeedback('') }}
               className="app-field h-72 w-full resize-y px-3 py-3 font-mono text-xs leading-relaxed text-dark-text-secondary sm:h-80"
               aria-label="Mensagem para análise financeira"
             />
@@ -193,7 +157,7 @@ export function AIAnalysisDialog({ open, onClose }: { open: boolean; onClose: ()
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <button
               type="button"
-              onClick={handleChatGPT}
+              onClick={() => handleService('ChatGPT', 'https://chatgpt.com/')}
               className="flex min-w-0 items-center gap-3 rounded-xl border border-dark-border bg-dark-surface/80 px-4 py-3 text-left transition-colors hover:border-dark-text-muted/50 hover:bg-dark-hover"
             >
               <Bot size={18} className="shrink-0 text-dark-text-secondary" />
@@ -206,20 +170,20 @@ export function AIAnalysisDialog({ open, onClose }: { open: boolean; onClose: ()
               <ExternalLink size={14} className="shrink-0 text-dark-text-muted" />
             </button>
 
-            <a
-              href={claudeLink}
-              onClick={() => setFeedback('Claude aberto com o prompt preenchido para sua revisão.')}
+            <button
+              type="button"
+              onClick={() => handleService('Claude', 'https://claude.ai/')}
               className="flex min-w-0 items-center gap-3 rounded-xl border border-dark-border bg-dark-surface/80 px-4 py-3 text-left transition-colors hover:border-dark-text-muted/50 hover:bg-dark-hover"
             >
               <Sparkles size={18} className="shrink-0 text-dark-text-secondary" />
               <span className="min-w-0 flex-1">
                 <strong className="block text-sm font-semibold text-dark-text">Abrir no Claude</strong>
                 <span className="mt-0.5 block text-xs text-dark-text-muted">
-                  Requer Claude Desktop; abre preenchido.
+                  Copia o texto; você cola e envia.
                 </span>
               </span>
               <ExternalLink size={14} className="shrink-0 text-dark-text-muted" />
-            </a>
+            </button>
           </div>
         </div>
 
@@ -232,7 +196,7 @@ export function AIAnalysisDialog({ open, onClose }: { open: boolean; onClose: ()
             <SecondaryButton onClick={handleClose}>Fechar</SecondaryButton>
             <PrimaryButton onClick={handleCopy} className="!py-2">
               <Clipboard size={14} />
-              Copiar prompt
+              Copiar texto
             </PrimaryButton>
           </div>
         </div>
