@@ -3,14 +3,18 @@ import { addMonths } from './shared'
 /** O ciclo financiado pelo recebimento mais recente. */
 export interface FinancialCycleInput {
   cashMonth: string
+  /** Entradas de caixa registradas, incluindo resgates. */
   income: number
   invoiceToPay: number
   costsOnAccount: number
   /** Contas confirmadas ou ainda reservadas pelo plano. */
   costsCommitted?: number
   wantsOnAccount: number
+  /** Aportes brutos efetivamente registrados pela conta. */
   directInvestment: number
-  /** Maior entre aporte programado e aporte já executado. */
+  /** Resgates registrados; a parcela reaplicada compensa os aportes brutos. */
+  investmentWithdrawals?: number
+  /** Aporte líquido programado, comparado ao líquido já executado. */
   directInvestmentCommitted?: number
   extraExpense: number
   /** Extras pagos somados às ocorrências ainda pendentes neste ciclo. */
@@ -25,11 +29,15 @@ export interface FinancialCycleSummary {
   cashMonth: string
   spendingMonth: string
   nextSpendingMonth: string
+  /** Renda e resgates não reaplicados usados no orçamento. */
   income: number
   invoiceToPay: number
   costsOnAccount: number
   wantsOnAccount: number
+  /** Aportes pela conta após compensar os resgates do ciclo. */
   directInvestment: number
+  /** Resgates que excedem os aportes; recursos patrimoniais usados no ciclo, não renda. */
+  withdrawalsForCycle: number
   costsCommitted: number
   directInvestmentCommitted: number
   extraExpense: number
@@ -70,33 +78,40 @@ export interface FinancialCycleSummary {
 }
 
 export function calculateFinancialCycle(input: FinancialCycleInput): FinancialCycleSummary {
+  // Reaplicar patrimônio não cria renda nem cumpre o aporte líquido do plano.
+  // Compensar ambos os lados mantém o fluxo registrado e a sobra efetiva.
+  const withdrawals = Math.max(0, input.investmentWithdrawals ?? 0)
+  const reapplied = Math.min(withdrawals, Math.max(0, input.directInvestment))
+  const income = input.income - reapplied
+  const directInvestment = input.directInvestment - reapplied
   const commitmentsDueNow =
     input.invoiceToPay +
     input.costsOnAccount +
     input.wantsOnAccount +
-    input.directInvestment +
+    directInvestment +
     input.extraExpense
-  const cashAfterDue = input.income - commitmentsDueNow
+  const cashAfterDue = income - commitmentsDueNow
   // Prévia do próximo ciclo — informativa, não obrigação deste salário.
   const reservedForNextInvoice = Math.max(input.nextInvoicePersonal, input.plannedNextInvoice)
 
   // Pool discricionário: só o que este salário precisa cobrir agora.
   const costsCommitted = Math.max(input.costsOnAccount, input.costsCommitted ?? input.costsOnAccount)
-  const directInvestmentCommitted = Math.max(input.directInvestment, input.directInvestmentCommitted ?? input.directInvestment)
+  const directInvestmentCommitted = Math.max(directInvestment, input.directInvestmentCommitted ?? directInvestment)
   const extraExpenseCommitted = Math.max(input.extraExpense, input.extraExpenseCommitted ?? input.extraExpense)
   const commitmentsBeforeWants =
     input.invoiceToPay + costsCommitted + directInvestmentCommitted + extraExpenseCommitted
-  const discretionaryAvailable = input.income - commitmentsBeforeWants
+  const discretionaryAvailable = income - commitmentsBeforeWants
 
   return {
     cashMonth: input.cashMonth,
     spendingMonth: addMonths(input.cashMonth, -1),
     nextSpendingMonth: input.cashMonth,
-    income: input.income,
+    income,
     invoiceToPay: input.invoiceToPay,
     costsOnAccount: input.costsOnAccount,
     wantsOnAccount: input.wantsOnAccount,
-    directInvestment: input.directInvestment,
+    directInvestment,
+    withdrawalsForCycle: withdrawals - reapplied,
     costsCommitted,
     directInvestmentCommitted,
     extraExpenseCommitted,

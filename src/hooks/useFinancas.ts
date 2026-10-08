@@ -283,7 +283,8 @@ export function useFinancas() {
         costsCommitted: forecastCostsCommitted(actuals.summary.rows, forecastAgenda.flatMap((row) => row.items), activeCycle.month),
         wantsOnAccount: cashFlow.wantsOnAccount,
         directInvestment: cashFlow.directInvestment,
-        directInvestmentCommitted: Math.max(metrics.directInvestmentTarget, cashFlow.directInvestment),
+        investmentWithdrawals: cashFlow.investmentWithdrawals,
+        directInvestmentCommitted: metrics.directInvestmentTarget,
         extraExpense: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments,
         extraExpenseCommitted: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments + pendingExtraExpense,
         // A reserva do próximo caixa usa a parte pessoal da fatura que encerra

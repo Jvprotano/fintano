@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { calculateAllocationPreview, calculateFinancialCycle } from './financialCycle'
 
 describe('calculateFinancialCycle', () => {
+  it.each([
+    { contribution: 1000, withdrawal: 1000, planned: 1000, available: 4000, used: 0 },
+    { contribution: 500, withdrawal: 0, planned: 1000, available: 4000, used: 0 },
+    { contribution: 2000, withdrawal: 750, planned: 1000, available: 3750, used: 0 },
+    { contribution: 0, withdrawal: 500, planned: 1000, available: 4500, used: 500 },
+    { contribution: 2000, withdrawal: 2000, planned: 0, available: 5000, used: 0 },
+  ])('compensa aporte $contribution e resgate $withdrawal antes de reservar o aporte líquido', ({ contribution, withdrawal, planned, available, used }) => {
+    const cycle = calculateFinancialCycle({ cashMonth: '2026-10', income: 5000 + withdrawal,
+      invoiceToPay: 0, costsOnAccount: 0, wantsOnAccount: 0, directInvestment: contribution,
+      investmentWithdrawals: withdrawal, directInvestmentCommitted: planned,
+      extraExpense: 0, nextInvoicePersonal: 0, plannedNextInvoice: 0 })
+    expect(cycle.discretionaryAvailable).toBe(available)
+    expect(cycle.withdrawalsForCycle).toBe(used)
+    expect(cycle.cashAfterDue).toBe(5000 + withdrawal - contribution)
+  })
+
   it('paga a fatura deste ciclo e só informa a prévia da próxima', () => {
     const cycle = calculateFinancialCycle({
       cashMonth: '2026-08',

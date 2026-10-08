@@ -56,7 +56,8 @@ export function buildFinancialAnalysisSnapshot(store: FinancasStore): FinancialA
       { title: 'CAIXA DO CICLO ATUAL — consulta do Ciclo', lines: [
         `Salário líquido confirmado: ${analysisMoney(summary.paycheck?.amount)} (${origin(summary.paycheck ? summary.paycheck.origin : null)})`,
         `Entradas extraordinárias recebidas: ${analysisMoney(facts.cash.extraIncome)}; resgates para a conta: ${analysisMoney(facts.cash.investmentWithdrawals)} (não são renda)`,
-        `Entradas registradas usadas no Ciclo: ${analysisMoney(facts.cash.totalIn)}${summary.paycheck ? '' : '; salário ausente, não representa renda total confirmada'}`,
+        `Renda recebida (folha e extras, sem resgates): ${analysisMoney(facts.cash.paycheck + facts.cash.extraIncome)}${summary.paycheck ? '' : '; salário ausente, não representa renda total confirmada'}`,
+        `Recursos usados no orçamento do Ciclo: ${analysisMoney(cycle.income)}; resgates além dos aportes ${analysisMoney(cycle.withdrawalsForCycle)} (patrimônio, não renda). A parcela reaplicada compensa entradas e aportes brutos.`,
         invoiceLine('Fatura deste ciclo', cards.invoiceThisCycle),
         `Custos em conta confirmados: ${analysisMoney(facts.actual.costsOnAccount)}; plano ${analysisMoney(facts.plan.costs)}; ${pendingCosts.length} sem confirmação, plano dessas pendências ${analysisMoney(pendingCosts.reduce((sum, row) => sum + row.planned, 0))}`,
         `Desejos em conta confirmados: ${analysisMoney(facts.actual.wantsOnAccount)}; plano ${analysisMoney(facts.plan.wantsOnAccount)}; ${summary.wantRows.filter((row) => row.actual === null).length} sem confirmação`,
@@ -64,7 +65,7 @@ export function buildFinancialAnalysisSnapshot(store: FinancasStore): FinancialA
         `Extras pagos: ${analysisMoney(facts.cash.extraExpense)}; adiantamentos pessoais do cartão: ${analysisMoney(facts.cash.cardAdvancePaid)}; amortizações extras: ${analysisMoney(facts.cash.debtExtraPayments)}`,
         `Sobra calculada pelo Ciclo: ${analysisMoney(facts.cash.leftover)}${knownCash ? '' : ' (parcial: salário ou fatura desconhecidos)'}. Inclui a fatura paga/a pagar; não é saldo bancário conferido.`,
         `Disponível antes de alocar Desejos: ${analysisMoney(cycle.discretionaryAvailable)}${knownCash ? '' : ' (parcial)'}`,
-        `Compromissos antes de Desejos: ${analysisMoney(cycle.commitmentsBeforeWants)}; custos reservados ${analysisMoney(cycle.costsCommitted)}; aporte direto reservado ${analysisMoney(cycle.directInvestmentCommitted)}; extraordinários pagos e pendentes ${analysisMoney(cycle.extraExpenseCommitted)}`,
+        `Compromissos antes de Desejos: ${analysisMoney(cycle.commitmentsBeforeWants)}; custos reservados ${analysisMoney(cycle.costsCommitted)}; aporte direto líquido reservado ${analysisMoney(cycle.directInvestmentCommitted)}; extraordinários pagos e pendentes ${analysisMoney(cycle.extraExpenseCommitted)}`,
       ] },
       { title: 'INVESTIMENTOS DO CICLO — livros e folha', lines: [
         `Previdência pessoal pela folha, sem segunda saída de caixa: ${analysisMoney(summary.paycheck ? facts.actual.payrollInvestment : null)}`,

@@ -209,7 +209,7 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
           ? summary.paycheck.origin === 'confirmed_from_plan' ? 'Folha confirmada com os valores do plano.' : 'Folha informada manualmente neste ciclo.'
           : 'Folha ainda não confirmada.'}</p>
         {summary.paycheck && !summary.paycheck.pensionAllocations && <p className="mt-2 text-xs text-dark-text-muted">Folha anterior à automação: seus aportes não serão relançados. Confira o saldo antigo pelo extrato em Patrimônio. A automação começa nas próximas folhas.</p>}
-        <p className="mt-2 text-xs text-dark-text-muted">Não repita estes aportes manualmente em Patrimônio. A empresa não reduz seu caixa e a parcela dela entra em carência até você informar a liberação no extrato.</p>
+        <p className="mt-2 text-xs text-dark-text-muted">Não repita estes aportes manualmente em Patrimônio. A contrapartida da empresa vai direto à previdência: não entra na renda nem na verba para Desejos, e fica em carência até você informar a liberação no extrato.</p>
         {actuals.paycheckError && <p role="alert" className="mt-2 text-xs text-amber-200">{actuals.paycheckError}</p>}
       </div>
 

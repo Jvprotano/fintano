@@ -61,7 +61,9 @@ Previsão não é dinheiro disponível. Campo ausente significa desconhecido; ze
 
 **Verba para Desejos** = recursos do ciclo − fatura anterior − contas do ciclo − aporte comprometido − extraordinários que precisam desses recursos. Desejos não são subtraídos antes de calcular a própria verba; destinações realizadas são mostradas depois.
 
-O aporte comprometido considera o executado e o restante programado. Com renda de R$ 5.000, fatura de R$ 1.000, contas de R$ 2.000 e aporte de R$ 1.000, a verba é R$ 1.000. Executar R$ 400 desse aporte mantém a verba; executar R$ 1.200 reduz para R$ 800.
+O aporte comprometido considera o líquido executado e o restante programado. Com renda de R$ 5.000, fatura de R$ 1.000, contas de R$ 2.000 e aporte de R$ 1.000, a verba é R$ 1.000. Executar R$ 400 desse aporte mantém a verba; executar R$ 1.200 reduz para R$ 800.
+
+Renda recebida mostra somente folha e extras. Resgate é uso de patrimônio existente. No orçamento, resgates e aportes do mesmo ciclo se compensam antes de comparar o aporte líquido ao programado: resgatar R$ 1.000 e reaplicar R$ 1.000 em outra posição não aumenta a verba para Desejos nem cumpre o aporte do plano. Se os resgates excederem os aportes, o excedente aparece separadamente como recurso patrimonial usado no ciclo. O fluxo registrado conserva entradas e saídas brutas, sem alterar os livros. Para novas mudanças entre posições, usar a transferência em Patrimônio.
 
 Fluxo registrado é entrada efetiva menos saída efetiva. Sem abertura e conciliação bancárias completas, não representa o saldo disponível da conta.
 
@@ -81,7 +83,7 @@ Remover uma movimentação vinculada desfaz todas as suas partes, inclusive caix
 
 Saldo inicial compõe patrimônio, mas não aporte do ciclo. Tipo, competência e data dos movimentos têm significado próprio; observação livre não muda seu efeito financeiro.
 
-Previdência descontada em folha é investimento pessoal e não sai novamente do caixa. Em Planejar, vincular cada previdência a uma posição de carteira e definir o desconto pessoal e a contribuição da empresa. Confirmar uma nova folha no Ciclo grava os dois aportes automaticamente nas posições vinculadas, na competência ativa. Reconfirmar atualiza os mesmos registros; corrigir ou limpar a folha concilia o saldo na mesma gravação. A empresa não aumenta a renda disponível nem consome aporte pessoal. O formulário manual da posição é para aportes pessoais extras pela conta; não repetir nele a folha ou a empresa.
+Previdência descontada em folha é investimento pessoal e não sai novamente do caixa. Em Planejar, vincular cada previdência a uma posição de carteira e definir o desconto pessoal e a contribuição da empresa. Confirmar uma nova folha no Ciclo grava os dois aportes automaticamente nas posições vinculadas, na competência ativa. Reconfirmar atualiza os mesmos registros; corrigir ou limpar a folha concilia o saldo na mesma gravação. A contrapartida da empresa vai direto à previdência: não é renda recebida, não integra a base de orçamento, não financia Desejos nem cumpre o aporte pessoal programado. Aumentar essa contrapartida muda o saldo da previdência, sem mudar a verba do ciclo ou a prévia do próximo. O formulário manual da posição é para aportes pessoais extras pela conta; não repetir nele a folha ou a empresa.
 
 Em Patrimônio → Posições, a previdência separa saldo pessoal, saldo da empresa com direito adquirido e saldo empresarial em carência. Conferir por extrato permite salvar saldo total, saldo total da empresa e quanto dela ainda está em carência, incluindo rendimentos, com salvar/cancelar. Novos aportes da empresa entram em carência; quando houver liberação pelo plano, atualizar a divisão pelo extrato. O sistema não presume datas ou regras de liberação. Direito adquirido não significa liquidez imediata.
 

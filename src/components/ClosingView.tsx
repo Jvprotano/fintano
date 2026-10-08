@@ -178,12 +178,12 @@ export function ClosingView({
             tone={!cashCompositionKnown ? 'neutral' : financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
           />
           <StatTile
-            label="Entrou no ciclo"
-            value={formatCurrency(cashFlow.totalIn)}
+            label="Renda recebida"
+            value={formatCurrency(cashFlow.paycheck + cashFlow.extraIncome)}
             detail={
-              `${actuals.summary.paycheck ? 'folha confirmada' : 'folha ainda não confirmada'}${cashFlow.extraIncome > 0 ? ` · ${formatCurrency(cashFlow.extraIncome)} extras` : ''}${cashFlow.investmentWithdrawals > 0 ? ` · ${formatCurrency(cashFlow.investmentWithdrawals)} resgatados` : ''}`
+              `${actuals.summary.paycheck ? 'folha confirmada' : 'folha ainda não confirmada'}${cashFlow.extraIncome > 0 ? ` · ${formatCurrency(cashFlow.extraIncome)} extras` : ''}${cashFlow.investmentWithdrawals > 0 ? ' · resgates não são renda' : ''}`
             }
-            tone={cashFlow.totalIn > 0 ? 'positive' : 'neutral'}
+            tone={cashFlow.paycheck + cashFlow.extraIncome > 0 ? 'positive' : 'neutral'}
           />
           <StatTile
             label="Compromissos antes de Desejos"
@@ -209,9 +209,15 @@ export function ClosingView({
               <dd className="tabular-nums text-dark-text">{formatCurrency(financialCycle.costsCommitted)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <dt className="text-dark-text-muted">Aporte reservado</dt>
+              <dt className="text-dark-text-muted">Aporte líquido reservado</dt>
               <dd className="tabular-nums text-dark-text">{formatCurrency(financialCycle.directInvestmentCommitted)}</dd>
             </div>
+            {financialCycle.withdrawalsForCycle > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-dark-text-muted">Recursos de resgates, além da renda</dt>
+                <dd className="tabular-nums text-dark-text">{formatCurrency(financialCycle.withdrawalsForCycle)}</dd>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-3">
               <dt className="text-dark-text-muted">Extraordinários pagos/pendentes</dt>
               <dd className="tabular-nums text-dark-text">{formatCurrency(financialCycle.extraExpenseCommitted)}</dd>
