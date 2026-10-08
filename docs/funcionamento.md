@@ -37,6 +37,10 @@ O fechamento permite **Confirmar pendentes e virar ciclo**: revisa cartões, mes
 
 Cadastrar cartão exige somente o nome. Dias de fechamento e vencimento e limite do banco são opcionais e não comandam a consulta. Cartões novos começam atribuídos ao ciclo ativo; a fatura anterior é confirmada vazia por se tratar de um novo cadastro. A correção excepcional da atribuição de fatura fica recolhida na configuração; dados existentes conservam seus meses e pagamentos.
 
+Em **Configurar cartões**, informar **Vence dia** uma vez. **Faturas dos cartões** mostra o vencimento completo de cada fatura usando esse dia e seu mês de vencimento. Se o dia não existir no mês, usa o último dia disponível; a referência não ajusta feriados ou fins de semana. Sem dia cadastrado, mostra **Vencimento não informado**. Após confirmar o pagamento, conserva a data da fatura paga e mostra também o próximo vencimento; ao virar o ciclo, a data principal acompanha a nova fatura. Faturas anteriores pendentes mostram seu próprio vencimento.
+
+Exemplo no ciclo de outubro: as faturas abertas de Itaú e Nubank vencem em 05/11 e 13/11. Se o Itaú de 05/10 já foi pago e o Nubank de 13/10 ainda está pendente, o Nubank mostra também essa fatura anterior. Confirmar o pagamento de 13/10 mantém a fatura aberta de 13/11 e o ciclo de outubro.
+
 Novas compras manuais começam com a área Desejos selecionada; é possível escolher outra área ou deixar sem classificação. Após salvar, a próxima compra volta ao padrão Desejos. O bloco Faturas dos cartões pode ser recolhido pelo cabeçalho e guarda essa preferência no navegador.
 
 Separar total a pagar ao banco, parte pessoal, valores de terceiros e valores antecipados. Antecipação é dinheiro já pago; recompensa é abatimento sem nova saída. Créditos excedentes passam para a próxima fatura sem repetir movimento de caixa.

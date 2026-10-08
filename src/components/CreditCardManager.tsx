@@ -42,7 +42,7 @@ import { useCardsStore, useFinancasStore, useMetrics } from '../context/financas
 import type { CreditCardCycle, CreditCardEntry } from '../types'
 import { BUDGET_AREA_COLORS } from '../types/constants'
 import { repositoryRevision } from '../data/repositoryCommand'
-import { calculateCreditCardSummary } from '../lib/creditCards'
+import { calculateCreditCardSummary, formatCardDueDate } from '../lib/creditCards'
 import { cardEntriesForCycle } from '../lib/cardCycleView'
 import { PaidCardEntry } from './cards/PaidCardEntry'
 
@@ -283,6 +283,8 @@ export function CreditCardManager() {
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
           {accounts.map((account) => {
             const dueMonth = currentDueMonth
+            const dueDate = formatCardDueDate(dueMonth, account.dueDay)
+            const nextDueDate = formatCardDueDate(nextDueMonth, account.dueDay)
             const invoicePaid = paidInvoices.find((invoice) => invoice.accountId === account.id && invoice.dueMonth === dueMonth)
             const openDueMonth = account.currentDueMonth ?? dueMonth
             const previousPending = openDueMonth < dueMonth
@@ -294,13 +296,19 @@ export function CreditCardManager() {
             const history = paidInvoices.filter((invoice) => invoice.accountId === account.id)
             return <section key={account.id} className={`rounded-xl border border-dark-border bg-dark-surface/60 p-3 ${paymentAccountId === account.id && showPaySummary ? 'lg:col-span-2' : ''}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div><h3 className="font-semibold text-dark-text">{account.name}</h3><p className="text-xs text-dark-text-muted">Ciclo {formatMonthLong(activeCycle.month)} · {accountEntries.filter((entry) => entry.cycle === 'current').length} lançamentos</p></div>
+                <div>
+                  <h3 className="font-semibold text-dark-text">{account.name}</h3>
+                  <p className="mt-1 text-sm tabular-nums text-dark-text-secondary">{dueDate ? `Vencimento ${dueDate}` : 'Vencimento não informado'}</p>
+                  {!dueDate && <p className="mt-1 text-xs text-dark-text-muted">Informe o dia em Configurar cartões.</p>}
+                  {invoicePaid && nextDueDate && <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">Próximo vencimento {nextDueDate}</p>}
+                  <p className="mt-1 text-xs text-dark-text-muted">Ciclo {formatMonthLong(activeCycle.month)} · {accountEntries.filter((entry) => entry.cycle === 'current').length} lançamentos</p>
+                </div>
                 <div className="text-right"><strong className="block tabular-nums text-dark-text">{invoicePaid ? invoicePaid.total === null ? '—' : formatCurrency(invoicePaid.total) : formatCurrency(accountSummary.currentTotal)}</strong>{invoicePaid && <span className="block text-xs text-primary-400">Paga em {formatDate(invoicePaid.paidAt)}</span>}<span className="block text-xs tabular-nums text-dark-text-secondary">meu: {formatCurrency(invoicePaid?.personalTotal ?? accountSummary.currentPersonalTotal)}</span>{accountSummary.currentThirdPartyTotal > 0 && <span className="block text-xs tabular-nums text-dark-text-muted">não meu: {formatCurrency(accountSummary.currentThirdPartyTotal)}</span>}</div>
               </div>
               {accountSummary.remainingInstallmentsTotal > 0 && <p className="mt-2 text-xs tabular-nums text-dark-text-secondary">Parcelas restantes: {formatCurrency(accountSummary.remainingInstallmentsTotal)} · minha parte {formatCurrency(accountSummary.remainingPersonalInstallmentsTotal)}</p>}
               {!invoicePaid && !invoiceHasEntries && !emptyConfirmed && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-dark-text-secondary"><span>Fatura ainda sem valor informado.</span><SecondaryButton onClick={() => confirmEmptyInvoice(account.id, dueMonth)}>Confirmar sem lançamentos</SecondaryButton></div>}
               {!invoicePaid && !invoiceHasEntries && emptyConfirmed && <p className="mt-2 text-xs text-primary-400">Sem lançamentos confirmados.</p>}
-              {previousPending && <p className="mt-2 text-xs text-dark-text-muted">Fatura anterior de {formatMonthLong(openDueMonth)} ainda pendente. A confirmação individual começa por ela.</p>}
+              {previousPending && <p className="mt-2 text-xs text-dark-text-muted">Fatura anterior com vencimento em {formatCardDueDate(openDueMonth, account.dueDay) ?? formatMonthLong(openDueMonth)} ainda pendente. A confirmação individual começa por ela.</p>}
               {previousPending && !paymentKnown && <SecondaryButton onClick={() => confirmEmptyInvoice(account.id, openDueMonth)}>Confirmar anterior sem lançamentos</SecondaryButton>}
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 {!invoicePaid && <button type="button" disabled={!paymentKnown || openDueMonth > dueMonth} onClick={() => { setPaymentAccountId(account.id); setPaymentReviewRevision(repositoryRevision()); setPaymentError(''); setShowPaySummary(true) }} className="text-xs font-medium text-primary-400 hover:text-primary-300">{previousPending ? 'Confirmar fatura anterior primeiro' : 'Confirmar pagamento'}</button>}

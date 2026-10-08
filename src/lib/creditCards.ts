@@ -11,6 +11,14 @@ import { addMonths, finiteNumber, normalizeText, uid } from './shared'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+/** Data indicativa da fatura, limitada ao último dia do mês de vencimento. */
+export function formatCardDueDate(dueMonth: string, dueDay: number): string | null {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(dueMonth) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) return null
+  const [year, month] = dueMonth.split('-').map(Number)
+  const day = Math.min(dueDay, new Date(year, month, 0).getDate())
+  return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`
+}
+
 export function normalizeCardAccount(raw: Partial<CreditCardAccount> | undefined): CreditCardAccount {
   const clampDay = (value: unknown, fallback: number) =>
     value === 0 ? 0 : Math.max(1, Math.min(31, Math.round(finiteNumber(value, fallback))))
