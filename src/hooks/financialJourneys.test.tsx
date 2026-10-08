@@ -118,7 +118,7 @@ describe('jornadas financeiras persistidas', () => {
   })
 
   it('mantém a data da assinatura sincronizada ao editar e virar a fatura', () => {
-    const cards = renderHook(() => useCreditCards())
+    const cards = renderHook(() => useCreditCards('2026-09'))
     act(() => cards.result.current.addAccount({ name: 'Itaú', closingDay: 25, dueDay: 5 }))
     act(() => {
       cards.result.current.setSettings({

@@ -54,7 +54,7 @@ export function runRepositoryCommand(
   }
   const toWrite: RepositoryDocument = {
     ...next,
-    appliedOperations: [...(document.appliedOperations ?? []), command.id],
+    appliedOperations: [...(next.appliedOperations ?? document.appliedOperations ?? []), command.id],
   }
   if (!writeRepositoryDocument(toWrite, storage)) {
     return { ok: false, reason: 'write_failed', message: 'O navegador recusou a gravação. Nenhuma parte da operação foi salva.' }

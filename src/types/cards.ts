@@ -21,6 +21,7 @@ export interface CreditCardEntry {
   cycle: CreditCardCycle
   accountId?: string
   dueMonth?: string
+  spendingMonth?: string
   description: string
   purchaseDate: string
   cardName: string
@@ -54,10 +55,24 @@ export interface CreditCardAccount {
   name: string
   currentDueMonth?: string
   confirmedEmptyDueMonths?: string[]
+  /** 0: vence no mês do ciclo; 1 (padrão): no seguinte. */
+  dueMonthOffset?: 0 | 1
+  calendarCorrections?: CardCalendarCorrection[]
   /** Zero indica referência de calendário não informada. */
   closingDay: number
   dueDay: number
   limit: number
+}
+
+export interface CardCalendarCorrection {
+  id: string
+  correctedAt: string
+  reason: string
+  beforeDueMonth: string
+  afterDueMonth: string
+  beforeOffset: 0 | 1
+  afterOffset: 0 | 1
+  includedPaidInvoices: boolean
 }
 
 export interface CardCycleStatus extends CreditCardAccount {

@@ -1,10 +1,11 @@
-import type { CostCategory, FinanceScenario, HistoryCorrection, LedgerEntry, MonthlyActuals, MonthlySnapshot, SnapshotPatch } from '../types'
+import type { CostCategory, CreditCardAccount, FinanceScenario, HistoryCorrection, LedgerEntry, MonthlyActuals, MonthlySnapshot, SnapshotPatch } from '../types'
 import type { RepositoryDocument } from './repository'
 import { runRepositoryCommand } from './repositoryCommand'
 import { normalizeActuals } from '../lib/actuals'
 import { normalizeSnapshot, projectHistoryInvestments } from '../lib/history'
 import type { MonthlyPlan } from '../lib/monthlyPlans'
-import { addMonths, ledgerEntryCycleMonth, nowIso, uid } from '../lib/shared'
+import { ledgerEntryCycleMonth, nowIso, uid } from '../lib/shared'
+import { normalizePaidInvoiceSnapshots, paidInvoiceBelongsToCycle } from '../lib/cardCycleAccounting'
 import { formatCurrency } from '../lib/format'
 import { refreshMovementHistory, type MovementOwner } from './financialMovement'
 import type { InvestmentLedgerSource } from '../lib/investmentActuals'
@@ -86,8 +87,8 @@ export function historyCorrectionRows(doc: RepositoryDocument, id: string): Corr
     if (!facts.length && !(source === 'wants' && snapshot.wantAllocations.length)) aggregate(field, label, snapshot[field])
   }
   // A fatura preservada é um pagamento ao banco. Corrigir apenas o total quebraria sua composição.
-  const invoices = doc.collections.cardPaidInvoices as { dueMonth: string }[] ?? []
-  if (!invoices.some((row) => row.dueMonth === addMonths(snapshot.month, 1))) aggregate('cardPersonalTotal', 'Fatura pessoal sem composição', snapshot.cardPersonalTotal)
+  const invoices = normalizePaidInvoiceSnapshots(doc.collections.cardPaidInvoices)
+  if (!invoices.some((row) => paidInvoiceBelongsToCycle(row, snapshot.month, doc.collections.cardAccounts as CreditCardAccount[] ?? []))) aggregate('cardPersonalTotal', 'Fatura pessoal sem composição', snapshot.cardPersonalTotal)
   for (const [field, label] of [['grossAssets', 'Ativos financeiros na data do fechamento'], ['physicalAssets', 'Bens na data do fechamento'], ['liabilities', 'Dívidas na data do fechamento'], ['securedLiabilities', 'Dívida com bem na data do fechamento']] as const) aggregate(field, label, snapshot[field])
   return rows
 }

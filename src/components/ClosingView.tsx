@@ -110,7 +110,7 @@ export function ClosingView({
   const cashCompositionKnown = incomeKnown && currentInvoiceKnown
   const closingReady = actuals.summary.paycheck !== null && missingActualRows.length === 0 &&
     missingWantActualRows.length === 0 && invoiceKnown && currentInvoiceKnown
-  const pendingInvoices = pendingCardInvoices(cards.entries, cards.paidInvoices, cards.accounts, cardCycleAccounting.invoiceFormedByCycle.dueMonth)
+  const pendingInvoices = pendingCardInvoices(cards.entries, cards.paidInvoices, cards.accounts, cardCycleAccounting.invoiceFormedByCycle.dueMonth, activeCycle.month)
   const pendingInvoiceTotal = pendingInvoices.reduce((sum, invoice) => sum + invoice.total, 0)
   const canPayClosingInvoiceTogether = invoiceKnown && pendingInvoices.length > 0 && pendingInvoices.every((invoice) => invoice.known)
   const listedPersonal = cardCycleAccounting.spendingThisCycle.spentPersonalTotal
@@ -201,7 +201,7 @@ export function ClosingView({
         {currentInvoiceKnown && (
           <dl className="mt-3 grid gap-x-5 gap-y-2 rounded-lg border border-dark-border-subtle bg-dark-surface/35 px-3 py-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
             <div className="flex items-center justify-between gap-3">
-              <dt className="text-dark-text-muted">Fatura anterior</dt>
+              <dt className="text-dark-text-muted">Faturas que vencem no ciclo</dt>
               <dd className="tabular-nums text-dark-text">{formatCurrency(cashFlow.invoiceToPay)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
@@ -249,19 +249,19 @@ export function ClosingView({
           <PanelHeader
             title={`Prévia de ${formatMonthLong(nextCycleAllocation.month)}`}
             icon={<Sparkles size={15} />}
-            description="Planejamento do próximo salário, depois da fatura formada agora, contas e aporte-base."
+            description="Planejamento do próximo salário, depois das faturas que vencem naquele mês, contas e aporte-base."
             actions={<SecondaryButton onClick={onGoToPlanning}>Ajustar planejamento</SecondaryButton>}
           />
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <StatTile
               label="Base para alocar"
-              value={formatCurrency(
+              value={nextCycleAllocation.invoiceKnown ? formatCurrency(
                 nextCycleAllocation.shortfall > 0
                   ? -nextCycleAllocation.shortfall
                   : nextCycleAllocation.pool,
-              )}
+              ) : '—'}
               detail={
-                Math.abs(allocationPlanDelta) <= 0.005
+                !nextCycleAllocation.invoiceKnown ? 'Confira as faturas antes de alocar' : Math.abs(allocationPlanDelta) <= 0.005
                   ? 'cobre exatamente os desejos planejados'
                   : allocationPlanDelta > 0
                     ? `${formatCurrency(allocationPlanDelta)} além dos desejos planejados`
@@ -280,8 +280,8 @@ export function ClosingView({
             />
             <StatTile
               label={`Minha parte da fatura de ${formatMonthLong(nextCycleAllocation.month)}`}
-              value={formatCurrency(nextCycleAllocation.invoice)}
-              detail={closingInvoiceAlreadyPaid ? 'já paga, mas consumiu este caixa' : 'formada pelo ciclo atual'}
+              value={nextCycleAllocation.invoiceKnown ? formatCurrency(nextCycleAllocation.invoice) : 'Não conferida'}
+              detail="conforme os vencimentos de cada cartão"
             />
             <StatTile
               label="Custos + aporte-base"
@@ -398,7 +398,7 @@ export function ClosingView({
                     <PlanComparisonDetail
                       comparison={formatPlanComparison(planComparison.card, closingInvoiceDue)}
                       status={invoiceStatus}
-                      suffix={` · pagar em ${formatMonthLong(cardCycleAccounting.invoiceFormedByCycle.dueMonth)}`}
+                      suffix={` · vencimentos em ${(cardCycleAccounting.invoiceFormedByCycle.dueMonths ?? [cardCycleAccounting.invoiceFormedByCycle.dueMonth]).map(formatMonthLong).join(' e ')}`}
                     />
                   )
                 : 'confira Cartões antes de fechar'
@@ -454,7 +454,7 @@ export function ClosingView({
               </div>
               {closingInvoiceAlreadyPaid && (
                 <span className="rounded-lg bg-primary-500/15 px-3 py-1.5 text-xs font-semibold text-primary-300">
-                  Fatura de {formatMonthLong(cardCycleAccounting.invoiceFormedByCycle.dueMonth)} já paga
+                  Faturas deste ciclo já pagas
                 </span>
               )}
             </div>
@@ -562,8 +562,8 @@ export function ClosingView({
 
         <p className="mt-4 border-t border-dark-border-subtle pt-3 text-xs leading-relaxed text-dark-text-muted">
           Salário recebido no fim de {formatMonthLong(salaryMonth)} financia{' '}
-          {formatMonthLong(activeCycle.month)}. A fatura que encerra este ciclo vence em{' '}
-          {formatMonthLong(cardCycleAccounting.invoiceFormedByCycle.dueMonth)}; pagar a fatura não
+          {formatMonthLong(activeCycle.month)}. As faturas que encerram este ciclo vencem em{' '}
+          {(cardCycleAccounting.invoiceFormedByCycle.dueMonths ?? [cardCycleAccounting.invoiceFormedByCycle.dueMonth]).map(formatMonthLong).join(' e ')}; pagar a fatura não
           muda o ciclo por si só.
         </p>
       </Panel>

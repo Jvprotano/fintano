@@ -270,6 +270,13 @@ export function useFinancas() {
   ])
   const cashFlow = currentCycleFacts.cash
 
+  const nextInvoiceCash = useMemo(() => calculateCardCycleAccounting({
+    entries: cards.entries, accounts: cards.accounts, paidInvoices: cards.paidInvoices,
+    activeCycleMonth: addMonths(activeCycle.month, 1), currentDueMonth: cards.settings.currentDueMonth ?? activeCycle.month,
+    currentTotal: cards.summary.currentTotal, currentPersonalTotal: cards.summary.currentPersonalTotal,
+    nextTotal: cards.summary.nextTotal, nextPersonalTotal: cards.summary.nextPersonalTotal,
+  }).invoiceThisCycle, [activeCycle.month, cards.entries, cards.accounts, cards.paidInvoices, cards.settings.currentDueMonth, cards.summary])
+
   const financialCycle = useMemo(
     () => {
       const pendingExtraExpense = forecastAgenda.flatMap((row) => row.items)
@@ -287,22 +294,21 @@ export function useFinancas() {
         directInvestmentCommitted: metrics.directInvestmentTarget,
         extraExpense: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments,
         extraExpenseCommitted: cashFlow.extraExpense + cashFlow.cardAdvancePaid + cashFlow.debtExtraPayments + pendingExtraExpense,
-        // A reserva do próximo caixa usa a parte pessoal da fatura que encerra
-        // o ciclo ativo.
-        nextInvoicePersonal: cardCycleAccounting.invoiceFormedByCycle.personalTotal,
+        // A reserva usa as faturas com vencimento no próximo mês civil.
+        nextInvoicePersonal: nextInvoiceCash.personalTotal,
         plannedNextInvoice: cashFlow.plannedOnCard,
       })
     },
-    [activeCycle.month, cardCycleAccounting.invoiceFormedByCycle.personalTotal, cashFlow,
+    [activeCycle.month, nextInvoiceCash.personalTotal, cashFlow,
       actuals.summary.rows, metrics.directInvestmentTarget,
       forecastAgenda],
   )
 
   /**
    * O "Liberado para alocar" pertence ao próximo ciclo. Ex.: ao fechar Agosto,
-   * usa o salário que financiará Setembro e abate a fatura de Setembro formada
-   * por Agosto. O snapshot mantém esse mesmo valor mesmo se a fatura já tiver
-   * sido paga antes do fechamento.
+   * usa o salário que financiará Setembro e abate as faturas com vencimento
+   * em Setembro, conforme o calendário de cada cartão. O pagamento antecipado
+   * preserva os valores no snapshot da fatura.
    */
   const nextCycleAllocation = useMemo(() => {
     const month = addMonths(activeCycle.month, 1)
@@ -318,10 +324,10 @@ export function useFinancas() {
       .filter((item) => item.event.kind === 'expense' && requiresExtraCash(item))
       .reduce((sum, item) => sum + reconcileOccurrence(item, actuals.months, new Date().toISOString().slice(0, 10), cards.entries, cards.paidInvoices, movementSources).remainingAmount, 0)
 
-    return calculateAllocationPreview({
+    return { ...calculateAllocationPreview({
       month,
       paycheck: nextMetrics.paycheckInAccount,
-      invoice: cardCycleAccounting.invoiceFormedByCycle.personalTotal,
+      invoice: nextInvoiceCash.personalTotal,
       costsOnAccount: nextMetrics.costsOnAccount,
       baseInvestment: nextMetrics.directInvestmentTarget,
       // Neste contexto, Desejos fora do cartão são os envelopes que sairão da
@@ -330,7 +336,7 @@ export function useFinancas() {
       plannedWants: nextMetrics.wantsOnAccount,
       extraIncome,
       extraExpense,
-    })
+    }), invoiceKnown: nextInvoiceCash.amountKnown }
   }, [
     activeCycle.month,
     scenarios.monthlyPlans,
@@ -338,7 +344,7 @@ export function useFinancas() {
     scenarios.recurringTemplateId,
     scenarios.activeScenarioAll,
     emergencyFund,
-    cardCycleAccounting.invoiceFormedByCycle.personalTotal,
+    nextInvoiceCash,
     forecast.events,
     actuals.months,
     cards.entries,

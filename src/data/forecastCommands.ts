@@ -10,6 +10,7 @@ import { normalizeCreditCardEntry, syncGeneratedNextEntries } from '../lib/credi
 import { withCardEntrySpendingMonth } from '../lib/cardCycleAccounting'
 import { cardDueMonthForOccurrence } from '../lib/forecastCoverage'
 import { goalIncomeAllocationError } from '../lib/goalFunding'
+import { cardCycleForDueMonth } from '../lib/cardCalendar'
 import type { CreditCardAccount } from '../types'
 
 const monthValid = (month: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
@@ -177,6 +178,7 @@ export function forecastCardInDocument(document: RepositoryDocument, id: string,
   if (!account?.currentDueMonth || !dueMonth || ![account.currentDueMonth, addMonths(account.currentDueMonth, 1)].includes(dueMonth) || !dateValid(input.date) ||
     !moneyValid(input.amount) || input.amount > item.unregisteredAmount + 0.005 || item.cancelled || item.event.kind !== 'expense') throw new Error('Confira cartão, fatura, data e valor ainda não lançado.')
   const entry = withCardEntrySpendingMonth(normalizeCreditCardEntry({ id: uid(), accountId: account.id, cardName: account.name, dueMonth,
+    spendingMonth: cardCycleForDueMonth(account, dueMonth),
     cycle: dueMonth === account.currentDueMonth ? 'current' : 'next', description: item.event.name, purchaseDate: input.date.split('-').reverse().join('/'),
     amount: input.amount, personalAmount: input.amount, remainingAmount: 0, budgetArea: input.budgetArea, sourceForecastOccurrenceId: item.id }), account.currentDueMonth)
   const frozen = freezeForecastFacts(document, event)

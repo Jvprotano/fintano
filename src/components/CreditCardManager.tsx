@@ -45,6 +45,7 @@ import { repositoryRevision } from '../data/repositoryCommand'
 import { calculateCreditCardSummary, formatCardDueDate } from '../lib/creditCards'
 import { cardEntriesForCycle } from '../lib/cardCycleView'
 import { PaidCardEntry } from './cards/PaidCardEntry'
+import { cardDueMonthForCycle, cardCycleForDueMonth } from '../lib/cardCalendar'
 
 type View = CreditCardCycle | 'import'
 type SortKey = 'description' | 'purchaseDate' | 'cardName' | 'amount'
@@ -91,7 +92,7 @@ export function CreditCardManager() {
   const summary = useMemo(() => calculateCreditCardSummary(cycleEntries, settings), [cycleEntries, settings])
   const paymentSummary = useMemo(() => calculateCreditCardSummary(entries.filter((entry) => entry.accountId === paymentAccountId), settings), [entries, paymentAccountId, settings])
   const pendingTotal = calculateCreditCardSummary(cycleEntries.filter((entry) => !entry.paidAt), settings).currentTotal
-  const paidCards = accounts.filter((account) => paidInvoices.some((invoice) => invoice.accountId === account.id && invoice.dueMonth === currentDueMonth)).map((account) => account.name)
+  const paidCards = accounts.filter((account) => paidInvoices.some((invoice) => invoice.accountId === account.id && invoice.dueMonth === cardDueMonthForCycle(account, activeCycle.month))).map((account) => account.name)
 
   const [view, setView] = useState<View>('current')
 
@@ -234,7 +235,7 @@ export function CreditCardManager() {
   const addSelectedEntry = (entry: Omit<CreditCardEntry, 'id'>) => {
     const account = accounts.find((candidate) => candidate.name === entry.cardName)
     if (!account) return false
-    const dueMonth = visibleCycle === 'next' || paidCards.includes(account.name) ? nextDueMonth : currentDueMonth
+    const dueMonth = cardDueMonthForCycle(account, addMonths(activeCycle.month, visibleCycle === 'next' || paidCards.includes(account.name) ? 1 : 0))
     return addEntry({ ...entry, accountId: account.id, cardName: account.name, dueMonth })
   }
 
@@ -282,9 +283,9 @@ export function CreditCardManager() {
         <p className="text-sm text-dark-text-muted">Faturas deste ciclo. Pagar preserva os lançamentos; a consulta avança junto com o ciclo.</p>
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
           {accounts.map((account) => {
-            const dueMonth = currentDueMonth
+            const dueMonth = cardDueMonthForCycle(account, activeCycle.month)
             const dueDate = formatCardDueDate(dueMonth, account.dueDay)
-            const nextDueDate = formatCardDueDate(nextDueMonth, account.dueDay)
+            const nextDueDate = formatCardDueDate(addMonths(dueMonth, 1), account.dueDay)
             const invoicePaid = paidInvoices.find((invoice) => invoice.accountId === account.id && invoice.dueMonth === dueMonth)
             const openDueMonth = account.currentDueMonth ?? dueMonth
             const previousPending = openDueMonth < dueMonth
@@ -315,7 +316,7 @@ export function CreditCardManager() {
                 {history.length > 0 && <details className="text-xs text-dark-text-secondary"><summary className="cursor-pointer">Faturas pagas ({history.length})</summary><div className="mt-2 space-y-2">{[...history].reverse().map((invoice) => <details key={invoice.id ?? `${invoice.accountId}-${invoice.dueMonth}`} className="rounded-lg border border-dark-border bg-dark-card p-2"><summary className="cursor-pointer">{formatMonthLong(invoice.dueMonth)} · {invoice.total === null ? '—' : formatCurrency(invoice.total)} · paga em {invoice.paidAt.slice(0, 10)}</summary><p className="mt-2">Minha parte: {formatCurrency(invoice.personalTotal)}. {invoice.entries ? `${invoice.entries.length} lançamentos preservados.` : 'Composição legada não disponível.'}</p>{invoice.entries?.map((entry) => <div key={entry.id} className="flex justify-between gap-2 border-t border-dark-border-subtle py-1"><span>{entry.description}</span><span className="tabular-nums">{entry.entryType === 'invoiceCredit' ? '−' : ''}{formatCurrency(entry.amount)}</span></div>)}</details>)}</div></details>}
               </div>
               {showPaySummary && paymentAccountId === account.id && <div className="mt-3">
-                <InvoicePaymentReview ownBankPayment={paymentSummary.currentTotal} summary={paymentSummary} currentDueMonth={paymentDueMonth} currentSpendingMonth={addMonths(paymentDueMonth, -1)} nextDueMonth={addMonths(paymentDueMonth, 1)} onConfirm={handlePayInvoice} onCancel={() => { setShowPaySummary(false); setPaymentAccountId(null) }} />
+                <InvoicePaymentReview ownBankPayment={paymentSummary.currentTotal} summary={paymentSummary} currentDueMonth={paymentDueMonth} currentSpendingMonth={cardCycleForDueMonth(paymentAccount ?? {}, paymentDueMonth)} nextDueMonth={addMonths(paymentDueMonth, 1)} onConfirm={handlePayInvoice} onCancel={() => { setShowPaySummary(false); setPaymentAccountId(null) }} />
                 {paymentError && <p role="alert" className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{paymentError}</p>}
               </div>}
             </section>
@@ -855,8 +856,8 @@ export function CreditCardManager() {
           onCycleChange={setImportCycle}
           replace={replaceOnImport}
           onReplaceChange={setReplaceOnImport}
-          currentDueMonth={currentDueMonth}
-          nextDueMonth={nextDueMonth}
+          currentDueMonth={importAccount ? cardDueMonthForCycle(importAccount, activeCycle.month) : currentDueMonth}
+          nextDueMonth={importAccount ? cardDueMonthForCycle(importAccount, addMonths(activeCycle.month, 1)) : nextDueMonth}
           onImport={handleImport}
         />
         </div>

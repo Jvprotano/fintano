@@ -4,6 +4,7 @@ import { normalizeCreditCardEntry, syncGeneratedNextEntries } from '../lib/credi
 import { normalizePaidInvoiceSnapshots, withCardEntrySpendingMonth } from '../lib/cardCycleAccounting'
 import { normalizeText, uid } from '../lib/shared'
 import { runRepositoryCommand } from './repositoryCommand'
+import { cardCycleForDueMonth } from '../lib/cardCalendar'
 
 export interface ImportReview {
   accountId: string
@@ -48,6 +49,7 @@ export function reviewCardImport(report: ParsedImportRow[], all: CreditCardEntry
       description: entry.description, purchaseDate: entry.purchaseDate, amount: entry.amount, personalAmount: entry.personalAmount, remainingAmount: entry.remainingAmount,
       budgetArea: entry.budgetArea ?? match?.budgetArea, ownerName: entry.ownerName || match?.ownerName,
       id: match?.id ?? uid(), accountId: account.id, cardName: account.name, dueMonth,
+      spendingMonth: cardCycleForDueMonth(account, dueMonth),
       cycle: dueMonth === account.currentDueMonth ? 'current' : 'next',
     }), account.currentDueMonth ?? dueMonth)
     if (match) {

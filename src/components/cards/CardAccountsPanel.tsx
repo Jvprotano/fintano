@@ -2,22 +2,20 @@ import { useState } from 'react'
 import { CreditCard, Plus } from 'lucide-react'
 import { Card } from '../Card'
 import { CurrencyInput } from '../CurrencyInput'
-import { ConfirmationDialog, PrimaryButton } from '../ui'
-import { formatMonthLong, inputClass } from '../../lib/format'
+import { PrimaryButton } from '../ui'
+import { inputClass } from '../../lib/format'
 import { useCardsStore } from '../../context/financasStore'
-import { addMonths } from '../../lib/shared'
-import { repositoryRevision } from '../../data/repositoryCommand'
+import { CardCalendarEditor } from './CardCalendarEditor'
 
 const day = (value: string) => value === '' ? 0 : Math.max(1, Math.min(31, Number(value) || 1))
 
 export function CardAccountsPanel() {
-  const { accounts, unregistered, settings, entries, setDueMonth, addAccount, updateAccount } = useCardsStore()
+  const { accounts, unregistered, addAccount, updateAccount } = useCardsStore()
   const [name, setName] = useState('')
   const [closingDay, setClosingDay] = useState(0)
   const [dueDay, setDueDay] = useState(0)
   const [limit, setLimit] = useState(0)
   const [error, setError] = useState('')
-  const [calendarReview, setCalendarReview] = useState<{ accountId: string; month: string; revision: string | null } | null>(null)
   const add = (candidate = name) => {
     const clean = candidate.trim()
     if (!clean) return
@@ -28,7 +26,6 @@ export function CardAccountsPanel() {
     if (!addAccount({ name: clean, closingDay, dueDay, limit })) { setError('Não foi possível cadastrar o cartão. Tente novamente.'); return }
     setName(''); setLimit(0); setClosingDay(0); setDueDay(0); setError('')
   }
-  const currentDueMonth = settings.currentDueMonth ?? ''
   return <Card title="Configurar cartões" icon={<CreditCard size={17} />} collapsible storageKey={accounts.length > 0 ? 'card-accounts-settings' : undefined} defaultCollapsed={accounts.length > 0}>
     <div className="space-y-4">
       <p className="text-xs leading-relaxed text-dark-text-muted">Basta o nome para cadastrar. Informe o dia de vencimento uma vez para ver a data em Faturas dos cartões; o mês acompanha a fatura e o ciclo automaticamente. Fechamento e limite do banco são referências opcionais.</p>
@@ -46,13 +43,6 @@ export function CardAccountsPanel() {
               updateAccount(account.id, { name: changed }); setError('')
             }}
               className={`${inputClass} mt-1`} aria-label={`Nome de ${account.name}`} />
-            <details className="mt-2"><summary className="cursor-pointer text-dark-text-muted">Corrigir atribuição da fatura</summary><span className="mt-2 block">Mês de vencimento da fatura aberta</span>
-            <input type="month" value={account.currentDueMonth ?? currentDueMonth}
-              onChange={(event) => {
-                const month = event.target.value
-                if (!/^\d{4}-\d{2}$/.test(month) || month === account.currentDueMonth) return
-                setCalendarReview({ accountId: account.id, month, revision: repositoryRevision() })
-              }} className={`${inputClass} mt-1`} /></details>
           </label>
           <label className="app-form-label">Fecha dia (opcional)
             <input type="number" min="1" max="31" placeholder="Não informado" value={account.closingDay || ''}
@@ -65,6 +55,7 @@ export function CardAccountsPanel() {
           <label className="app-form-label">Limite do banco (opcional)
             <span className="mt-1 block"><CurrencyInput value={account.limit}
               onChange={(value) => updateAccount(account.id, { limit: value })} /></span></label>
+          <CardCalendarEditor account={account} />
         </li>)}
       </ul>}
       {unregistered.length > 0 && <div className="flex flex-wrap items-center gap-2 text-xs text-dark-text-muted">
@@ -89,15 +80,6 @@ export function CardAccountsPanel() {
       </div>
       {error && <p role="alert" className="text-xs text-rose-300">{error}</p>}
       <p className="text-xs text-dark-text-muted">A consulta usa o ciclo ativo. Corrigir a atribuição é excepcional e não deve ser necessário a cada pagamento.</p>
-      <ConfirmationDialog open={calendarReview !== null} title="Corrigir a competência da fatura?"
-        description={<span>Os {entries.filter((entry) => entry.accountId === calendarReview?.accountId).length} lançamentos abertos deste cartão manterão sua fatura atual ou próxima. A competência atual passará de {formatMonthLong(addMonths(accounts.find((account) => account.id === calendarReview?.accountId)?.currentDueMonth ?? currentDueMonth, -1))} para {formatMonthLong(addMonths(calendarReview?.month ?? currentDueMonth, -1))}. Os outros cartões e as faturas pagas permanecem intactos.</span>}
-        confirmLabel="Corrigir calendário" onClose={() => setCalendarReview(null)}
-        onConfirm={() => {
-          if (calendarReview && !setDueMonth(calendarReview.month, calendarReview.accountId, calendarReview.revision)) {
-            setError('Os dados mudaram ou o calendário não pôde ser atualizado. Revise antes de tentar novamente.')
-          } else setError('')
-          setCalendarReview(null)
-        }} />
     </div>
   </Card>
 }

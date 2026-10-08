@@ -151,6 +151,8 @@ export interface CardAccountV7 {
   name: string
   currentDueMonth?: MonthKey
   confirmedEmptyDueMonths?: MonthKey[]
+  dueMonthOffset?: 0 | 1
+  calendarCorrections?: import('../types/cards').CardCalendarCorrection[]
   closingDay: number
   dueDay: number
   limitCents: MoneyCents
@@ -188,6 +190,7 @@ export interface CardStatementV7 {
   totalCents: MoneyCents | null
   personalTotalCents: MoneyCents
   paidAt: string
+  calendarAdjustments?: { id: string; accountId: string; correctedAt: string; reason: string; totalDeltaCents: MoneyCents; personalDeltaCents: MoneyCents; referenceTotalCents: MoneyCents; referencePersonalTotalCents: MoneyCents }[]
   charges?: CardChargeV7[]
   forecastOccurrences?: { id: string; amountCents: MoneyCents }[]
   credits?: { id: string; accountId: string; description: string; date: string; amountCents: MoneyCents; source: 'payment' | 'reward'; cashCycleMonth?: MonthKey; originCreditId?: string }[]

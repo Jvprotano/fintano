@@ -32,7 +32,7 @@ export function CardImportPanel({ text, onTextChange, cycle, onCycleChange, repl
       placeholder={'Descrição\tData\tCartão\tFatura\tÉ meu\nTotal Fitness\t06/10\tItaú\t100,00\t100,00'} className="app-field mt-4 min-h-[160px] w-full px-4 py-3 font-mono text-xs" />
     <div className="mt-3 flex items-end gap-3">
       <label className="block flex-1"><span className="app-form-label mb-1 block">Destino</span><select className={inputClass} value={cycle} onChange={(e) => { reset(); onCycleChange(e.target.value as CreditCardCycle) }}>
-        <option value="current">Este ciclo · {formatMonthLong(currentDueMonth)}</option><option value="next">Próximo ciclo · {formatMonthLong(nextDueMonth)}</option>
+        <option value="current">Este ciclo · vence em {formatMonthLong(currentDueMonth)}</option><option value="next">Próximo ciclo · vence em {formatMonthLong(nextDueMonth)}</option>
       </select></label>
       <label className="flex items-center gap-2 p-3 text-sm text-dark-text-secondary"><input type="checkbox" checked={replace} onChange={(e) => { reset(); onReplaceChange(e.target.checked) }} />Substituir fatura de destino</label>
       <SecondaryButton disabled={destinationPaid || !review || report.length === 0} onClick={() => { setRevision(repositoryRevision()); setError('') }}>Revisar importação</SecondaryButton>

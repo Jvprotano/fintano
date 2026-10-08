@@ -20,7 +20,7 @@ function invoiceLine(label: string, invoice: CycleInvoiceCash) {
   const personal = invoice.amountKnown ? analysisMoney(invoice.personalTotal) : `desconhecida; parte conhecida ${analysisMoney(invoice.personalTotal)}`
   const thirdParty = invoice.amountKnown && invoice.total !== null ? analysisMoney(invoice.total - invoice.personalTotal) : 'desconhecida'
   const bank = invoice.amountKnown ? analysisMoney(invoice.total) : `desconhecido; total conhecido ${analysisMoney(invoice.total)}`
-  return `${label} (${invoice.dueMonth}): banco ${bank}; parte pessoal ${personal}; parte não pessoal ${thirdParty}; ${invoice.paid ? 'pagamento preservado' : 'pagamento não confirmado'}`
+  return `${label} (${(invoice.dueMonths ?? [invoice.dueMonth]).join(', ')}): banco ${bank}; parte pessoal ${personal}; parte não pessoal ${thirdParty}; ${invoice.paid ? 'pagamento preservado' : 'pagamento não confirmado'}`
 }
 
 /** Fotografia somente de leitura, pelas mesmas consultas das telas. */

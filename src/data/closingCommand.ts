@@ -69,7 +69,7 @@ export function closeCycleInDocument(
     const beforePayment = accounting(next)
     const pending = pendingCardInvoices(next.collections.cardEntries as CreditCardEntry[],
       normalizePaidInvoiceSnapshots(next.collections.cardPaidInvoices),
-      next.collections.cardAccounts as CreditCardAccount[], input.payInvoiceDueMonth)
+      next.collections.cardAccounts as CreditCardAccount[], input.payInvoiceDueMonth, input.month)
     if (pending.some((invoice) => !invoice.known)) return null
     for (const invoice of pending) {
       const paid = payInvoiceInDocument(next, invoice.dueMonth, invoice.accountId)

@@ -8,7 +8,7 @@ import type { HistoryPoint } from '../types'
 import { COST_CATEGORIES, BUDGET_AREA_LABELS } from '../types/constants'
 import { readRepositoryDocument } from '../data/repository'
 import { repositoryRevision } from '../data/repositoryCommand'
-import { addMonths } from '../lib/shared'
+import { paidInvoiceBelongsToCycle } from '../lib/cardCycleAccounting'
 import { historyCorrectionMovements, historyCorrectionRows, type HistoryDraft } from '../data/historyCorrections'
 import { historyMissingMonths, selectHistoryPeriod, type HistoryTrendPeriod } from '../lib/historyTrends'
 import { HistoryTrendExplorer } from './history/HistoryTrendExplorer'
@@ -80,8 +80,8 @@ function PlanDelta({ actual, planned, higherIsBetter = false, known = true }: { 
 }
 
 function CycleDetails({ point }: { point: HistoryPoint }) {
-  const { paidInvoices } = useCardsStore()
-  const invoices = paidInvoices.filter((invoice) => invoice.dueMonth === addMonths(point.month, 1))
+  const { paidInvoices, accounts } = useCardsStore()
+  const invoices = paidInvoices.filter((invoice) => paidInvoiceBelongsToCycle(invoice, point.month, accounts))
   return <div className="space-y-4 text-xs">
     <div className="grid grid-cols-3 gap-6">
       <div><h4 className="mb-2 text-sm font-medium">Custos por origem</h4><ul className="space-y-1.5">

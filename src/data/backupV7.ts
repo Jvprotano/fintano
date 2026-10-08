@@ -584,6 +584,8 @@ export function repositoryToBackupV7(
         name: account.name,
         currentDueMonth: account.currentDueMonth ?? currentDueMonth,
         confirmedEmptyDueMonths: account.confirmedEmptyDueMonths,
+        dueMonthOffset: account.dueMonthOffset,
+        calendarCorrections: account.calendarCorrections,
         closingDay: account.closingDay,
         dueDay: account.dueDay,
         limitCents: toCents(account.limit),
@@ -628,6 +630,7 @@ export function repositoryToBackupV7(
         totalCents: statement.total === null ? null : toCents(statement.total),
         personalTotalCents: toCents(statement.personalTotal),
         paidAt: normalizePersistedInstant(statement.paidAt),
+        calendarAdjustments: statement.calendarAdjustments?.map(({ totalDelta, personalDelta, referenceTotal, referencePersonalTotal, ...row }) => ({ ...row, totalDeltaCents: toCents(totalDelta), personalDeltaCents: toCents(personalDelta), referenceTotalCents: toCents(referenceTotal), referencePersonalTotalCents: toCents(referencePersonalTotal) })),
         charges: statement.entries?.map((entry) => ({
           id: entry.id,
           accountId: entry.accountId ?? statement.accountId ?? '',
@@ -855,6 +858,8 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     name: account.name,
     currentDueMonth: account.currentDueMonth ?? backup.cards.currentDueMonth,
     confirmedEmptyDueMonths: account.confirmedEmptyDueMonths,
+    dueMonthOffset: account.dueMonthOffset,
+    calendarCorrections: account.calendarCorrections,
     closingDay: account.closingDay,
     dueDay: account.dueDay,
     limit: fromCents(account.limitCents),
@@ -1027,8 +1032,10 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         total: statement.totalCents === null ? null : fromCents(statement.totalCents),
         personalTotal: fromCents(statement.personalTotalCents),
         paidAt: statement.paidAt,
+        calendarAdjustments: statement.calendarAdjustments?.map(({ totalDeltaCents, personalDeltaCents, referenceTotalCents, referencePersonalTotalCents, ...row }) => ({ ...row, totalDelta: fromCents(totalDeltaCents), personalDelta: fromCents(personalDeltaCents), referenceTotal: fromCents(referenceTotalCents), referencePersonalTotal: fromCents(referencePersonalTotalCents) })),
         entries: statement.charges?.map((charge) => ({
           id: charge.id, accountId: charge.accountId, dueMonth: charge.dueMonth,
+          spendingMonth: charge.spendingMonth,
           cycle: 'current', description: charge.description, purchaseDate: charge.purchaseDate,
           cardName: accountById.get(charge.accountId)?.name ?? 'Cartão',
           amount: fromCents(charge.amountCents), personalAmount: fromCents(charge.personalAmountCents),
@@ -1272,6 +1279,13 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   const accountIds = ids(backup.cards.accounts, 'Cartão')
+  for (const account of backup.cards.accounts) {
+    if (account.dueMonthOffset !== undefined && account.dueMonthOffset !== 0 && account.dueMonthOffset !== 1) add('error', 'card_calendar_invalid', 'Calendário do cartão inválido.', account.id)
+    if (account.calendarCorrections !== undefined && (!Array.isArray(account.calendarCorrections) || account.calendarCorrections.some((row) =>
+      !row || typeof row.id !== 'string' || !row.id || typeof row.reason !== 'string' || !row.reason.trim() || typeof row.correctedAt !== 'string' || !Number.isFinite(Date.parse(row.correctedAt)) ||
+      !MONTH_RE.test(row.beforeDueMonth) || !MONTH_RE.test(row.afterDueMonth) ||
+      ![0, 1].includes(row.beforeOffset) || ![0, 1].includes(row.afterOffset) || typeof row.includedPaidInvoices !== 'boolean'))) add('error', 'card_calendar_correction_invalid', 'Revisão de calendário inválida.', account.id)
+  }
   if (backup.cards.thirdParties !== undefined && !Array.isArray(backup.cards.thirdParties)) {
     add('error', 'third_parties_invalid', 'Adiantamentos a terceiros têm formato inválido.')
   }
@@ -1512,6 +1526,10 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const statement of backup.cards.statements) {
+    if (statement.calendarAdjustments !== undefined && (!Array.isArray(statement.calendarAdjustments) || statement.accountId !== null || statement.calendarAdjustments.some((row) =>
+      !row || typeof row.id !== 'string' || !row.id || !accountIds.has(row.accountId) || typeof row.reason !== 'string' || !row.reason.trim() ||
+      typeof row.correctedAt !== 'string' || !Number.isFinite(Date.parse(row.correctedAt)) || !Number.isSafeInteger(row.totalDeltaCents) || !Number.isSafeInteger(row.personalDeltaCents) ||
+      !Number.isSafeInteger(row.referenceTotalCents) || row.referenceTotalCents < 0 || !Number.isSafeInteger(row.referencePersonalTotalCents) || row.referencePersonalTotalCents < 0 || row.referencePersonalTotalCents > row.referenceTotalCents))) add('error', 'legacy_calendar_adjustment_invalid', 'Diferença de calendário da fatura antiga inválida.', statement.id)
     if (statement.accountId && !accountIds.has(statement.accountId)) {
       add('error', 'card_statement_reference_missing', 'Fatura aponta para cartão inexistente.', statement.id)
     }

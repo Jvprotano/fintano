@@ -27,7 +27,7 @@ Fixar plano não fecha o ciclo, não confirma pagamentos e não altera o modelo 
 
 O ciclo ativo é a competência padrão dos lançamentos. A data real existe para auditoria e cálculo de tempo; não muda a competência automaticamente.
 
-Exemplo: o salário do fim de setembro financia outubro. A fatura formada por outubro pode vencer em novembro. O vencimento do cartão e a competência operacional são conceitos diferentes. A fatura determina o ciclo do consumo; a data original de uma compra parcelada não reatribui sua parcela atual.
+Exemplo: o salário do fim de setembro financia outubro. A fatura de cada cartão associada a outubro pode vencer no próprio outubro ou em novembro, conforme seu calendário. O vencimento do cartão e a competência operacional são conceitos diferentes. A data original de uma compra parcelada não reatribui sua parcela atual.
 
 Cartões usa **Este ciclo** e **Próximo ciclo**, ancorados na competência operacional para todos os cartões. Confirmar o pagamento de um cartão preserva sua composição e mantém as parcelas pagas na lista deste ciclo, com estado textual, data e acento verde; elas não têm edição comum. A próxima parcela continua em Próximo ciclo. Só a virada operacional avança o período consultado. O total do ciclo conserva as faturas pagas; Ainda a pagar ao banco exclui apenas as já pagas.
 
@@ -35,11 +35,19 @@ Novas compras em um cartão cuja fatura deste ciclo já foi paga entram no próx
 
 O fechamento permite **Confirmar pendentes e virar ciclo**: revisa cartões, meses de vencimento e valor cheio ao banco, incluindo faturas anteriores ainda abertas, e confirma tudo numa gravação única. Faturas já pagas são puladas. Créditos excedentes passam uma vez para a seguinte; valores desconhecidos exigem conferência. Continua disponível fechar apenas o ciclo, sem declarar pagamento.
 
-Cadastrar cartão exige somente o nome. Dias de fechamento e vencimento e limite do banco são opcionais e não comandam a consulta. Cartões novos começam atribuídos ao ciclo ativo; a fatura anterior é confirmada vazia por se tratar de um novo cadastro. A correção excepcional da atribuição de fatura fica recolhida na configuração; dados existentes conservam seus meses e pagamentos.
+Cadastrar cartão exige somente o nome. Dias de fechamento e vencimento e limite do banco são opcionais. Cartões novos começam atribuídos ao ciclo ativo, inicialmente com vencimento no mês seguinte; a fatura anterior é confirmada vazia por se tratar de um novo cadastro. Dados existentes conservam seus meses e pagamentos até uma correção explícita.
 
 Em **Configurar cartões**, informar **Vence dia** uma vez. **Faturas dos cartões** mostra o vencimento completo de cada fatura usando esse dia e seu mês de vencimento. Se o dia não existir no mês, usa o último dia disponível; a referência não ajusta feriados ou fins de semana. Sem dia cadastrado, mostra **Vencimento não informado**. Após confirmar o pagamento, conserva a data da fatura paga e mostra também o próximo vencimento; ao virar o ciclo, a data principal acompanha a nova fatura. Faturas anteriores pendentes mostram seu próprio vencimento.
 
-Exemplo no ciclo de outubro: as faturas abertas de Itaú e Nubank vencem em 05/11 e 13/11. Se o Itaú de 05/10 já foi pago e o Nubank de 13/10 ainda está pendente, o Nubank mostra também essa fatura anterior. Confirmar o pagamento de 13/10 mantém a fatura aberta de 13/11 e o ciclo de outubro.
+Cada cartão tem um calendário independente: **no mesmo mês do ciclo** ou **no mês seguinte ao ciclo**. A consulta, os lançamentos, a importação e o fechamento usam essa definição; pagar avança apenas a fatura aberta daquele cartão. A prévia do próximo salário usa as faturas que vencem naquele mês civil, incluindo parcelas de cartões com calendários diferentes.
+
+Em **Configurar cartões → Ajustar calendário e faturas de [cartão] → Preparar ajuste**, escolher o mês de vencimento da fatura aberta e sua relação com o ciclo. Informar motivo, **Revisar ajuste** e **Salvar ajuste de calendário**. Nada grava enquanto é rascunho; **Cancelar** ou Escape descarta. Mudanças nos dados durante a revisão recusam a gravação e conservam o rascunho.
+
+A diferença de meses desloca todas as compras, parcelas seguintes, abatimentos e confirmações de fatura vazia daquele cartão, preservando IDs, números de parcelas, valores e datas reais. **Corrigir também os meses das faturas já pagas deste cartão** desloca também seus vencimentos e composição; sem essa opção, as pagas permanecem intactas e uma colisão é recusada. A revisão apresenta antes/depois e diferenças nos fechamentos afetados. O Histórico conserva marcas patrimoniais e registra o motivo; calendário e registros relacionados são gravados juntos. Não refazer um pagamento para corrigir sua data de vencimento.
+
+Se o caixa usa uma fatura antiga agregada sem cartão identificado, a correção guarda somente a diferença dos fatos deslocados, com motivo, sem sobrescrever o pagamento antigo. A revisão mostra esse efeito; a parte que ainda está aberta continua pendente até seu pagamento individual. Assim, mover uma cobrança para outubro também a faz participar do caixa de outubro, uma vez.
+
+Exemplo no ciclo de outubro: Itaú pode ter fatura aberta de 05/11, Nubank de 13/11 e ML de 16/10. Para corrigir Nubank cuja Hering 1/5 paga foi registrada em novembro, ajustar a aberta para novembro, manter **mês seguinte** e incluir pagas: Hering 1/5 passa para outubro, 2/5 para novembro e 3/5 para dezembro. Para ML com Umbro 1/3 registrada em novembro, ajustar a aberta para outubro e escolher **mesmo mês**: 1/3 passa para outubro e 2/3 para novembro. O ciclo ativo continua outubro.
 
 Novas compras manuais começam com a área Desejos selecionada; é possível escolher outra área ou deixar sem classificação. Após salvar, a próxima compra volta ao padrão Desejos. O bloco Faturas dos cartões pode ser recolhido pelo cabeçalho e guarda essa preferência no navegador.
 
@@ -63,7 +71,7 @@ Registros antigos de devoluções e fechamentos permanecem preservados no backup
 
 Previsão não é dinheiro disponível. Campo ausente significa desconhecido; zero informado é conhecido. Confirmar como no plano registra a confirmação, inclusive sua origem. Estimativas ajudam a planejar compromissos, mas não são recebimentos ou pagamentos confirmados.
 
-**Verba para Desejos** = recursos do ciclo − fatura anterior − contas do ciclo − aporte comprometido − extraordinários que precisam desses recursos. Desejos não são subtraídos antes de calcular a própria verba; destinações realizadas são mostradas depois.
+**Verba para Desejos** = recursos do ciclo − faturas com vencimento no ciclo − contas do ciclo − aporte comprometido − extraordinários que precisam desses recursos. Desejos não são subtraídos antes de calcular a própria verba; destinações realizadas são mostradas depois.
 
 O aporte comprometido considera o líquido executado e o restante programado. Com renda de R$ 5.000, fatura de R$ 1.000, contas de R$ 2.000 e aporte de R$ 1.000, a verba é R$ 1.000. Executar R$ 400 desse aporte mantém a verba; executar R$ 1.200 reduz para R$ 800.
 
