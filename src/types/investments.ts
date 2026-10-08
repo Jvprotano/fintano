@@ -71,6 +71,8 @@ export interface InvestmentAssetClass {
 }
 
 export interface InvestmentHolding {
+  /** Data do último saldo conferido; movimentos posteriores conservam essa referência. */
+  valuationDate?: string
   id: string
   name: string
   assetClassId: string

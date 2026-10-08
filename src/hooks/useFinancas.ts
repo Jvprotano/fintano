@@ -8,6 +8,8 @@ import { useInvestments } from './useInvestments'
 import { useHistory } from './useHistory'
 import { useForecast } from './useForecast'
 import { useActuals } from './useActuals'
+import { summarizeActuals } from '../lib/actuals'
+import { advanceDebtMonth } from '../lib/debts'
 import { calculateScenario } from '../lib/scenario'
 import { planAsScenario, planFromTemplate } from '../lib/monthlyPlans'
 import { buildCurrentCycleFacts } from '../lib/currentCycleFacts'
@@ -16,14 +18,17 @@ import { calculateCardCycleAccounting, cardAdvancePaymentsForMonth } from '../li
 import { calculateMonthlyInvestmentActuals } from '../lib/investmentActuals'
 import { calculateAssetsSummary } from '../lib/assets'
 import { occurrencesInMonth, projectNetWorth } from '../lib/forecast'
-import { reconcileOccurrence, upcomingOccurrences, buildForecastAgenda, forecastCostsCommitted, requiresExtraCash } from '../lib/forecastCoverage'
+import { reconcileOccurrence, upcomingOccurrences, buildForecastAgenda, forecastCostsCommitted, forecastWantsCommitted, requiresExtraCash, cardDueMonthForOccurrence } from '../lib/forecastCoverage'
 import { maybeCreateAutoBackup } from '../lib/backup'
 import { REPOSITORY_CHANGED_EVENT } from '../data/repository'
 import { addMonths, ledgerEntryCycleMonth, localDateKey, uid } from '../lib/shared'
 import { runRepositoryCommand, type CommandResult } from '../data/repositoryCommand'
 import { closeCycleInDocument } from '../data/closingCommand'
 import type { BudgetArea, CostCategory, MonthlySnapshot, ScenarioSummary } from '../types'
-import { BUDGET_AREAS } from '../types/constants'
+import { contributionPlan } from '../lib/contributionPlan'
+import { projectGoalSources, type SourceContribution } from '../lib/goalProjection'
+import { usableHoldingValue } from '../lib/investments'
+import { BUDGET_AREAS, INVESTMENT_DEDUCTION_TYPES } from '../types/constants'
 
 export type { ScenarioMetrics } from '../lib/scenario'
 
@@ -341,14 +346,10 @@ export function useFinancas() {
   ])
 
   const monthlyContribution = useMemo(() => {
-    if (forecast.assumptions.monthlyContribution !== null) {
-      return forecast.assumptions.monthlyContribution
-    }
-    const leftover = forecast.assumptions.includeLeftover
-      ? Math.max(0, metrics.balanceAfterPlan)
-      : 0
-    return metrics.totalPlannedInvestment + leftover
-  }, [forecast.assumptions, metrics.balanceAfterPlan, metrics.totalPlannedInvestment])
+    const plan = contributionPlan(activeScenario, investments.holdings, investments.goals, debts.debts)
+    const desired = forecast.assumptions.monthlyContribution ?? (plan.capacity + plan.payroll + (forecast.assumptions.includeLeftover ? Math.max(0, plan.affordable - plan.capacity) : 0))
+    return Math.max(plan.payroll, Math.min(desired, plan.affordable + plan.payroll))
+  }, [activeScenario, investments.holdings, investments.goals, debts.debts, forecast.assumptions])
 
   const projectedDebts = useMemo(
     () =>
@@ -376,44 +377,131 @@ export function useFinancas() {
     [assets.summary.assets],
   )
 
-  const projection = useMemo(
-    () => {
-      const remainingByOccurrence = Object.fromEntries(upcomingOccurrences(
-        forecast.events, actuals.months, addMonths(activeCycle.month, 1),
-        forecast.assumptions.horizonMonths, new Date().toISOString().slice(0, 10),
-        cards.entries, cards.paidInvoices, movementSources,
-      ).map((item) => [item.id, item.remainingAmount]))
-      return projectNetWorth({
-        startMonth: activeCycle.month,
-        startAssets: investments.summary.financialAssets,
-        monthlyContribution,
-        annualReturnPct: forecast.assumptions.annualReturnPct,
-        inflationPct: forecast.assumptions.inflationPct,
-        horizonMonths: forecast.assumptions.horizonMonths,
-        events: forecast.events,
-        remainingByOccurrence,
-        debts: projectedDebts,
-        properties: projectedProperties,
-        reinvestFreedInstallments: forecast.assumptions.reinvestFreedInstallments,
+  const projectionData = useMemo(() => {
+    const items = upcomingOccurrences(forecast.events, actuals.months, activeCycle.month,
+      forecast.assumptions.horizonMonths + 1, localDateKey(), cards.entries, cards.paidInvoices, movementSources)
+    const initialItems = forecastAgenda.flatMap((row) => row.items).filter((item) => item.month <= activeCycle.month && item.status !== 'cancelled')
+    const projectionItems = [...new Map([...initialItems, ...items].map((item) => [item.id, item])).values()]
+    const remainingByOccurrence = Object.fromEntries(items.map((item) => [item.id, item.event.kind === 'expense' ? 0 : item.remainingAmount]))
+    const monthlyContributions: Record<string, number> = {}
+    const monthlyExpenses: Record<string, number> = {}
+    const monthlyProtectedContributions: Record<string, number> = {}
+    const freedContributionByMonth: Record<string, number> = {}
+    const sources: Record<string, SourceContribution[]> = {}
+    const template = scenarios.scenarios.find((row) => row.id === scenarios.recurringTemplateId) ?? activeScenario
+    let initialContribution = 0
+    let initialExpense = 0
+    let initialProtectedContribution = 0
+    const invalidPlanMonths: string[] = []
+    let invoiceEstimated = false
+    const loanBalances = projectedDebts.map((debt) => ({ ...debt }))
+    for (let index = 0; index <= forecast.assumptions.horizonMonths; index++) {
+      const month = addMonths(activeCycle.month, index)
+      const scenario = index === 0 ? activeScenario : planAsScenario(scenarios.monthlyPlans.find((plan) => plan.month === month) ?? planFromTemplate(month, template))
+      const calculation = calculateScenario(scenario, emergencyFund)
+      const ledger = index === 0 ? investmentActuals : calculateMonthlyInvestmentActuals({ month, emergencyFund, holdings: investments.holdings, goals: investments.goals })
+      const cycleActual = actuals.months.find((cycle) => cycle.month === month)
+      const paycheckKnown = cycleActual?.paycheck !== undefined
+      const monthSummary = index === 0 ? actuals.summary : summarizeActuals(scenario.costs.filter((cost) => !cost.archivedAt), cycleActual, month,
+        scenario.wants.filter((want) => !want.archivedAt), [...scenario.costs, ...scenarios.scenarios.flatMap((plan) => plan.costs), ...scenarios.monthlyPlans.flatMap((plan) => plan.costs)],
+        [...scenario.wants, ...scenarios.scenarios.flatMap((plan) => plan.wants), ...scenarios.monthlyPlans.flatMap((plan) => plan.wants)])
+      const plan = contributionPlan(scenario, investments.holdings, investments.goals, debts.debts.map((debt) => ({ ...debt, balance: loanBalances.find((loan) => loan.id === debt.id)?.balance ?? debt.balance })))
+      if (plan.excess > 0.005 || plan.unavailable.length) invalidPlanMonths.push(month)
+      const relevant = index === 0 ? initialItems : items.filter((item) => item.month === month)
+      const cardItems = projectionItems.filter((item) => item.event.kind === 'expense' && item.event.cashTreatment === 'card' && !item.event.planLink && (cardDueMonthForOccurrence(item) ?? addMonths(item.month, 1)) === month)
+      const invoiceFacts = calculateCardCycleAccounting({ entries: cards.entries, accounts: cards.accounts,
+        currentDueMonth: cards.settings.currentDueMonth ?? activeCycle.month, activeCycleMonth: month,
+        currentTotal: cards.summary.currentTotal, currentPersonalTotal: cards.summary.currentPersonalTotal,
+        nextTotal: cards.summary.nextTotal, nextPersonalTotal: cards.summary.nextPersonalTotal,
+        paidInvoices: cards.paidInvoices }).invoiceThisCycle
+      const expectedInvoice = invoiceFacts.personalTotal + cardItems.reduce((sum, item) => sum + item.unregisteredAmount, 0)
+      const invoice = invoiceFacts.amountKnown ? expectedInvoice : Math.max(expectedInvoice, calculation.plannedOnCard)
+      if (!invoiceFacts.amountKnown && index <= 1) invoiceEstimated = true
+      let uncoveredLoanPayment = 0
+      let freedBudget = 0
+      if (index > 0) for (const loan of loanBalances) {
+        const next = advanceDebtMonth(loan.balance, loan.monthlyRatePct, loan.installment)
+        const linkedId = debts.debts.find((debt) => debt.id === loan.id)?.linkedCostId
+        const cost = scenario.costs.find((cost) => cost.id === linkedId && !cost.archivedAt)
+        const covered = cost?.value ?? 0
+        if (loan.balance <= 0 && cost) freedBudget += Math.min(loan.installment, Math.max(0, cost.value - (cost.sharedAmount ?? 0)))
+        uncoveredLoanPayment += Math.max(0, next.paid - covered)
+        loan.balance = next.balance
+      }
+      // A parte ja lancada aparece na fatura conhecida: a previsao adiciona apenas o nao lancado.
+      const extra = relevant.filter((item) => item.event.kind === 'expense' && requiresExtraCash(item)).reduce((sum, item) => sum + item.remainingAmount, 0)
+      const costs = Math.max(calculation.costsOnAccount, forecastCostsCommitted(monthSummary.rows, relevant, month))
+      const wants = Math.max(calculation.wantsOnAccount, forecastWantsCommitted(monthSummary.wantRows, relevant, month))
+      let available: number
+      if (index === 0) {
+        const income = cashFlow.totalIn + (actuals.summary.paycheck ? 0 : calculation.paycheckInAccount)
+        available = income - invoice - costs - wants
+          - cashFlow.extraExpense - cashFlow.cardAdvancePaid - cashFlow.debtExtraPayments - investmentActuals.cashContributions - extra - plan.uncoveredInstallments
+      } else {
+        const debtExtraPaid = debts.debts.flatMap((debt) => debt.transactions).filter((tx) => tx.kind === 'amortization' && tx.cashTreatment === 'extra' && ledgerEntryCycleMonth(tx) === month).reduce((sum, tx) => sum - tx.amount, 0)
+        available = (cycleActual?.paycheck?.amount ?? calculation.paycheckInAccount) + monthSummary.extraIncomeTotal
+          - costs - wants - Math.max(calculation.plannedOnCard, expectedInvoice) - monthSummary.extraExpenseTotal - debtExtraPaid
+          - extra - uncoveredLoanPayment + freedBudget - ledger.cashContributions + ledger.cashWithdrawals
+      }
+      const payroll = paycheckKnown ? 0 : calculation.investmentDeductions
+      const company = paycheckKnown ? 0 : calculation.employerInvestmentContributions
+      const unknownPayroll = payroll === 0 ? 0 : scenario.deductions.reduce((sum, deduction) => {
+        if (!INVESTMENT_DEDUCTION_TYPES.includes(deduction.type)) return sum
+        const holding = investments.holdings.find((row) => row.id === deduction.linkedHoldingId)
+        const unknown = !holding || holding.pension && (holding.pension.employerBalance === undefined || holding.pension.employerRestrictedBalance === undefined)
+        return sum + (unknown ? deduction.value : 0)
+      }, 0)
+      const target = Math.max(0, calculation.directInvestmentTarget - Math.max(0, ledger.directNet))
+      const desired = forecast.assumptions.monthlyContribution !== null ? Math.max(0, forecast.assumptions.monthlyContribution - calculation.investmentDeductions - Math.max(0, ledger.directNet)) : target + (forecast.assumptions.includeLeftover ? Math.max(0, available - target) : 0)
+      const direct = Math.min(Math.max(0, available), index === 0 ? Math.min(target, desired) : desired)
+      const contributions = direct + payroll + company
+      const monthSources: SourceContribution[] = []
+      const pendingDestinations = plan.destinations.map((row) => {
+        const owner = row.type === 'holding' ? investments.holdings.find((holding) => holding.id === row.id) : investments.goals.find((goal) => goal.id === row.id)
+        const done = owner?.transactions.filter((tx) => ledgerEntryCycleMonth(tx) === month && tx.kind === 'contribution' && !tx.payrollMonth).reduce((sum, tx) => sum + tx.amount, 0) ?? 0
+        return { ...row, amount: Math.max(0, row.amount - done) }
       })
-    },
-    [
-      activeCycle.month,
-      forecast.assumptions.annualReturnPct,
-      forecast.assumptions.inflationPct,
-      forecast.assumptions.horizonMonths,
-      forecast.assumptions.reinvestFreedInstallments,
-      forecast.events,
-      actuals.months,
-      cards.entries,
-      cards.paidInvoices,
-      movementSources,
-      investments.summary.financialAssets,
-      monthlyContribution,
-      projectedDebts,
-      projectedProperties,
-    ],
-  )
+      const requested = pendingDestinations.reduce((sum, row) => sum + row.amount, 0)
+      const factor = requested > 0 ? Math.min(1, direct / requested) : 0
+      for (const row of pendingDestinations) monthSources.push({ ...row, amount: row.amount * factor })
+      for (const deduction of scenario.deductions.filter((row) => INVESTMENT_DEDUCTION_TYPES.includes(row.type))) {
+        if (!deduction.linkedHoldingId || paycheckKnown) continue
+        monthSources.push({ type: 'holding', id: deduction.linkedHoldingId, amount: deduction.value + (deduction.employerContribution ?? 0), protectedAmount: deduction.employerContribution ?? 0 })
+      }
+      sources[month] = monthSources
+      if (index === 0) {
+        initialContribution = contributions; initialExpense = Math.max(0, -available); initialProtectedContribution = company + unknownPayroll
+      } else {
+        monthlyContributions[month] = contributions
+        monthlyExpenses[month] = Math.max(0, -available)
+        monthlyProtectedContributions[month] = company + unknownPayroll
+        freedContributionByMonth[month] = forecast.assumptions.reinvestFreedInstallments && !forecast.assumptions.includeLeftover && forecast.assumptions.monthlyContribution === null
+          ? Math.min(freedBudget, Math.max(0, available - direct)) : 0
+      }
+    }
+    const initialExpectedIncome = initialItems.filter((item) => item.event.kind === 'income' && requiresExtraCash(item)).reduce((sum, item) => sum + item.remainingAmount * (item.event.savedPct ?? 100) / 100, 0)
+    const input = {
+      startMonth: activeCycle.month, startAssets: investments.summary.financialAssets,
+      monthlyContribution, monthlyContributions, monthlyExpenses, initialContribution, initialExpense, initialExpectedIncome,
+      protectedAssets: investments.holdings.reduce((sum, holding) => sum + holding.marketValue - usableHoldingValue(holding), 0),
+      monthlyProtectedContributions, initialProtectedContribution, freedContributionByMonth,
+      annualReturnPct: forecast.assumptions.annualReturnPct, inflationPct: forecast.assumptions.inflationPct,
+      horizonMonths: forecast.assumptions.horizonMonths, events: forecast.events, remainingByOccurrence,
+      debts: projectedDebts, properties: projectedProperties, reinvestFreedInstallments: forecast.assumptions.reinvestFreedInstallments && !forecast.assumptions.includeLeftover && forecast.assumptions.monthlyContribution === null,
+    }
+    const base = projectNetWorth({ ...input, includeExpectedIncome: false })
+    const conditional = projectNetWorth({ ...input, includeExpectedIncome: true })
+    const goalInput = { holdings: investments.holdings, goals: investments.goals, contributions: sources, items: [...initialItems, ...items.filter((item) => item.month > activeCycle.month)], annualReturnPct: input.annualReturnPct, startAssets: input.startAssets, protectedContributions: { ...monthlyProtectedContributions, [activeCycle.month]: initialProtectedContribution } }
+    return { base, conditional, baseGoals: projectGoalSources({ ...goalInput, points: base, conditional: false }),
+      conditionalGoals: projectGoalSources({ ...goalInput, points: conditional, conditional: true }), invalidPlanMonths, invoiceEstimated,
+      initialContribution, initialExpense }
+  }, [activeScenario, activeCycle.month, scenarios.scenarios, scenarios.recurringTemplateId, scenarios.monthlyPlans,
+    investments.holdings, investments.goals, investments.summary.financialAssets, emergencyFund, forecast.events, forecast.assumptions,
+    debts.debts, cards.accounts, cards.settings.currentDueMonth, cards.summary,
+    forecastAgenda, actuals.months, actuals.summary, cards.entries, cards.paidInvoices, movementSources,
+    cashFlow, investmentActuals, monthlyContribution, projectedDebts, projectedProperties])
+  const projection = projectionData.base
+  const conditionalProjection = projectionData.conditional
 
   /**
    * Congela o ciclo ativo com os números de agora e avança para o próximo.
@@ -552,6 +640,8 @@ export function useFinancas() {
     financialCycle,
     nextCycleAllocation,
     projection,
+    conditionalProjection,
+    projectionData,
     monthlyContribution,
     scenarioSummaries,
     closeCurrentMonth,

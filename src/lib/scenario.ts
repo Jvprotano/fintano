@@ -129,6 +129,7 @@ export function normalizeScenario(scenario: FinanceScenario): FinanceScenario {
 
   return {
     ...rest,
+    contributionDestinations: scenario.contributionDestinations?.map((row) => ({ ...row })),
     salaryNet: finiteNumber(scenario.salaryNet),
     plannedInvestmentAmount: scenario.plannedInvestmentAmount == null ? null :
       Math.max(0, finiteNumber(scenario.plannedInvestmentAmount)),
@@ -473,16 +474,12 @@ export function calculateScenario(
 
   // A reserva cobre o custo de viver, não o custo que você *planejou*. Havendo
   // meses fechados, a média real é a base; sem eles, cai no plano.
-  const emergencyFundUsesHistory = averageMonthlyCosts !== null && averageMonthlyCosts > 0
+  const emergencyFundUsesHistory = averageMonthlyCosts !== null && averageMonthlyCosts >= 0
   const emergencyFundBaseCosts = emergencyFundUsesHistory ? averageMonthlyCosts : totalCosts
   const emergencyFundTarget = emergencyFundBaseCosts * emergencyFund.targetMonths
   const emergencyFundRemaining = Math.max(0, emergencyFundTarget - emergencyFund.current)
   const emergencyFundProgress =
     emergencyFundTarget > 0 ? Math.min(100, (emergencyFund.current / emergencyFundTarget) * 100) : 0
-  const emergencyFundMonthsToGoal =
-    emergencyFundRemaining > 0 && fixedIncomeMonthlyAllocation > 0
-      ? Math.ceil(emergencyFundRemaining / fixedIncomeMonthlyAllocation)
-      : 0
 
   return {
     selectedModel,
@@ -517,6 +514,5 @@ export function calculateScenario(
     emergencyFundUsesHistory,
     emergencyFundRemaining,
     emergencyFundProgress,
-    emergencyFundMonthsToGoal,
   }
 }

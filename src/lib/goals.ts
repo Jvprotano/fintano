@@ -200,8 +200,8 @@ function resolveHoldingAllocations(
 export function summarizeGoals(
   goals: FinancialGoal[],
   context: GoalContext = EMPTY_GOAL_CONTEXT,
+  currentMonth = monthKey(),
 ): GoalSummary[] {
-  const currentMonth = monthKey()
   const remainingByHolding = new Map(
     context.holdings.map((holding) => [holding.id, Math.max(0, holding.marketValue)]),
   )

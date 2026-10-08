@@ -34,6 +34,7 @@ export function normalizeAsset(raw: Partial<Asset> | undefined): Asset {
   return {
     id: raw?.id || uid(),
     name: raw?.name?.trim() || 'Bem',
+    valuationDate: raw?.valuationDate,
     kind,
     value: Math.max(0, finiteNumber(raw?.value)),
     // Um bem pode desvalorizar: o intervalo é assimétrico de propósito.

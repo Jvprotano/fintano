@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ContributionDestinations } from './ContributionDestinations'
 import { Plus, Scale, Target, Trash2 } from 'lucide-react'
 import { Card } from './Card'
 import { CurrencyInput } from './CurrencyInput'
@@ -130,6 +131,7 @@ export function InvestmentPlan() {
           </dl>
         )}
 
+        <ContributionDestinations />
         <div className="flex flex-wrap gap-1.5">
           {SUGGESTIONS.filter((s) => !diversification.some((d) => d.name === s)).map((s) => (
             <SuggestionChip key={s} label={s} onClick={() => handleAdd(s)} />

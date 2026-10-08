@@ -236,6 +236,18 @@ export interface ProjectedProperty {
 }
 
 export interface ProjectionInput {
+  includeExpectedIncome?: boolean
+  monthlyContributions?: Record<string, number>
+  monthlyExpenses?: Record<string, number>
+  initialContribution?: number
+  initialExpense?: number
+  initialExpectedIncome?: number
+  /** Saldo condicionado não financia saídas; continua compondo patrimônio. */
+  protectedAssets?: number
+  monthlyProtectedContributions?: Record<string, number>
+  initialProtectedContribution?: number
+  /** Liberação que cabe nos recursos mensais, após considerar plano e sobras. */
+  freedContributionByMonth?: Record<string, number>
   startMonth: string
   /** Ativos financeiros de hoje. Dívidas e bens entram separados. */
   startAssets: number
@@ -253,8 +265,9 @@ export interface ProjectionInput {
 }
 
 /**
- * Patrimônio mês a mês a partir de hoje. O primeiro ponto é o presente (sem
- * aporte nem rendimento), para o gráfico começar no número que o app já mostra.
+ * Patrimônio mês a mês. Sem liquidação inicial, o primeiro ponto é o saldo
+ * informado, sem aporte nem rendimento. Pendências iniciais explícitas projetam
+ * o restante do ciclo no primeiro ponto, sem inventar movimentos realizados.
  *
  * Três curvas correm separadas. Os ativos financeiros recebem aporte, eventos e
  * rendimento. Cada dívida corre juros e é abatida pela parcela — que *não* sai
@@ -278,23 +291,30 @@ export function projectNetWorth(input: ProjectionInput): ForecastPoint[] {
   const startProperties = propertyList.reduce((sum, property) => sum + property.value, 0)
   const startNetWorth = input.startAssets + startProperties - startDebt
   const startFinancialNetWorth = input.startAssets - (startDebt - startSecured)
+  const initialContribution = input.initialContribution ?? 0
+  const initialSaved = input.includeExpectedIncome ? input.initialExpectedIncome ?? 0 : 0
+  let protectedAssets = Math.max(0, input.protectedAssets ?? 0) + (input.initialProtectedContribution ?? 0)
+  const initialNetAssets = input.startAssets + initialContribution + initialSaved - (input.initialExpense ?? 0)
+  let assets = Math.max(protectedAssets, initialNetAssets)
+  let unfunded = Math.max(0, protectedAssets - initialNetAssets)
+  const initialChange = assets - input.startAssets - unfunded
 
   const points: ForecastPoint[] = [
     {
       month: input.startMonth,
-      assets: input.startAssets,
+      assets,
       properties: startProperties,
       debt: startDebt,
       securedDebt: startSecured,
-      netWorth: startNetWorth,
-      financialNetWorth: startFinancialNetWorth,
-      assetsReal: input.startAssets,
+      netWorth: startNetWorth + initialChange,
+      financialNetWorth: startFinancialNetWorth + initialChange,
+      assetsReal: assets,
       propertiesReal: startProperties,
-      netWorthReal: startNetWorth,
-      financialNetWorthReal: startFinancialNetWorth,
-      contribution: 0,
-      eventsSaved: 0,
-      unfunded: 0,
+      netWorthReal: startNetWorth + initialChange,
+      financialNetWorthReal: startFinancialNetWorth + initialChange,
+      contribution: initialContribution,
+      eventsSaved: initialSaved,
+      unfunded,
       returns: 0,
       debtPaid: 0,
       equityBuilt: 0,
@@ -302,12 +322,11 @@ export function projectNetWorth(input: ProjectionInput): ForecastPoint[] {
     },
   ]
 
-  let assets = input.startAssets
-  let unfunded = 0
   for (let index = 1; index <= input.horizonMonths; index += 1) {
     const month = addMonths(input.startMonth, index)
     const occurrences = occurrencesInMonth(input.events, month)
     const eventsSaved = occurrences.reduce((sum, item) => {
+      if (item.event.kind === 'income' && input.includeExpectedIncome === false) return sum
       const remaining = input.remainingByOccurrence?.[item.id] ?? item.amount
       return sum + item.savedAmount * (item.amount > 0 ? Math.max(0, remaining) / item.amount : 0)
     }, 0)
@@ -332,10 +351,11 @@ export function projectNetWorth(input: ProjectionInput): ForecastPoint[] {
       property.value = advanceAssetMonth(property.value, property.annualAppreciationPct)
     }
 
-    const contribution = input.monthlyContribution + freedInstallments
-    const nextAssets = assets + contribution + eventsSaved + returns - unfunded
-    assets = Math.max(0, nextAssets)
-    unfunded = Math.max(0, -nextAssets)
+    const contribution = (input.monthlyContributions?.[month] ?? input.monthlyContribution) + (input.freedContributionByMonth?.[month] ?? freedInstallments)
+    protectedAssets = protectedAssets * (1 + monthlyRate) + (input.monthlyProtectedContributions?.[month] ?? 0)
+    const nextAssets = assets + contribution + eventsSaved + returns - unfunded - (input.monthlyExpenses?.[month] ?? 0)
+    assets = Math.max(protectedAssets, nextAssets)
+    unfunded = Math.max(0, protectedAssets - nextAssets)
     const debt = debts.reduce((sum, item) => sum + item.balance, 0)
     const securedDebt = debts
       .filter((item) => item.secured)

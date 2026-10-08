@@ -93,7 +93,33 @@ Reserva, carteira e metas atribuem finalidade ao dinheiro existente; não duplic
 
 Fechamentos preservam folha, metas de comparação e marca patrimonial do fechamento. Aportes diretos históricos acompanham a competência do livro de movimentos. Consultar o passado não troca a competência operacional. Cadastros com fatos são arquivados em vez de apagar seu histórico.
 
-A revisão geral dos destinos de aportes e projeções continua pendente e a fila está pausada após a ordem 4. O planejamento de entradas para metas abaixo foi autorizado como ajuste específico; não retoma os demais itens.
+Posições, reserva, bens e dívidas mostram a última data de avaliação informada. Salvar uma avaliação grava saldo e data juntos, sem aporte, resgate ou pagamento. Cancelar não grava; vazio não confirma zero; conflito de revisão ou falha conserva o rascunho. O extrato precisa incluir os movimentos já registrados. Movimentos posteriores ajustam o saldo sem mudar a data da última avaliação. Dados antigos sem essa data continuam identificados como desconhecidos; a data de exportação do backup não é presumida como avaliação.
+
+Variação contra o livro compara o saldo com saldo inicial e movimentos líquidos. Não representa aporte do ciclo nem presume rentabilidade de um residual sem origem. O retorno anualizado usa a data da avaliação, exige histórico suficiente e fica indisponível quando há movimentos posteriores. A visão principal concentra patrimônio líquido, ativos financeiros e bens; os detalhes ficam em cada registro.
+
+O comparador de taxas usa as taxas e o valor informados, antes de impostos e tarifas, sem garantir rendimento ou considerar liquidez e renegociação. A comparação mensal de moradia é parcial: juros e valorização estimada contra aluguel informado. Não inclui custo de oportunidade, impostos da operação, seguros, IPTU, condomínio e manutenção; valorização não paga a parcela.
+
+## Destinos do aporte e reserva
+
+Em Planejar → Plano de aportes, **Editar destinos** divide o aporte direto entre posições e metas de acumulação, por referências estáveis. Uma posição com finalidade Reserva é um destino da reserva; indicadores patrimoniais apenas acompanham fontes e não recebem promessa de aporte. Salvar registra intenção, sem alterar saldos ou criar movimentos. A edição usa salvar/cancelar, aceita Escape e preserva o rascunho em recusa ou conflito.
+
+A capacidade é limitada pelo aporte escolhido e pelo que sobra do salário depois dos custos e Desejos, incluindo parcelas de dívida que não estejam cobertas por custos vinculados. A folha tem destinos próprios e não entra novamente nessa divisão. Dois destinos de R$ 800 não cabem em R$ 1.000: a gravação é recusada, com a diferença indicada. Reduzir depois a capacidade ou arquivar um destino exige revisar a divisão; uma divisão inviável não financia metas na projeção. Valores sem destino entram apenas no patrimônio geral projetado.
+
+Os destinos pertencem ao plano da competência. Publicar esse plano como modelo recorrente leva a divisão aos próximos ciclos ainda intactos; planos futuros personalizados conservam seus próprios destinos. Classes de diversificação descrevem composição, sem reservar outra vez o mesmo aporte. Destinar saldo de uma posição a uma meta mantém o ativo contado uma vez; acompanhar saldo em um indicador não o reserva.
+
+A reserva usa a média de custos fora do cartão mais Necessidades pessoais classificadas no cartão, nos últimos até seis fechamentos disponíveis, com mínimo de dois. Sem classificação suficiente, usa os custos pessoais do plano; zero conhecido continua zero. A fatura inteira não é somada novamente; Desejos e aportes ficam fora da base. O prazo simples depende somente do aporte explicitamente destinado às posições de reserva, sem supor rendimento ou destinação automática da renda fixa.
+
+## Projeção mensal
+
+Futuro permite escolher **Base sem entradas** ou **Se as entradas ocorrerem**. A base usa os saldos atuais e o aporte possível, sem somar recebimentos ainda previstos, inclusive os marcados como confirmados. A hipótese acrescenta somente a parcela ainda esperada que se planeja guardar; receber continua diferente de aportar. Cancelamento, parcial, adiamento e vínculos usam a mesma conciliação da agenda.
+
+O primeiro ponto considera o restante do aporte e as pendências conhecidas do ciclo ativo. A renda ainda não confirmada usa o plano, com indicação explícita. Os meses seguintes usam seus planos personalizados ou o modelo recorrente e os fatos já registrados naquela competência. Aportes e folha confirmados não são projetados novamente, inclusive quando têm competência futura. O aporte informado na simulação é limitado pela capacidade; contribuição da empresa fica separada e condicionada. Saldos em carência ou com divisão desconhecida não financiam saídas.
+
+Uma saída ligada a custo ou cartão ocupa sua verba uma vez. Parcelas de dívida sem cobertura no plano reduzem a capacidade; faturas conhecidas e cobranças ainda não lançadas são comparadas com o plano do cartão sem repetir a mesma compra. Fatura sem total conhecido usa o maior entre a parte conhecida e o plano, com aviso. Extras reduzem o que pode ser guardado; apenas a insuficiência além dos recursos do mês exige patrimônio. A primeira insuficiência e a maior falta no horizonte são identificadas, mesmo no ciclo inicial.
+
+Metas projetam apenas as próprias fontes: saldo do livro, parcela destinada de posições, destinos mensais e, na hipótese, divisões explícitas de entradas por ocorrência. Indicadores acompanham as fontes escolhidas. Redução de dívida melhora apenas os indicadores que a incluem; não aumenta uma meta de carteira. Saídas além do caixa mensal usam primeiro a parcela sem finalidade e depois rateiam as fontes utilizáveis, podendo reduzir metas. Essa regra é uma hipótese de financiamento, sem escolher uma conta bancária ou prometer saldo diário.
+
+Alvos e previsões de metas permanecem nominais em reais. No gráfico, Nominal e Reais de hoje mudam todas as séries para a mesma unidade, inclusive dívidas. Taxas, valorização e inflação são premissas. Reinvestir parcelas liberadas não soma a mesma sobra novamente quando a opção de incluir sobras já está ativa ou quando foi fixado um aporte na simulação.
 
 ## Metas e entradas previstas
 

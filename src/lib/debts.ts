@@ -28,6 +28,7 @@ export function normalizeDebt(raw: Partial<Debt> | undefined): Debt {
   return {
     id: raw?.id || uid(),
     name: raw?.name?.trim() || 'Dívida',
+    valuationDate: raw?.valuationDate,
     kind: KINDS.includes(raw?.kind as DebtKind) ? (raw?.kind as DebtKind) : 'outros',
     balance: Math.max(0, finiteNumber(raw?.balance)),
     monthlyRatePct: Math.max(0, Math.min(50, finiteNumber(raw?.monthlyRatePct))),

@@ -1,3 +1,4 @@
+import { BalanceEvaluation, EvaluationDate } from './BalanceEvaluation'
 import { useState } from 'react'
 import { Archive, ChevronDown, Home, Plus, RotateCcw, Scale, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
@@ -62,7 +63,7 @@ function OwnVsRent({ asset }: { asset: AssetSummary }) {
     <div className="rounded-lg border border-dark-border bg-dark-input/40 p-3">
       <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-dark-text-muted">
         <Scale size={13} />
-        Ser dono ou alugar
+        Comparação mensal de moradia
       </span>
 
       <dl className="mt-2.5 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
@@ -99,12 +100,12 @@ function OwnVsRent({ asset }: { asset: AssetSummary }) {
       </dl>
 
       <p className="mt-2 text-xs leading-relaxed text-dark-text-secondary">
-        Ser dono sai{' '}
+        Pelas premissas informadas, ser dono sai{' '}
         <strong className={ownWins ? 'text-primary-400' : 'text-amber-300'}>
           {formatCurrency(Math.abs(comparison.difference))} {ownWins ? 'mais barato' : 'mais caro'}
         </strong>{' '}
         que alugar, por mês. Os outros {formatCurrency(comparison.amortization)} da parcela não são
-        custo: viram patrimônio seu. A conta ignora IPTU, condomínio e manutenção, que existem nos
+        custo: viram patrimônio seu. A comparação é parcial: ignora custo de oportunidade, impostos da operação, seguros, IPTU, condomínio e manutenção, que existem nos
         dois cenários em proporções diferentes.
       </p>
 
@@ -153,7 +154,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
         <div className="shrink-0 text-right">
           <p className="text-sm font-semibold tabular-nums text-dark-text">
             {formatCurrency(asset.value)}
-          </p>
+          </p><EvaluationDate date={asset.valuationDate} />
           {asset.hasDebt && (
             <p className="text-xs tabular-nums text-dark-text-muted">
               {formatCurrency(asset.equity)} seus
@@ -198,16 +199,7 @@ function AssetRow({ asset }: { asset: AssetSummary }) {
                 ))}
               </select>
             </label>
-            <label className="block">
-              <span className="mb-1 block text-xs text-dark-text-muted">
-                Valor de mercado hoje
-              </span>
-              <CurrencyInput
-                value={asset.value}
-                onChange={(value) => assets.setAssetValue(asset.id, value)}
-                className="!py-1.5"
-              />
-            </label>
+            <BalanceEvaluation id={asset.id} collection="assets" value={asset.value} date={asset.valuationDate} />
             <label className="block">
               <span className="mb-1 block text-xs text-dark-text-muted">
                 Aluguel equivalente (opcional)

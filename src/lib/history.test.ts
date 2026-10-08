@@ -426,17 +426,17 @@ describe('averageMonthlyCosts', () => {
 
   it('média dos meses recentes', () => {
     const points = buildHistoryPoints([
-      snapshot({ id: 'a', month: '2026-05', costs: 3_000 }),
-      snapshot({ id: 'b', month: '2026-06', costs: 4_000 }),
+      snapshot({ id: 'a', month: '2026-05', costs: 3_000, cardPersonalTotal: 0, cardByArea: {} }),
+      snapshot({ id: 'b', month: '2026-06', costs: 4_000, cardPersonalTotal: 0, cardByArea: {} }),
     ])
     expect(averageMonthlyCosts(points)).toBe(3_500)
   })
 
   it('considera só a janela pedida, sempre a mais recente', () => {
     const points = buildHistoryPoints([
-      snapshot({ id: 'a', month: '2026-01', costs: 10_000 }),
-      snapshot({ id: 'b', month: '2026-02', costs: 3_000 }),
-      snapshot({ id: 'c', month: '2026-03', costs: 4_000 }),
+      snapshot({ id: 'a', month: '2026-01', costs: 10_000, cardPersonalTotal: 0, cardByArea: {} }),
+      snapshot({ id: 'b', month: '2026-02', costs: 3_000, cardPersonalTotal: 0, cardByArea: {} }),
+      snapshot({ id: 'c', month: '2026-03', costs: 4_000, cardPersonalTotal: 0, cardByArea: {} }),
     ])
     expect(averageMonthlyCosts(points, 2)).toBe(3_500)
   })

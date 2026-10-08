@@ -1,3 +1,4 @@
+import { BalanceEvaluation, EvaluationDate } from './BalanceEvaluation'
 import { useMemo, useState } from 'react'
 import {
   AlertCircle,
@@ -67,7 +68,6 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
     addHoldingTransaction,
     removeHoldingTransaction,
     setHoldingTransactionCycle,
-    setMarketValue,
   } = useInvestmentsStore()
   const { activeCycle, scenarios } = useFinancasStore()
   const isPension = !!holding.pension || scenarios.activeScenario.deductions.some((row) => row.type === 'previdencia_privada' && row.linkedHoldingId === holding.id)
@@ -116,7 +116,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(holding.marketValue)}</p>
+        <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(holding.marketValue)}</p><EvaluationDate date={holding.valuationDate} transactions={holding.transactions} />
         <p className="text-xs"><GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} /></p>
       </div>
       <ChevronDown size={15} className={`shrink-0 text-dark-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -125,7 +125,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
     {expanded && <div className="space-y-4 border-t border-dark-border/60 bg-dark-card/40 px-4 py-4">
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
         <div className="rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5"><span className="block text-dark-text-muted">{isPension ? 'Saldo anterior + aportes pessoais e empresariais' : 'Aportado'}</span><strong className="mt-0.5 block tabular-nums text-dark-text">{formatCurrency(holding.invested)}</strong></div>
-        <div className="rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5"><span className="block text-dark-text-muted">Rendimento</span><strong className="mt-0.5 block"><GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} /></strong></div>
+        <div className="rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5"><span className="block text-dark-text-muted">Variação contra o livro</span><strong className="mt-0.5 block"><GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} /></strong></div>
         <div className="col-span-2 rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5 sm:col-span-1"><span className="block text-dark-text-muted">Retorno anualizado</span><strong className="mt-0.5 block tabular-nums text-dark-text">{holding.annualizedPct === null ? '—' : `${holding.annualizedPct >= 0 ? '+' : ''}${holding.annualizedPct.toFixed(1)}%`}</strong></div>
       </div>
 
@@ -142,7 +142,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
           <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Saldo, classificação e identificação do produto.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {!isPension && <FormField label="Saldo atual" hint="marcação a mercado"><CurrencyInput value={holding.marketValue} onChange={(value) => setMarketValue(holding.id, value)} className="!py-2" /></FormField>}
+          {!isPension && <BalanceEvaluation id={holding.id} collection="investmentHoldings" value={holding.marketValue} date={holding.valuationDate} />}
           <FormField label="Classe"><select value={holding.assetClassId} onChange={(event) => updateHolding(holding.id, { assetClassId: event.target.value })} className={`${inputClass} h-[42px]`}>{investmentClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FormField>
           {!isPension && <FormField label="Finalidade"><select value={purpose} onChange={(event) => updateHolding(holding.id, { purpose: event.target.value as InvestmentPurpose })} className={`${inputClass} h-[42px]`}><option value="portfolio">Carteira / metas</option><option value="emergency_fund">Reserva de emergência</option></select></FormField>}
           <FormField label="Produto"><input value={holding.name} onChange={(event) => updateHolding(holding.id, { name: event.target.value })} className={`${inputClass} !py-2`} placeholder="Ex.: CDB Itaú 110% CDI" /></FormField>
@@ -424,18 +424,16 @@ function PositionsPanel() {
 }
 
 export function InvestmentsManager() {
-  const { summary, goals } = useInvestmentsStore()
-  const { debts } = useFinancasStore()
+  const { summary } = useInvestmentsStore()
   const [section, setSection] = useState<Section>('overview')
-  const activeGoals = goals.filter((goal) => !goal.archivedAt && !goal.isComplete).length
+
 
   return <div className="space-y-4">
     <FinancialMovementPanel />
-    <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-      <StatTile label="Patrimônio líquido" value={formatCurrency(summary.netWorth)} detail={`${formatCurrency(summary.grossAssets)} em ativos − ${formatCurrency(summary.liabilities)} em dívidas`} tone={summary.netWorth > 0 ? 'accent' : summary.netWorth < 0 ? 'negative' : 'neutral'} />
-      <StatTile label="Saldo financeiro total" value={formatCurrency(summary.financialAssets)} detail={`${summary.allHoldings.length} ${summary.allHoldings.length === 1 ? 'posição' : 'posições'} · ${formatCurrency(summary.reserveBalance)} de reserva`} tone="neutral" />
-      <StatTile label="Dívidas" value={formatCurrency(summary.liabilities)} detail={summary.liabilities > 0 ? `${formatCurrency(debts.summary.totalMonthlyInterest)}/mês de juros` : 'nenhuma dívida cadastrada'} tone="neutral" />
-      <StatTile label="Rendimento financeiro" value={`${summary.financialGain >= 0 ? '+' : '−'} ${formatCurrency(Math.abs(summary.financialGain))}`} detail={summary.financialInvested > 0 ? `${((summary.financialGain / summary.financialInvested) * 100).toFixed(1)}% sobre o aportado · ${activeGoals} meta${activeGoals === 1 ? '' : 's'} aberta${activeGoals === 1 ? '' : 's'}` : undefined} tone={summary.financialGain > 0 ? 'positive' : summary.financialGain < 0 ? 'negative' : 'neutral'} />
+    <div className="grid gap-2.5 grid-cols-3">
+      <StatTile label="Patrimônio líquido" value={formatCurrency(summary.netWorth)} detail={`${formatCurrency(summary.grossAssets)} em ativos − ${formatCurrency(summary.liabilities)} em dívidas`} tone="neutral" />
+      <StatTile label="Ativos financeiros" value={formatCurrency(summary.financialAssets)} detail={`${formatCurrency(summary.reserveBalance)} com finalidade de reserva; saldos avaliados em datas distintas`} tone="neutral" />
+      <StatTile label="Bens" value={formatCurrency(summary.physicalAssets)} detail="Valores estimados; avaliações e variações no detalhe de cada registro" tone="neutral" />
     </div>
 
     <nav aria-label="Seções do patrimônio">

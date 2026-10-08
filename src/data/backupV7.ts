@@ -425,6 +425,7 @@ function scenarioToTemplate(scenario: FinanceScenario): PlanningTemplateV7 {
       investments: scenario.customModel.i,
     } },
     investmentAllocation: scenario.diversification,
+    contributionDestinations: scenario.contributionDestinations?.map(({ type, id, amount }) => ({ type, id, amountCents: toCents(amount) })),
   }
 }
 
@@ -674,6 +675,7 @@ export function repositoryToBackupV7(
         name: holding.name,
         assetClassId: holding.assetClassId,
         institution: holding.institution,
+        valuationDate: holding.valuationDate,
         purpose: holdingPurpose(holding),
         benchmark: holding.benchmark,
         liquidity: holding.liquidity,
@@ -698,6 +700,7 @@ export function repositoryToBackupV7(
         name: asset.name,
         kind: asset.kind,
         currentValueCents: toCents(asset.value),
+        valuationDate: asset.valuationDate,
         annualAppreciationPct: asset.annualAppreciationPct,
         rentEquivalentCents:
           asset.rentEquivalent === undefined ? undefined : toCents(asset.rentEquivalent),
@@ -710,6 +713,7 @@ export function repositoryToBackupV7(
         name: debt.name,
         kind: debt.kind,
         currentBalanceCents: toCents(debt.balance),
+        valuationDate: debt.valuationDate,
         monthlyRatePct: debt.monthlyRatePct,
         installmentCents: toCents(debt.installment),
         remainingInstallments: debt.remainingInstallments,
@@ -841,6 +845,7 @@ function templateToScenario(template: PlanningTemplateV7): FinanceScenario {
         i: template.budgetModel.customPercentages.investments,
       },
       diversification: template.investmentAllocation,
+      contributionDestinations: template.contributionDestinations?.map(({ type, id, amountCents }) => ({ type, id, amount: fromCents(amountCents) })),
     })
 }
 
@@ -910,6 +915,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     assetClassId: holding.assetClassId,
     institution: holding.institution,
     marketValue: fromCents(latestValuationByHolding.get(holding.id)?.valueCents),
+    valuationDate: holding.valuationDate,
     transactions: ledgerFromV7(backup.investments.ledgerEntries, 'holding', holding.id),
     purpose: holding.purpose,
     benchmark: holding.benchmark,
@@ -943,6 +949,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     name: debt.name,
     kind: debt.kind,
     balance: fromCents(debt.currentBalanceCents),
+    valuationDate: debt.valuationDate,
     monthlyRatePct: debt.monthlyRatePct,
     installment: fromCents(debt.installmentCents),
     remainingInstallments: debt.remainingInstallments,
@@ -1000,6 +1007,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         name: asset.name,
         kind: asset.kind,
         value: fromCents(asset.currentValueCents),
+        valuationDate: asset.valuationDate,
         annualAppreciationPct: asset.annualAppreciationPct,
         rentEquivalent:
           asset.rentEquivalentCents === undefined
@@ -1317,6 +1325,22 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   const costIds = new Set(backup.planning.templates.flatMap((template) => template.costs.map((cost) => cost.id)))
   ids(backup.investments.valuations, 'Avaliação de posição')
   const goalIds = ids(backup.goals, 'Meta')
+  for (const row of [...backup.investments.holdings, ...backup.balanceSheet.assets, ...backup.balanceSheet.debts]) {
+    if (row.valuationDate !== undefined && !validCalendarDate(row.valuationDate)) add('error', 'evaluation_date_invalid', 'Data da avaliação inválida.', row.id)
+  }
+  for (const template of [...backup.planning.templates, ...fullPlans.map((plan) => plan.data), ...fullPlans.flatMap((plan) => plan.fixedReference ? [plan.fixedReference.template] : [])]) {
+    if (!template) continue
+    const rows = template.contributionDestinations
+    if (rows !== undefined && !Array.isArray(rows)) { add('error', 'contribution_destinations_invalid', 'Destinos de aporte inválidos.'); continue }
+    const seen = new Set<string>()
+    for (const row of rows ?? []) {
+      const key = `${row?.type}:${row?.id}`
+      if (!row || !['holding', 'goal'].includes(row.type) || !row.id || seen.has(key) || !Number.isSafeInteger(row.amountCents) || row.amountCents <= 0 || !(row.type === 'holding' ? holdingIds : goalIds).has(row.id)) {
+        add('error', 'contribution_destination_invalid', 'Destino de aporte repetido, inexistente ou com valor inválido.')
+      }
+      seen.add(key)
+    }
+  }
   for (const goal of backup.goals) {
     for (const inclusion of goal.includes ?? []) {
       if (inclusion.type === 'holding' && inclusion.id && !holdingIds.has(inclusion.id)) {

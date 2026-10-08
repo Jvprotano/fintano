@@ -27,11 +27,11 @@ import {
   formatMonthLong,
   inputClass,
 } from '../lib/format'
-import { EVENT_SUGGESTIONS, nextMonthKeyFor, projectedAt } from '../lib/forecast'
+import { EVENT_SUGGESTIONS, nextMonthKeyFor } from '../lib/forecast'
 // `formatMonthLong` nomeia o mês em que a dívida zera; os demais formatos são de eixo.
 import { monthKey } from '../lib/shared'
 import { useFinancasStore } from '../context/financasStore'
-import type { ExpectedEvent, ExpectedEventKind, ExpectedEventRecurrence, GoalSummary } from '../types'
+import type { ExpectedEvent, ExpectedEventKind, ExpectedEventRecurrence } from '../types'
 import { CHART_PALETTE, RECURRENCE_LABELS } from '../types/constants'
 import { repositoryRevision } from '../data/repositoryCommand'
 import { cardDueMonthForOccurrence, type ReconciledOccurrence } from '../lib/forecastCoverage'
@@ -264,26 +264,11 @@ function ExpectedEventsPanel() {
   </Card>
 }
 
-/**
- * Como julgar uma meta com prazo. Metas que englobam os investimentos crescem
- * com a projeção do patrimônio *financeiro* — é ali que o aporte cai. Um imóvel
- * valorizando não ajuda a bater a meta da viagem.
- */
-function goalOutlook(goal: GoalSummary, projected: number | null, currentFinancial: number) {
-  const tracksInvestments = (goal.includes ?? []).some((item) => item.type === 'investments')
-  if (!goal.targetMonth || goal.targetAmount <= 0) return null
-
-  if (tracksInvestments && projected !== null) {
-    // O crescimento projetado do patrimônio cai justamente onde a meta mede.
-    const value = goal.current + (projected - currentFinancial)
-    return { mode: 'projection' as const, value, gap: value - goal.targetAmount }
-  }
-  return { mode: 'contribution' as const, value: goal.current, gap: -goal.remaining }
-}
-
 export function ForecastView() {
   const store = useFinancasStore()
-  const { forecast, projection, monthlyContribution, metrics, investments } = store
+  const { forecast, monthlyContribution, metrics, investments, projectionData } = store
+  const [conditional, setConditional] = useState(false)
+  const projection = conditional ? store.conditionalProjection : store.projection
   const { assumptions, currentMonth } = forecast
   const [chartView, setChartView] = useState<'money' | 'balance'>('money')
 
@@ -299,13 +284,13 @@ export function ForecastView() {
   // O número em destaque é o dinheiro. O patrimônio líquido total, que carrega
   // casa e financiamento, vira leitura secundária: ele responde "quanto eu
   // valho", não "quanto eu vou ter" — e era o que estava assustando à toa.
-  const financialNow = real ? first.financialNetWorthReal : first.financialNetWorth
+  const financialNow = investments.summary.financialNetWorth
   const financialLast = last
     ? real
       ? last.financialNetWorthReal
       : last.financialNetWorth
     : financialNow
-  const netWorthNow = real ? first.netWorthReal : first.netWorth
+  const netWorthNow = investments.summary.netWorth
   const netWorthLast = last ? (real ? last.netWorthReal : last.netWorth) : netWorthNow
 
   // Um imóvel de meia dezena de centenas de milhares esmaga a escala: plotado
@@ -340,7 +325,7 @@ export function ForecastView() {
                 id: 'debt',
                 label: 'Dívidas',
                 color: CHART_PALETTE.red,
-                values: projection.map((point) => point.debt),
+                values: projection.map((point, index) => real ? point.debt / Math.pow(1 + assumptions.inflationPct / 100, index / 12) : point.debt),
               },
             ]
           : []),
@@ -378,22 +363,25 @@ export function ForecastView() {
     : undefined
   const equityBuiltInHorizon = projection.reduce((sum, point) => sum + point.equityBuilt, 0)
   const worstUnfunded = Math.max(...projection.map((point) => point.unfunded))
-  const datedGoals = investments.goals.filter((goal) => !goal.archivedAt && goal.kind === 'tracking' && goal.targetMonth && goal.targetAmount > 0)
+  const datedGoals = investments.goals.filter((goal) => !goal.archivedAt && goal.targetMonth && goal.targetAmount > 0)
+  const firstInsufficient = projection.find((point) => point.unfunded > 0.005)
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-dark-border p-4">
+        <p className="text-xs text-dark-text-secondary">Base: saldos atuais, aporte possível e compromissos. Entradas ainda não recebidas entram somente na hipótese. Nenhuma curva representa saldo bancário diário.</p>
+        <SegmentedControl options={[{ value: false, label: 'Base sem entradas' }, { value: true, label: 'Se as entradas ocorrerem' }]} value={conditional} onChange={setConditional} />
+      </div>
       <GoalFundingPanel />
       {datedGoals.length > 0 && (
         <Panel padded={false} className="overflow-hidden">
           <div className="border-b border-dark-border-subtle px-5 py-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-dark-text">
               <Flag size={15} className="text-dark-text-muted" />
-              Indicadores com prazo
+              Metas pelas fontes destinadas
             </h3>
             <p className="mt-0.5 text-xs text-dark-text-muted">
-              Metas que englobam seus investimentos são julgadas pela projeção; as outras, pelo
-              quanto você precisa aportar por mês.
-              {real && ' Os valores previstos estão em reais de hoje.'}
+              Valores nominais em reais, como os alvos cadastrados. Indicadores acompanham apenas as fontes escolhidas; objetivos usam seus saldos e destinos mensais. Reduzir uma dívida não financia uma meta de carteira.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -409,8 +397,10 @@ export function ForecastView() {
               </thead>
               <tbody>
                 {datedGoals.map((goal) => {
-                  const projected = projectedAt(projection, goal.targetMonth!, real)
-                  const outlook = goalOutlook(goal, projected, financialNow)
+                  const sourcePoints = conditional ? projectionData.conditionalGoals : projectionData.baseGoals
+                  const sourceGoal = sourcePoints.find((point) => point.month === goal.targetMonth)?.goals.find((item) => item.id === goal.id)
+                  const sourceUnavailable = projectionData.invalidPlanMonths.some((month) => month <= goal.targetMonth!) || projection.some((point) => point.month <= goal.targetMonth! && point.unfunded > 0.005)
+                  const outlook = sourceGoal && !sourceUnavailable ? { mode: 'projection', value: sourceGoal.current, gap: sourceGoal.current - goal.targetAmount } : null
                   const late = goal.monthsLeft !== null && goal.monthsLeft < 0
 
                   return (
@@ -439,9 +429,7 @@ export function ForecastView() {
                         {formatMonthKey(goal.targetMonth!)}
                       </td>
                       <td className="px-5 py-2.5 text-right">
-                        {goal.isComplete ? (
-                          <span className="text-primary-400">meta batida</span>
-                        ) : late ? (
+                        {late ? (
                           <span className="text-rose-400">prazo vencido</span>
                         ) : outlook?.mode === 'projection' ? (
                           <span
@@ -458,8 +446,7 @@ export function ForecastView() {
                           </span>
                         ) : (
                           <span className="tabular-nums text-dark-text-secondary">
-                            {formatCurrency(goal.suggestedMonthly)}
-                            <span className="ml-1 text-xs text-dark-text-muted">/mês</span>
+                            {sourceUnavailable ? 'Revise capacidade ou insuficiência' : 'Prazo fora do horizonte'}
                           </span>
                         )}
                       </td>
@@ -474,6 +461,9 @@ export function ForecastView() {
 
       <ExpectedEventsPanel />
       <details className="rounded-xl border border-dark-border p-4"><summary className="cursor-pointer text-sm font-semibold text-dark-text">Projeção e premissas</summary><div className="mt-4 space-y-4">
+      <p className="text-xs text-dark-text-muted">O ponto inicial inclui o restante do aporte e as pendências conhecidas do ciclo ativo: {formatCurrency(projectionData.initialContribution)} de aporte previsto, {formatCurrency(projectionData.initialExpense)} a cobrir além dos recursos do ciclo. Renda ainda não confirmada usa o plano. Saldos condicionados da previdência não financiam saídas. As demais competências usam seus planos ou o modelo recorrente.</p>
+      <p className="text-xs text-dark-text-muted">Saídas além dos recursos mensais usam primeiro o patrimônio sem destino e depois rateiam as fontes utilizáveis; a hipótese pode reduzir o saldo reservado às metas. Rentabilidade e inflação são premissas, e receber uma entrada não registra aporte.</p>
+      {projectionData.invoiceEstimated && <p className="text-xs text-amber-200">Há faturas sem total conhecido no ciclo inicial ou seguinte. A projeção usa o maior entre a parte conhecida e o plano do cartão; confirme as faturas para reduzir essa incerteza.</p>}
       <div className="grid gap-2.5 sm:grid-cols-2">
         <StatTile
           label={`Patrimônio financeiro projetado em ${formatMonthKey(last?.month ?? currentMonth)}`}
@@ -486,14 +476,14 @@ export function ForecastView() {
           tone="neutral"
         />
         <StatTile
-          label="Aporte mensal considerado"
+          label="Aporte pessoal mensal de referência"
           value={formatCurrency(monthlyContribution)}
           detail={
             assumptions.monthlyContribution !== null
-              ? 'valor fixado por você'
+              ? 'hipótese limitada pela capacidade do plano; empresa entra separadamente'
               : assumptions.includeLeftover
                 ? 'plano + sobra do mês'
-                : 'o aporte do seu plano'
+                : 'capacidade do plano; destinos usam esta mesma verba'
           }
         />
       </div>
@@ -506,8 +496,8 @@ export function ForecastView() {
             showsBalanceSheet
               ? 'O balanço inteiro: bens se valorizam pela premissa deles, dívidas caem pela parcela, e o líquido é a diferença.'
               : canShowBalanceSheet
-                ? 'Quanto dinheiro você terá — aporte, eventos e rendimento. Bens e o financiamento deles ficam na visão do balanço.'
-                : 'Hoje, mais o aporte de cada mês, mais o que você já sabe que vai entrar e sair, rendendo à taxa abaixo.'
+                ? 'Patrimônio financeiro estimado pelas posições, aportes possíveis e compromissos. Bens e seus financiamentos ficam na visão do balanço.'
+                : 'Saldos registrados, aporte possível e compromissos, com rendimento pela taxa estimada. Entradas esperadas só entram na hipótese.'
           }
           actions={
             <>
@@ -636,15 +626,15 @@ export function ForecastView() {
           <TrendChart labels={labels} series={series} height={240} />
         </div>
         {worstUnfunded > 0.005 && <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs text-amber-200">
-          A projeção fica sem {formatCurrency(worstUnfunded)} para financiar todas as saídas em pelo menos um mês.
+          Primeira insuficiência: {formatMonthKey(firstInsufficient!.month)}, faltam {formatCurrency(firstInsufficient!.unfunded)}. Maior falta no horizonte: {formatCurrency(worstUnfunded)}.
           Esse déficit continua na curva até ser coberto por aportes ou entradas posteriores.
         </p>}
 
         {real && (
           <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">
             Os valores estão descontados de {assumptions.inflationPct.toFixed(1)}% ao ano — é o que o
-            dinheiro vai <em>comprar</em>, não o número que vai aparecer no extrato. A dívida aparece
-            sempre em valor nominal, porque é assim que ela é cobrada.
+            dinheiro vai <em>comprar</em>, não o número que vai aparecer no extrato. A dívida
+            também está deflacionada no gráfico para manter a mesma unidade. Metas acima usam valores nominais, como seus alvos.
           </p>
         )}
 
@@ -661,8 +651,8 @@ export function ForecastView() {
         {/* O ponto que faltava: a amortização não some, vira patrimônio. */}
         {equityBuiltInHorizon > 0 && last && (
           <p className="mt-2 border-t border-dark-border-subtle pt-2 text-xs leading-relaxed text-dark-text-muted">
-            Até {formatMonthLong(last.month)} você terá{' '}
-            <strong className="text-dark-text">{formatCurrency(financialLast)}</strong> em dinheiro e{' '}
+            Em {formatMonthLong(last.month)}, esta hipótese projeta{' '}
+            <strong className="text-dark-text">{formatCurrency(financialLast)}</strong> de patrimônio financeiro e{' '}
             <strong className="text-dark-text">{formatCurrency(netWorthLast)}</strong> de patrimônio
             líquido total. Das parcelas do período,{' '}
             <strong className="text-primary-300">{formatCurrency(equityBuiltInHorizon)}</strong> não

@@ -1,6 +1,8 @@
 export type AssetKind = 'imovel' | 'veiculo' | 'outros'
 
 export interface Asset {
+  /** Data do último saldo conferido; movimentos posteriores conservam essa referência. */
+  valuationDate?: string
   id: string
   name: string
   kind: AssetKind

@@ -2,6 +2,8 @@ import type { CostItem, DeductionItem, DiversificationSlice, WantItem } from './
 import type { SalaryInputMode } from './core'
 
 export interface FinanceScenarioData {
+  /** Destinos do aporte direto, por identidade; não são movimentos realizados. */
+  contributionDestinations?: { type: 'holding' | 'goal'; id: string; amount: number }[]
   salaryNet: number
   salaryInputMode: SalaryInputMode
   /** Valor total de aporte escolhido em reais; null usa a sugestão percentual. */

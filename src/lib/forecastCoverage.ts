@@ -23,6 +23,16 @@ export function forecastCostsCommitted(rows: ActualsSummary['rows'], items: Reco
   return rows.reduce((sum, row) => sum + Math.max(row.actual ?? row.planned, (row.actual ?? 0) + (expected.get(row.cost.id) ?? 0)), 0)
 }
 
+/** Desejos ligados ao plano ocupam a própria verba, sem outra saída prevista. */
+export function forecastWantsCommitted(rows: ActualsSummary['wantRows'], items: ReconciledOccurrence[], month: string): number {
+  const expected = new Map<string, number>()
+  for (const item of items) if (item.month === month && item.status !== 'cancelled' && item.event.planLink?.type === 'want') {
+    const id = item.event.planLink.id
+    expected.set(id, Math.max(expected.get(id) ?? 0, item.unregisteredAmount))
+  }
+  return rows.reduce((sum, row) => sum + Math.max(row.actual ?? row.planned, (row.actual ?? 0) + (expected.get(row.want.id) ?? 0)), 0)
+}
+
 export interface ReconciledOccurrence extends ExpectedOccurrence {
   paidAmount: number
   remainingAmount: number

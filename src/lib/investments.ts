@@ -92,14 +92,15 @@ function netPresentValue(flows: CashFlow[], rate: number, start: number): number
  * mercado de hoje. Resolve a TIR por bisseção — sem sinal trocado (ou com
  * histórico curto demais) devolve null em vez de um número sem sentido.
  */
-export function annualizedReturn(transactions: LedgerEntry[], marketValue: number): number | null {
+export function annualizedReturn(transactions: LedgerEntry[], marketValue: number, asOf?: string): number | null {
   if (transactions.length === 0 || marketValue <= 0) return null
 
-  const now = Date.now()
+  const now = asOf ? new Date(`${asOf.slice(0, 10)}T23:59:59Z`).getTime() : Date.now()
+  if (!Number.isFinite(now)) return null
   const flows: CashFlow[] = []
   for (const tx of transactions) {
     const time = new Date(tx.date).getTime()
-    if (Number.isNaN(time)) return null
+    if (Number.isNaN(time) || time > now) return null
     flows.push({ amount: -tx.amount, time })
   }
 
@@ -159,6 +160,7 @@ export function normalizeHolding(raw: Partial<FinancialHolding> | undefined): Fi
   return {
     id: raw?.id || uid(),
     name: raw?.name?.trim() || 'Posição',
+    valuationDate: raw?.valuationDate,
     assetClassId: raw?.assetClassId || 'outros',
     institution: raw?.institution?.trim() || undefined,
     marketValue: Math.max(0, finiteNumber(raw?.marketValue)),
@@ -215,7 +217,7 @@ export function calculateInvestmentsSummary(
       invested,
       gain,
       gainPct: invested > 0 ? (gain / invested) * 100 : 0,
-      annualizedPct: annualizedReturn(holding.transactions, holding.marketValue),
+      annualizedPct: holding.valuationDate ? annualizedReturn(holding.transactions, holding.marketValue, holding.valuationDate) : null,
     }
   })
 

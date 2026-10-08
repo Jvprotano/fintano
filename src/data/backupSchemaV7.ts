@@ -65,6 +65,7 @@ export interface FinTanoBackupV7 {
 }
 
 export interface PlanningTemplateV7 {
+  contributionDestinations?: { type: 'holding' | 'goal'; id: string; amountCents: MoneyCents }[]
   id: string
   name: string
   createdAt: string
@@ -206,6 +207,7 @@ export interface InvestmentClassV7 {
 }
 
 export interface InvestmentHoldingV7 {
+  valuationDate?: string
   pension?: { employerBalanceCents?: MoneyCents; employerRestrictedBalanceCents?: MoneyCents }
   id: string
   name: string
@@ -256,6 +258,7 @@ export interface DomainLedgerEntryV7 {
 }
 
 export interface AssetV7 {
+  valuationDate?: string
   id: string
   name: string
   kind: AssetKind
@@ -268,6 +271,7 @@ export interface AssetV7 {
 }
 
 export interface DebtV7 {
+  valuationDate?: string
   id: string
   name: string
   kind: DebtKind

@@ -1,3 +1,4 @@
+import { BalanceEvaluation, EvaluationDate } from './BalanceEvaluation'
 import { useState } from 'react'
 import { Archive, Building2, ChevronDown, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
@@ -18,6 +19,7 @@ import {
 import { formatCurrency, inputClass } from '../lib/format'
 import { useFinancasStore, useInvestmentsStore, useMetrics } from '../context/financasStore'
 import type { FinancialHoldingSummary } from '../lib/investments'
+import { contributionPlan } from '../lib/contributionPlan'
 import { CHART_PALETTE } from '../types/constants'
 
 const MONTH_OPTIONS = [3, 6, 12]
@@ -33,7 +35,6 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
     addHoldingTransaction,
     removeHoldingTransaction,
     setHoldingTransactionCycle,
-    setMarketValue,
   } = useInvestmentsStore()
   const { activeCycle } = useFinancasStore()
   const [expanded, setExpanded] = useState(false)
@@ -65,7 +66,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         <div className="shrink-0 text-right">
           <p className="text-sm font-semibold tabular-nums text-dark-text">
             {formatCurrency(holding.marketValue)}
-          </p>
+          </p><EvaluationDate date={holding.valuationDate} transactions={holding.transactions} />
           <p className="text-xs">
             <GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} />
           </p>
@@ -82,11 +83,11 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         <div className="space-y-4 border-t border-dark-border/60 bg-dark-card/40 px-4 py-4">
           <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
             <div className="rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5">
-              <span className="block text-dark-text-muted">Aportado</span>
+              <span className="block text-dark-text-muted">Saldo inicial + movimentos líquidos</span>
               <strong className="tabular-nums text-dark-text">{formatCurrency(holding.invested)}</strong>
             </div>
             <div className="rounded-xl border border-dark-border-subtle bg-dark-input/45 px-3 py-2.5">
-              <span className="block text-dark-text-muted">Rendimento</span>
+              <span className="block text-dark-text-muted">Variação contra o livro</span>
               <strong>
                 <GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} />
               </strong>
@@ -118,13 +119,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
               <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Identifique onde está o dinheiro e em quanto tempo ele fica disponível.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label="Saldo atual" hint="marcação a mercado">
-              <CurrencyInput
-                value={holding.marketValue}
-                onChange={(value) => setMarketValue(holding.id, value)}
-                className="!py-2"
-              />
-            </FormField>
+            <BalanceEvaluation id={holding.id} collection="investmentHoldings" value={holding.marketValue} date={holding.valuationDate} />
             <FormField label="Classe do ativo">
               <select
                 value={holding.assetClassId}
@@ -320,7 +315,12 @@ export function ReserveSection() {
     emergencyFundTarget: target,
     emergencyFundRemaining: remaining,
     emergencyFundProgress: progress,
+    emergencyFundBaseCosts,
+    emergencyFundUsesHistory,
   } = useMetrics()
+  const { scenarios, investments, debts } = useFinancasStore()
+  const plan = contributionPlan(scenarios.activeScenario, investments.holdings, investments.goals, debts.debts)
+  const monthly = plan.destinations.filter((row) => row.type === 'holding' && summary.reserveHoldings.some((holding) => holding.id === row.id)).reduce((sum, row) => sum + row.amount, 0)
   const [showForm, setShowForm] = useState(false)
 
   const reserveHoldings = summary.reserveHoldings
@@ -349,6 +349,8 @@ export function ReserveSection() {
       />
 
       <div className="mt-4 space-y-4">
+        <p className="text-xs text-dark-text-muted">Base: {formatCurrency(emergencyFundBaseCosts)}/mês de custos pessoais {emergencyFundUsesHistory ? 'pela média dos últimos até seis fechamentos disponíveis (mínimo de dois)' : 'do plano atual, sem histórico suficientemente classificado'}. Inclui Necessidades no cartão, sem repetir a fatura; não inclui Desejos nem aportes.</p>
+        <p className="text-xs text-dark-text-secondary">Aporte destinado à reserva no plano: {formatCurrency(monthly)}/mês. {remaining <= 0 ? 'Meta atendida.' : monthly > 0 ? `Faltam cerca de ${Math.ceil(remaining / monthly)} meses, mantendo esta divisão e sem supor rendimentos.` : 'Sem prazo projetado: escolha uma posição de reserva nos destinos em Planejar.'}</p>
         {target > 0 && (
           <div>
             <div className="mb-1.5 flex items-baseline justify-between text-xs">

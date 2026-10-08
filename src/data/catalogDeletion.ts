@@ -30,6 +30,8 @@ export function deleteUnusedCatalog(kind: CatalogKind, id: string, scenarioId?: 
         ? collections.forecastEvents as ExpectedEvent[] : []
       const funds = Array.isArray(collections.forecastFunds)
         ? collections.forecastFunds as ForecastFund[] : []
+      if ((kind === 'holding' || kind === 'goal') && [...scenarios, ...plans, ...plans.flatMap((plan) => plan.fixedReference ? [plan.fixedReference.scenario] : [])]
+        .some((plan) => plan.contributionDestinations?.some((row) => row.type === kind && row.id === id))) return null
 
       if (kind === 'holding') {
         const target = holdings.find((item) => item.id === id)

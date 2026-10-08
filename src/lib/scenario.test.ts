@@ -233,10 +233,10 @@ describe('calculateScenario — reserva de emergência', () => {
     expect(metrics.emergencyFundTarget).toBe(15_600)
   })
 
-  it('média zerada não zera a meta — cai de volta no plano', () => {
+  it('média confirmada em zero conserva zero como base da reserva', () => {
     const metrics = calculateScenario(withCosts, fund, undefined, 0)
-    expect(metrics.emergencyFundUsesHistory).toBe(false)
-    expect(metrics.emergencyFundTarget).toBe(12_000)
+    expect(metrics.emergencyFundUsesHistory).toBe(true)
+    expect(metrics.emergencyFundTarget).toBe(0)
   })
 })
 

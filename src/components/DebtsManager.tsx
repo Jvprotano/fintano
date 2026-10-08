@@ -1,3 +1,4 @@
+import { BalanceEvaluation, EvaluationDate } from './BalanceEvaluation'
 import { useState } from 'react'
 import {
   AlertTriangle,
@@ -110,7 +111,7 @@ function PayoffComparison({ debt }: { debt: DebtSummary }) {
         </div>
         <p className="text-xs leading-relaxed text-dark-text-muted sm:flex-1">
           em 12 meses, aqui contra a premissa de {forecast.assumptions.annualReturnPct.toFixed(1)}%
-          a.a. da sua projeção
+          a.a. da sua projeção. Comparação antes de impostos e tarifas, sem considerar liquidez ou renegociação; o retorno é uma hipótese.
         </p>
       </div>
 
@@ -194,7 +195,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
         <div className="shrink-0 text-right">
           <p className="text-sm font-semibold tabular-nums text-dark-text">
             {formatCurrency(debt.balance)}
-          </p>
+          </p><EvaluationDate date={debt.valuationDate} transactions={debt.transactions} />
           {debt.installment > 0 && (
             <p className="text-xs tabular-nums text-dark-text-muted">
               {formatCurrency(debt.installment)}/mês
@@ -295,16 +296,7 @@ function DebtRow({ debt }: { debt: DebtSummary }) {
                 ))}
               </select>
             </label>
-            <label className="block">
-              <span className="mb-1 block text-xs text-dark-text-muted">
-                Saldo devedor (do extrato)
-              </span>
-              <CurrencyInput
-                value={debt.balance}
-                onChange={(value) => debts.setDebtBalance(debt.id, value)}
-                className="!py-1.5"
-              />
-            </label>
+            <BalanceEvaluation id={debt.id} collection="debts" value={debt.balance} date={debt.valuationDate} />
             <label className="block">
               <span className="mb-1 block text-xs text-dark-text-muted">Parcela mensal</span>
               <CurrencyInput

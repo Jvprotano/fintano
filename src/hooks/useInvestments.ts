@@ -232,6 +232,7 @@ export function useInvestments(
           | 'assetClassId'
           | 'institution'
           | 'marketValue'
+          | 'valuationDate'
           | 'purpose'
           | 'benchmark'
           | 'liquidity'
@@ -696,7 +697,7 @@ export function useInvestments(
       liabilities,
     ],
   )
-  const goalSummaries = useMemo(() => summarizeGoals(goals, goalContext), [goals, goalContext])
+  const goalSummaries = useMemo(() => summarizeGoals(goals, goalContext, activeCycleMonth), [goals, goalContext, activeCycleMonth])
 
   return {
     emergencyFund,

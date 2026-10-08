@@ -3,6 +3,8 @@ import type { LedgerEntry } from './core'
 export type DebtKind = 'financiamento' | 'emprestimo' | 'consignado' | 'cartao' | 'outros'
 
 export interface Debt {
+  /** Data do último saldo conferido; movimentos posteriores conservam essa referência. */
+  valuationDate?: string
   id: string
   name: string
   kind: DebtKind

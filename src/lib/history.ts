@@ -350,5 +350,7 @@ export function calculateHistoryStats(points: HistoryPoint[]): HistoryStats {
 export function averageMonthlyCosts(points: HistoryPoint[], months = 6): number | null {
   const recent = points.slice(-months)
   if (recent.length < 2) return null
-  return recent.reduce((sum, point) => sum + point.costs, 0) / recent.length
+  // Sem classificação completa da parte pessoal, não presume custo zero no cartão.
+  if (recent.some((point) => Math.abs(point.cardPersonalTotal - Object.values(point.cardByArea).reduce((sum, value) => sum + (value ?? 0), 0)) > 0.005)) return null
+  return recent.reduce((sum, point) => sum + point.costs + (point.cardByArea.necessidades ?? 0), 0) / recent.length
 }

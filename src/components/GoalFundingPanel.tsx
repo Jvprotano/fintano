@@ -3,6 +3,7 @@ import { Flag, Pencil } from 'lucide-react'
 import { useFinancasStore } from '../context/financasStore'
 import { useGoalFunding } from '../hooks/useGoalFunding'
 import { distributeGoalIncome, goalIncomeBudget, summarizeGoalFunding } from '../lib/goalFunding'
+import { contributionPlan } from '../lib/contributionPlan'
 import { addMonths } from '../lib/shared'
 import { formatCurrency, formatMonthKey, inputClass } from '../lib/format'
 import { repositoryRevision } from '../data/repositoryCommand'
@@ -127,13 +128,16 @@ function FundingGroup({ group, items, currentMonth, save }: { group: Group; item
 }
 
 export function GoalFundingPanel() {
-  const { investments, forecastAgenda, activeCycle } = useFinancasStore()
+  const { investments, forecastAgenda, activeCycle, scenarios, debts } = useFinancasStore()
   const items = useMemo(() => forecastAgenda.flatMap((row) => row.items), [forecastAgenda])
   const funding = useGoalFunding(investments.goals, items, activeCycle.month)
   const [grouping, setGrouping] = useState(false)
+  const capacity = contributionPlan(scenarios.activeScenario, investments.holdings, investments.goals, debts.debts).capacity
+  const needed = funding.groups.reduce((sum, group) => sum + group.monthlyWithoutIncome, 0)
   if (!funding.groups.length) return null
   return <Panel><PanelHeader title="Metas e entradas previstas" icon={<Flag size={16} />} description="Agrupe objetivos da viagem e divida cada entrada entre eles. Previsão reduz apenas a necessidade condicional; não aumenta o dinheiro guardado. Valores em reais, sem estimar câmbio ou conversão." actions={<SecondaryButton onClick={() => setGrouping(!grouping)}>Organizar grupos</SecondaryButton>} />
     {grouping && <GroupEditor goals={investments.goals.filter((goal) => !goal.archivedAt && goal.kind === 'funding')} save={funding.saveGroups} onClose={() => setGrouping(false)} />}
+    <p className={`mt-3 text-xs ${needed > capacity ? 'text-amber-200' : 'text-dark-text-secondary'}`}>As metas com prazo exigem juntas {formatCurrency(needed)}/mês sem entradas; capacidade do plano: {formatCurrency(capacity)}. {needed > capacity ? `Faltam ${formatCurrency(needed - capacity)}/mês. Revise prazos, alvos ou o aporte.` : 'Este ritmo é necessidade, não aporte reservado. Defina os destinos em Planejar.'}</p>
     <div className="mt-4 space-y-3">{funding.groups.map((group) => <FundingGroup key={group.name} group={group} items={items} currentMonth={activeCycle.month} save={funding.saveAllocation} />)}</div>
   </Panel>
 }
