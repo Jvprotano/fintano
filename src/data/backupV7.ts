@@ -548,6 +548,9 @@ export function repositoryToBackupV7(
           planItemId,
           amountCents: toCents(amount),
           origin: cycle.costOrigins?.[planItemId] ?? 'manual',
+          ...(cycle.costAdjustments?.[planItemId]?.length ? { adjustments:
+            cycle.costAdjustments[planItemId].map(({ id, delta, recordedAt }) => ({ id, deltaCents: toCents(delta), recordedAt })),
+          } : {}),
         })),
         wantPayments: Object.entries(cycle.wants).map(([planItemId, amount]) => ({
           planItemId,
@@ -881,6 +884,9 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     ),
     costOrigins: Object.fromEntries(cycle.costPayments.map((item) =>
       [item.planItemId, item.origin ?? 'manual'])),
+    costAdjustments: Object.fromEntries(cycle.costPayments.filter((item) => item.adjustments?.length)
+      .map((item) => [item.planItemId, item.adjustments!.map(({ id, deltaCents, recordedAt }) =>
+        ({ id, delta: fromCents(deltaCents), recordedAt }))])),
     wants: Object.fromEntries(
       cycle.wantPayments.map((item) => [item.planItemId, fromCents(item.amountCents)]),
     ),
@@ -1240,6 +1246,22 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   }
   const templateIds = ids(backup.planning.templates, 'Planejamento')
   for (const cycle of backup.actuals.cycles) {
+    for (const payment of cycle.costPayments) {
+      if (payment.adjustments === undefined) continue
+      if (!Array.isArray(payment.adjustments)) {
+        add('error', 'cost_adjustments_invalid', 'Lançamentos do custo têm formato inválido.', payment.planItemId)
+        continue
+      }
+      const seen = new Set<string>()
+      for (const entry of payment.adjustments) {
+        if (!entry || typeof entry.id !== 'string' || !entry.id || seen.has(entry.id) ||
+          !Number.isSafeInteger(entry.deltaCents) || entry.deltaCents === 0 ||
+          typeof entry.recordedAt !== 'string' || !Number.isFinite(Date.parse(entry.recordedAt))) {
+          add('error', 'cost_adjustments_invalid', 'Lançamento do custo inválido.', payment.planItemId)
+        }
+        if (entry) seen.add(entry.id)
+      }
+    }
     if (cycle.paycheck && (!Number.isSafeInteger(cycle.paycheck.amountCents) || cycle.paycheck.amountCents < 0 ||
       !Number.isSafeInteger(cycle.paycheck.payrollInvestmentCents) || cycle.paycheck.payrollInvestmentCents < 0 ||
       !Number.isSafeInteger(cycle.paycheck.employerInvestmentCents) || cycle.paycheck.employerInvestmentCents < 0)) {

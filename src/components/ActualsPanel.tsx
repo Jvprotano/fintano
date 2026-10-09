@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
 import { EmptyState, Panel, PanelHeader, SecondaryButton, Tag } from './ui'
-import { formatCurrency, formatMonthLong } from '../lib/format'
+import { formatCurrency, formatMonthLong, formatSignedCurrency } from '../lib/format'
 import { useActualsStore, useForecastStore, useMetrics, useFinancasStore } from '../context/financasStore'
 import { COST_CATEGORY_COLORS, COST_CATEGORY_LABELS } from '../types/constants'
 import { ActualCashEntries } from './ActualCashEntries'
@@ -385,6 +385,8 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
           <ul className="mt-4 space-y-1.5">
             {rows.map((row) => {
               const off = row.actual !== null && Math.abs(row.variance) > 0.005
+              const recentAdjustments = actuals.months.find((item) => item.month === summary.month)
+                ?.costAdjustments?.[row.cost.id]?.slice(-3).reverse() ?? []
               return (
                 <li
                   key={row.cost.id}
@@ -402,6 +404,19 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                       {row.origin === 'confirmed_from_plan' && <Tag>confirmado do plano</Tag>}
                       {row.cost.paidWith === 'card' && <Tag>no cartão</Tag>}
                     </p>
+                    {recentAdjustments.length > 0 && (
+                      <ul aria-label={`Últimos lançamentos de ${row.cost.name}`}
+                        className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-dark-text-muted">
+                        <li>Últimos:</li>
+                        {recentAdjustments.map((entry) => <li key={entry.id}>
+                          <span className="text-dark-text-secondary">{formatSignedCurrency(entry.delta)}</span>
+                          {' · '}<time dateTime={entry.recordedAt} title={new Date(entry.recordedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}>
+                            {new Date(entry.recordedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })}
+                            {' '}{new Date(entry.recordedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}
+                          </time>
+                        </li>)}
+                      </ul>
+                    )}
                   </div>
                   {off && (
                     <span
@@ -433,9 +448,7 @@ export function ActualsPanel({ onGoToCards, onGoToPlanning }: { onGoToCards: () 
                     </button>}
                     <CostAdjustmentControl
                       costName={row.cost.name}
-                      onAdjust={(delta) =>
-                        actuals.setActual(row.cost.id, Math.max(0, (row.actual ?? 0) + delta))
-                      }
+                      onAdjust={(delta) => actuals.adjustCost(row.cost.id, delta)}
                     />
                     <button
                       type="button"

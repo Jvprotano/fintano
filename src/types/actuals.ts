@@ -12,6 +12,12 @@ export interface ExtraIncomeEntry {
 
 export type ExtraExpenseEntry = ExtraIncomeEntry
 
+export interface CostAdjustment {
+  id: string
+  delta: number
+  recordedAt: string
+}
+
 export interface MonthlyActuals {
   month: string
   /** Folha anterior à automação; não reconstruir seus aportes após limpar/reconfirmar. */
@@ -22,6 +28,7 @@ export interface MonthlyActuals {
     origin?: 'manual' | 'confirmed_from_plan' }
   costs: Record<string, number>
   costOrigins?: Record<string, 'manual' | 'confirmed_from_plan'>
+  costAdjustments?: Record<string, CostAdjustment[]>
   /** Valor efetivamente destinado a cada item de Desejos neste ciclo. */
   wants: Record<string, number>
   wantOrigins?: Record<string, 'manual' | 'confirmed_from_plan'>

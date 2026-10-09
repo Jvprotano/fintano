@@ -82,13 +82,32 @@ export function useActuals(
       return updateMonth(targetMonth, (current) => {
         const nextCosts = { ...current.costs }
         const costOrigins = { ...current.costOrigins }
-        if (amount === null) { delete nextCosts[costId]; delete costOrigins[costId] }
+        const costAdjustments = { ...current.costAdjustments }
+        if (amount === null) { delete nextCosts[costId]; delete costOrigins[costId]; delete costAdjustments[costId] }
         else { nextCosts[costId] = Math.max(0, amount); costOrigins[costId] = origin }
-        return { ...current, costs: nextCosts, costOrigins }
+        return { ...current, costs: nextCosts, costOrigins, costAdjustments }
       })
     },
     [month, updateMonth],
   )
+
+  const adjustCost = useCallback((costId: string, delta: number, targetMonth = month) => {
+    if (!Number.isFinite(delta) || delta === 0) return false
+    const id = uid()
+    const recordedAt = new Date().toISOString()
+    return updateMonth(targetMonth, (current) => {
+      const previous = current.costs[costId] ?? 0
+      const amount = Math.max(0, Math.round((previous + delta) * 100) / 100)
+      const appliedDelta = Math.round((amount - previous) * 100) / 100
+      if (appliedDelta === 0) return current
+      return { ...current,
+        costs: { ...current.costs, [costId]: amount },
+        costOrigins: { ...current.costOrigins, [costId]: 'manual' },
+        costAdjustments: { ...current.costAdjustments,
+          [costId]: [...(current.costAdjustments?.[costId] ?? []), { id, delta: appliedDelta, recordedAt }] },
+      }
+    })
+  }, [month, updateMonth])
 
   /** Informa quanto foi efetivamente destinado a um item de Desejos. */
   const setWantActual = useCallback(
@@ -132,7 +151,7 @@ export function useActuals(
   )
 
   const clearCosts = useCallback(
-    (targetMonth = month) => updateMonth(targetMonth, (current) => ({ ...current, costs: {}, costOrigins: {} })),
+    (targetMonth = month) => updateMonth(targetMonth, (current) => ({ ...current, costs: {}, costOrigins: {}, costAdjustments: {} })),
     [month, updateMonth],
   )
 
@@ -240,6 +259,7 @@ export function useActuals(
     setPaycheck,
     paycheckError,
     setActual,
+    adjustCost,
     setWantActual,
     fillFromPlan,
     clearCosts,

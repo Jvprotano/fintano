@@ -133,7 +133,8 @@ export interface CycleActualsV7 {
   paycheck?: { amountCents: MoneyCents; payrollInvestmentCents: MoneyCents; employerInvestmentCents: MoneyCents;
     pensionAllocations?: { holdingId: string; personalWeightCents: MoneyCents; employerWeightCents: MoneyCents }[];
     origin?: 'manual' | 'confirmed_from_plan' }
-  costPayments: { planItemId: string; amountCents: MoneyCents; origin?: 'manual' | 'confirmed_from_plan' }[]
+  costPayments: { planItemId: string; amountCents: MoneyCents; origin?: 'manual' | 'confirmed_from_plan';
+    adjustments?: { id: string; deltaCents: MoneyCents; recordedAt: string }[] }[]
   wantPayments: { planItemId: string; amountCents: MoneyCents; origin?: 'manual' | 'confirmed_from_plan' }[]
   cashMovements: {
     id: string

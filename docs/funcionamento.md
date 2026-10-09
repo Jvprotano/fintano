@@ -71,6 +71,8 @@ Registros antigos de devoluções e fechamentos permanecem preservados no backup
 
 Previsão não é dinheiro disponível. Campo ausente significa desconhecido; zero informado é conhecido. Confirmar como no plano registra a confirmação, inclusive sua origem. Estimativas ajudam a planejar compromissos, mas não são recebimentos ou pagamentos confirmados.
 
+Em **Ciclo → Custos em conta**, os botões de adicionar e diminuir guardam cada ajuste junto com o total, na competência ativa. Abaixo de cada custo aparecem discretamente os três últimos lançamentos, do mais recente ao mais antigo, com sinal, valor, data e hora. Uma redução limitada pelo zero registra somente o valor efetivamente reduzido. Editar o total diretamente não cria um lançamento; limpar o custo também limpa sua lista. Totais antigos não têm lançamentos reconstruídos por inferência.
+
 **Verba para Desejos** = recursos do ciclo − faturas com vencimento no ciclo − contas do ciclo − aporte comprometido − extraordinários que precisam desses recursos. Desejos não são subtraídos antes de calcular a própria verba; destinações realizadas são mostradas depois.
 
 O aporte comprometido considera o líquido executado e o restante programado. Com renda de R$ 5.000, fatura de R$ 1.000, contas de R$ 2.000 e aporte de R$ 1.000, a verba é R$ 1.000. Executar R$ 400 desse aporte mantém a verba; executar R$ 1.200 reduz para R$ 800.

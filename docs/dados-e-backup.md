@@ -25,6 +25,7 @@ Componentes consomem os hooks e cálculos compartilhados. `useFinancas` integra 
 O arquivo exportado tem nome `fintano-backup-v9-AAAA-MM-DD.json`. Seu esquema está em `src/data/backupSchemaV7.ts`; validação e conversão estão em `src/data/backupV7.ts`; operação de exportação/importação e cópias estão em `src/lib/backup.ts`.
 
 - Valores monetários `*Cents` são inteiros em centavos. O runtime converte para reais nos campos operacionais.
+- `actuals.cycles[].costPayments[].adjustments` é opcional e conserva os ajustes feitos pelos botões de adicionar/diminuir, com `id`, `deltaCents` assinado e `recordedAt`. No runtime, `costAdjustments` guarda os mesmos registros por custo, com `delta` em reais. São contexto do total já registrado, sem nova saída de caixa ou soma aos cálculos. A interface mostra os três mais recentes, mas o backup conserva todos. Limpar um custo remove seus ajustes; arquivos antigos continuam aceitos no backup v9, sem inventar lançamentos. IDs duplicados, valores inválidos ou zero e instantes inválidos são recusados.
 - Competências usam `AAAA-MM`; datas e instantes têm seus campos próprios.
 - IDs e referências entre cartões, posições, metas, eventos e movimentos devem sobreviver à ida e volta.
 - `kind`, origem, arquivamento, competência e datas de movimentos são conservados. `operationId` vincula as partes; `cashTreatment` distingue amortização extra de principal de parcela já paga, com `linkedCostId`. Texto da observação não determina o tipo.

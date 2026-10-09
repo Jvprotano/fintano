@@ -54,6 +54,13 @@ export function normalizeActuals(raw: Partial<MonthlyActuals> | undefined): Mont
         origin: raw.paycheck.origin === 'confirmed_from_plan' ? 'confirmed_from_plan' : 'manual' } }
       : {}),
     costs,
+    ...(raw?.costAdjustments ? { costAdjustments: Object.fromEntries(
+      Object.entries(raw.costAdjustments).filter(([id]) => Object.hasOwn(costs, id))
+        .map(([id, entries]) => [id, Array.isArray(entries) ? entries.filter((entry) =>
+          entry && typeof entry.id === 'string' && entry.id && Number.isFinite(entry.delta) &&
+          entry.delta !== 0 && typeof entry.recordedAt === 'string' &&
+          Number.isFinite(Date.parse(entry.recordedAt))) : []]),
+    ) } : {}),
     ...(Object.keys(costs).length ? { costOrigins: normalizeOrigins(raw?.costOrigins, costs) } : {}),
     wants,
     ...(Object.keys(wants).length ? { wantOrigins: normalizeOrigins(raw?.wantOrigins, wants) } : {}),
