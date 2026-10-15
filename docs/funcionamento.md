@@ -107,6 +107,10 @@ Folhas já confirmadas antes da automação não são relançadas, inclusive ap�
 
 Reserva, carteira e metas atribuem finalidade ao dinheiro existente; não duplicam ativos. Bens físicos e dívidas entram no patrimônio líquido. Destinar saldo a uma meta não cria dinheiro novo.
 
+Em **Patrimônio → Metas → Onde está o dinheiro desta meta**, marcar **100% da posição** vincula todo o saldo utilizável à meta. Aportes, resgates, transferências e avaliações passam a atualizar o progresso automaticamente, inclusive depois de zerar e recompor a posição. O vínculo continua acompanhando o saldo acima do alvo, sem criar movimentos na meta ou duplicar patrimônio. Na previdência, valores em carência ou com divisão desconhecida continuam excluídos.
+
+Uma posição inteira é exclusiva de uma meta. Para ativar 100%, remover antes qualquer destinação da posição em outras metas, inclusive arquivadas. Desmarcar converte o vínculo para um valor fixo igual ao saldo utilizável atual; informar zero remove a destinação. Valores fixos continuam disponíveis para posições compartilhadas e não crescem automaticamente. Nenhuma destinação existente é convertida por inferência.
+
 Fechamentos preservam folha, metas de comparação e marca patrimonial do fechamento. Aportes diretos históricos acompanham a competência do livro de movimentos. Consultar o passado não troca a competência operacional. Cadastros com fatos são arquivados em vez de apagar seu histórico.
 
 Posições, reserva, bens e dívidas mostram a última data de avaliação informada. Salvar uma avaliação grava saldo e data juntos, sem aporte, resgate ou pagamento. Cancelar não grava; vazio não confirma zero; conflito de revisão ou falha conserva o rascunho. O extrato precisa incluir os movimentos já registrados. Movimentos posteriores ajustam o saldo sem mudar a data da última avaliação. Dados antigos sem essa data continuam identificados como desconhecidos; a data de exportação do backup não é presumida como avaliação.

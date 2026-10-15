@@ -6,6 +6,7 @@ import { EmptyState, Meter, Panel, PanelHeader, PrimaryButton, SecondaryButton, 
 import { formatCurrency, formatMonthKey, formatMonths, inputClass } from '../lib/format'
 import { INCLUSION_LABELS } from '../lib/goals'
 import { monthKey } from '../lib/shared'
+import { usableHoldingValue } from '../lib/investments'
 import { useFinancasStore, useInvestmentsStore } from '../context/financasStore'
 import type { GoalInclusion, GoalKind, GoalSummary } from '../types'
 
@@ -66,28 +67,40 @@ function FundingSources({ goal }: { goal: GoalSummary }) {
 
   return <div className="space-y-2">
     {holdings.map((holding) => {
-      const current = goal.includes?.find(
+      const inclusion = goal.includes?.find(
         (item) => item.type === 'holding' && item.id === holding.id,
-      )?.amount ?? 0
-      const claimedByOthers = goals
+      )
+      const full = !!inclusion && inclusion.amount === undefined
+      const current = inclusion?.amount ?? 0
+      const otherGoals = goals
         .filter((item) => item.id !== goal.id && item.kind === 'funding')
-        .flatMap((item) => item.includes ?? [])
+        .filter((item) => item.includes?.some((source) => source.type === 'holding' && source.id === holding.id))
+      const otherAllocations = otherGoals.flatMap((item) => item.includes ?? [])
         .filter((item) => item.type === 'holding' && item.id === holding.id)
-        .reduce((sum, item) => sum + Math.max(0, item.amount ?? 0), 0)
-      const available = Math.max(0, holding.marketValue - claimedByOthers)
+      const usable = usableHoldingValue(holding)
+      const claimedByOthers = otherAllocations.reduce((sum, item) => sum + Math.max(0, item.amount ?? usable), 0)
+      const exclusiveElsewhere = otherAllocations.some((item) => item.amount === undefined)
+      const available = Math.max(0, usable - claimedByOthers)
 
-      return <div key={holding.id} className="grid gap-2 rounded-lg border border-dark-border/70 bg-dark-input/35 p-3 sm:grid-cols-[1fr_170px] sm:items-center">
+      return <div key={holding.id} className="grid gap-3 rounded-lg border border-dark-border/70 bg-dark-input/35 p-3 lg:grid-cols-[1fr_220px] lg:items-center">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-dark-text">{holding.name}</p>
           <p className="mt-0.5 text-xs text-dark-text-muted">
             {holding.institution || 'Instituição não informada'} · {formatCurrency(holding.marketValue)} na posição
           </p>
-          <p className="mt-1 text-xs text-dark-text-muted">Disponível para esta meta: {formatCurrency(available)}</p>
+          <p className="mt-1 text-xs text-dark-text-muted">{full ? 'Aportes, resgates e rendimentos atualizam esta meta automaticamente.' : `Disponível para esta meta: ${formatCurrency(available)}`}</p>
+          {otherGoals.length > 0 && <p className="mt-1 text-xs text-dark-text-muted">Para usar 100%, remova antes o vínculo em: {otherGoals.map((item) => `${item.name}${item.archivedAt ? ' (arquivada)' : ''}`).join(', ')}.</p>}
         </div>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-dark-text-muted">Destinar à meta</span>
-          <CurrencyInput value={current} onChange={(value) => setGoalHoldingAllocation(goal.id, holding.id, value)} className="!py-1.5" />
-        </label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs text-dark-text-secondary">
+            <input type="checkbox" className="accent-primary-500" checked={full} disabled={!full && otherGoals.length > 0} onChange={(event) => setGoalHoldingAllocation(goal.id, holding.id, event.target.checked ? 'full' : usable)} />
+            100% da posição
+          </label>
+          {full ? <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(goal.holdingAllocations.find((item) => item.holdingId === holding.id)?.allocated ?? 0)} <span className="text-xs font-normal text-dark-text-muted">automático</span></p> : <label className="block">
+            <span className="mb-1 block text-xs font-medium text-dark-text-muted">Valor fixo destinado</span>
+            {exclusiveElsewhere ? <span className="text-xs text-dark-text-muted">Posição exclusiva de outra meta</span> : <CurrencyInput value={current} onChange={(value) => setGoalHoldingAllocation(goal.id, holding.id, value)} className="!py-1.5" />}
+          </label>}
+        </div>
       </div>
     })}
   </div>
@@ -141,7 +154,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
       {kind === 'funding' ? <div>
         <div className="mb-2">
           <p className="text-xs font-semibold text-dark-text">Onde está o dinheiro desta meta</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Separe apenas a parte de cada posição que pertence à meta. O valor continua contado uma única vez no patrimônio.</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Destine um valor fixo ou marque 100% para acompanhar automaticamente a posição inteira. O patrimônio conta esse dinheiro uma única vez. Na previdência, só entra o saldo utilizável.</p>
         </div>
         <FundingSources goal={goal} />
       </div> : <div>

@@ -545,23 +545,27 @@ export function useInvestments(
   )
 
   const setGoalHoldingAllocation = useCallback(
-    (goalId: string, holdingId: string, amount: number) => {
+    (goalId: string, holdingId: string, amount: number | 'full') => {
       const holding = portfolioHoldings.find((item) => item.id === holdingId)
       if (!holding) return
 
-      setGoals((prev) => {
+      return setGoals((prev) => {
         const normalized = prev.map((goal, index) => normalizeGoal(goal, index))
-        const claimedByOthers = normalized
+        const otherAllocations = normalized
           .filter((goal) => goal.id !== goalId && goal.kind === 'funding')
           .flatMap((goal) => goal.includes ?? [])
           .filter((inclusion) => inclusion.type === 'holding' && inclusion.id === holdingId)
-          .reduce(
+        // Uma posição inteira tem uma única finalidade, mesmo enquanto estiver zerada.
+        // Vínculos arquivados também são preservados para permitir sua restauração.
+        if ((amount === 'full' && otherAllocations.length > 0) ||
+          (amount !== 'full' && amount > 0 && otherAllocations.some((item) => item.amount === undefined))) return prev
+        const claimedByOthers = otherAllocations.reduce(
             (sum, inclusion) =>
-              sum + Math.max(0, finiteNumber(inclusion.amount, holding.marketValue)),
+              sum + Math.max(0, finiteNumber(inclusion.amount, usableHoldingValue(holding))),
             0,
           )
-        const maximum = Math.max(0, holding.marketValue - claimedByOthers)
-        const nextAmount = Math.min(Math.max(0, finiteNumber(amount)), maximum)
+        const maximum = Math.max(0, usableHoldingValue(holding) - claimedByOthers)
+        const nextAmount = amount === 'full' ? undefined : Math.min(Math.max(0, finiteNumber(amount)), maximum)
 
         return normalized.map((goal, index) => {
           if (goal.id !== goalId) return goal
@@ -573,7 +577,7 @@ export function useInvestments(
               ...goal,
               kind: 'funding',
               includes:
-                nextAmount > 0
+                nextAmount === undefined || nextAmount > 0
                   ? [...withoutHolding, { type: 'holding', id: holdingId, amount: nextAmount }]
                   : withoutHolding,
             },

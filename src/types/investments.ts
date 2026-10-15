@@ -18,7 +18,7 @@ export type GoalInclusionType =
 export interface GoalInclusion {
   type: GoalInclusionType
   id?: string
-  /** Valor da posição reservado para uma meta de dinheiro. */
+  /** Valor fixo destinado; ausência em uma inclusão de posição acompanha 100% do saldo utilizável. */
   amount?: number
 }
 
