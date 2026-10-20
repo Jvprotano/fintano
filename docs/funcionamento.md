@@ -14,7 +14,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | Patrimônio | Consultar e registrar posições, reserva, metas, bens, dívidas e livros de movimentos. |
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
 | Futuro | Agrupar metas e dividir entradas previstas entre elas; acompanhar ocorrências, registrar ou vincular fatos e consultar projeção sob demanda. |
-| Dados | Filtrar registros e consultar séries ao longo do tempo. A primeira consulta compara a evolução das faturas por cartão. |
+| Dados | Filtrar registros e consultar a evolução das faturas por cartão e dos custos fixos em conta, por categoria ou custo. |
 
 ## Configurações
 
@@ -199,7 +199,9 @@ O mês exibido nesses pagamentos antigos é o **vencimento**, e a data ao lado �
 
 ## Consultas na aba Dados
 
-Dados reúne consultas dos registros financeiros. A primeira é **Evolução dos cartões**: gráfico de linhas por cartão, com filtros de período (6 meses, 12 meses, todo o histórico ou intervalo personalizado), seleção de cartões, minha parte da fatura, total ao banco, **Parte de outras pessoas** ou **Pessoa específica**, e somente pagas ou pagas e em aberto. Ao escolher pessoa específica, selecionar um nome, como Mãe, encontrado nas compras ou na identificação das faturas antigas. O atalho de teclado é **7**. Histórico continua responsável pelos fechamentos e suas correções.
+Dados reúne consultas dos registros financeiros, selecionadas em **Cartões** ou **Custos fixos**. O atalho de teclado é **7**. Histórico continua responsável pelos fechamentos e suas correções.
+
+**Evolução dos cartões** mostra um gráfico de linhas por cartão, com filtros de período (6 meses, 12 meses, todo o histórico ou intervalo personalizado), seleção de cartões, minha parte da fatura, total ao banco, **Parte de outras pessoas** ou **Pessoa específica**, e somente pagas ou pagas e em aberto. Ao escolher pessoa específica, selecionar um nome, como Mãe, encontrado nas compras ou na identificação das faturas antigas.
 
 O eixo do tempo usa o **mês de vencimento**, independente do calendário de cada cartão, da data da compra e da data do pagamento. Parcelas entram na fatura correspondente. Por padrão, a consulta inclui somente pagamentos preservados e termina no último vencimento registrado; o período é de calendário. Incluir abertas acrescenta os lançamentos existentes até a fatura do ciclo ativo de cada cartão, com estado provisório explícito. Parcelas de ciclos futuros não são projetadas nessa consulta.
 
@@ -210,6 +212,12 @@ A comparação por cartão mostra a última fatura no período e sua diferença 
 Parte de outras pessoas é o total ao banco menos a parte pessoal. Pessoa específica usa apenas a parte não pessoal atribuída ao nome, incluindo o campo livre de nome dos registros antigos; não usa o valor pessoal de compras compartilhadas. Nomes diferindo apenas em acentos, maiúsculas ou espaços externos são agrupados. Antecipações saem do valor da fatura; abatimentos afetam a parte pessoal. Se faltar composição ou houver parte não pessoal sem nome, a consulta por pessoa conserva a lacuna, sem presumir zero ou atribuir o restante a Mãe.
 
 Meses sem registro e totais antigos desconhecidos aparecem como lacunas, sem ligar pontos separados ou estimar zero. Zero só aparece quando registrado, inclusive em faturas confirmadas vazias. Faturas antigas sem identificação manual ficam fora das séries individuais e são indicadas para consulta no Histórico; não são repartidas por inferência. Após identificar o pagamento, os cartões e as pessoas informados passam a compor o gráfico, as comparações e a tabela mensal.
+
+**Custos fixos** mostra a evolução dos custos em conta por **competência financeira**, com os mesmos períodos, filtro de categoria e **Detalhamento → Por categoria / Por custo**. É possível comparar categorias, como Transporte e Contas & Serviços, ou seus custos individuais, como combustível, energia, água e internet. Os botões de cada série permitem ocultar e mostrar linhas; **Ver valores por mês** abre a tabela dos mesmos valores.
+
+Por categoria, os ciclos fechados usam os totais preservados no fechamento, sem somá-los novamente aos pagamentos detalhados. Os ciclos sem fechamento usam apenas a soma dos valores explicitamente registrados no Ciclo, inclusive zero e confirmações como no plano. Eles aparecem como **Em andamento · parcial**; o filtro **Somente fechados** os exclui. Valores orçados ainda não confirmados nunca são usados para preencher pagamentos ou lacunas. Faturas, Desejos e descontos em folha ficam fora desta consulta, que considera a parte pessoal dos custos em conta.
+
+Por custo, a consulta usa os pagamentos por ID em `actuals`, inclusive de itens arquivados. Os ajustes já estão incorporados no total do custo e não são somados outra vez. Nome e categoria vêm do plano da competência quando disponível, com o cadastro preservado como referência para IDs antigos; ausência de cadastro aparece como **Custo sem cadastro / Sem categoria**. IDs distintos não são unidos pelo nome. Meses sem pagamento detalhado ficam como lacunas, mesmo quando há total por categoria no fechamento. Quando os itens disponíveis não cobrem o total de uma categoria fechada, a tela informa essa limitação e permite consultar o agregado; não reparte a diferença nem reconstrói lançamentos. Esta consulta é somente leitura e mantém o backup v9.
 
 ## Fotografia para análise externa
 

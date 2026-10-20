@@ -7,11 +7,27 @@ import { addMonths } from '../lib/shared'
 import { formatCurrency, formatCurrencyShort, formatMonthKey, inputClass } from '../lib/format'
 import { INVESTMENT_CLASS_PRESET_COLORS } from '../types/constants'
 import { EmptyState, FormField, Panel, PanelHeader } from './ui'
+import { CostDataExplorer } from './data/CostDataExplorer'
 
 type Period = '6' | '12' | 'all' | 'custom'
 const validMonth = (month: string) => /^(19|20)\d{2}-(0[1-9]|1[0-2])$/.test(month)
 
 export function DataView() {
+  const [query, setQuery] = useState<'cards' | 'costs'>('cards')
+  return <div className="space-y-4">
+    <div className="flex w-fit gap-1 rounded-xl border border-dark-border bg-dark-card p-1" role="group" aria-label="Consulta de dados">
+      {([{ id: 'cards', label: 'Cartões' }, { id: 'costs', label: 'Custos fixos' }] as const).map((item) =>
+        <button key={item.id} type="button" aria-pressed={query === item.id} onClick={() => setQuery(item.id)}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${query === item.id
+            ? 'bg-dark-hover text-dark-text' : 'text-dark-text-muted hover:bg-dark-surface hover:text-dark-text'}`}>
+          {item.label}
+        </button>)}
+    </div>
+    {query === 'cards' ? <CardDataExplorer /> : <CostDataExplorer />}
+  </div>
+}
+
+function CardDataExplorer() {
   const { accounts, entries, paidInvoices } = useCardsStore()
   const { activeCycle } = useFinancasStore()
   const [metric, setMetric] = useState<CardDataMetric>('personalTotal')
