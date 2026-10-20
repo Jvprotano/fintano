@@ -518,7 +518,6 @@ function AppShell() {
       <header className="sticky top-0 z-40 border-b border-dark-border-subtle bg-dark-bg/78 shadow-[0_1px_0_rgba(255,255,255,0.015)] backdrop-blur-2xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
           <div className="flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-dark-text" aria-label="FinTano">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary-500/25 bg-primary-500/10 text-xs font-bold text-primary-300">F</span>
             <span>FinTano</span>
           </div>
 
