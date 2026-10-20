@@ -11,7 +11,7 @@ import {
 } from 'react'
 import {
   AlertTriangle,
-  Archive,
+  ArrowLeft,
   CalendarCheck,
   CalendarClock,
   CreditCard,
@@ -20,11 +20,9 @@ import {
   Keyboard,
   Landmark,
   MoreVertical,
-  RotateCcw,
+  Settings,
   Sparkles,
   SlidersHorizontal,
-  Trash2,
-  Upload,
   X,
 } from 'lucide-react'
 import { FinancasProvider } from './context/FinancasContext'
@@ -40,8 +38,8 @@ import { ClosingView } from './components/ClosingView'
 import { AIAnalysisDialog } from './components/AIAnalysisDialog'
 import { ScenarioSwitcher } from './components/ScenarioSwitcher'
 import { CyclePlanReference } from './components/CyclePlanReference'
-import { CycleSwitcher } from './components/CycleSwitcher'
-import { ConfirmationDialog } from './components/ui'
+import { CycleIndicator } from './components/CycleIndicator'
+import { ConfirmationDialog, SecondaryButton } from './components/ui'
 import { formatCurrency, formatDate } from './lib/format'
 import type { BackupInspection } from './data/backupSchemaV7'
 import {
@@ -50,16 +48,13 @@ import {
   clearAppStorage,
   clearAllFinTanoStorage,
   downloadBackup,
-  downloadPreLedgerMigrationRaw,
   inspectBackup,
   listAutoBackups,
-  lastExternalExportRequestedAt,
-  PRE_LEDGER_MIGRATION_RAW_KEY,
   restoreBackup,
   restoreAutoBackup,
 } from './lib/backup'
 
-type View = 'closing' | 'planning' | 'cards' | 'investments' | 'history' | 'forecast'
+type View = 'closing' | 'planning' | 'cards' | 'investments' | 'history' | 'forecast' | 'settings'
 
 function PlanningBalance() {
   const { balanceAfterPlan, paycheckInAccount, totalCosts, totalWantsAmount, directInvestmentTarget } = useMetrics()
@@ -93,6 +88,10 @@ const ForecastView = lazy(() =>
   import('./components/ForecastView').then((module) => ({ default: module.ForecastView })),
 )
 
+const SettingsView = lazy(() =>
+  import('./components/SettingsView').then((module) => ({ default: module.SettingsView })),
+)
+
 interface AppDialogState {
   title: string
   description: ReactNode
@@ -114,6 +113,11 @@ const VIEWS: { id: View; label: string; icon: typeof CalendarCheck }[] = [
 ]
 
 const VIEW_CONTEXT: Record<View, { eyebrow: string; title: string; description: string }> = {
+  settings: {
+    eyebrow: 'Preferências e manutenção',
+    title: 'Configurações',
+    description: 'Ajustes do ciclo, cartões e dados do aplicativo.',
+  },
   closing: {
     eyebrow: 'Competência ativa · realizado e caixa',
     title: 'Seu ciclo',
@@ -216,117 +220,47 @@ function BackupReview({ inspection }: { inspection: BackupInspection }) {
   </span>
 }
 
-function AppMenu({
-  onExport,
-  onImport,
-  onResetCurrent,
-  onResetAll,
-  onShortcuts,
-  onRestoreAuto,
-}: {
+function AppMenu({ onSettings, onExport, onShortcuts, settingsActive }: {
+  onSettings: () => void
   onExport: () => void
-  onImport: () => void
-  onResetCurrent: () => void
-  onResetAll: () => void
   onShortcuts: () => void
-  onRestoreAuto: (createdAt: string) => void
+  settingsActive: boolean
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const autoBackups = useMemo(() => (open ? listAutoBackups() : []), [open])
-  const lastExport = open ? lastExternalExportRequestedAt() : null
-  const hasMigrationOriginal = open && localStorage.getItem(PRE_LEDGER_MIGRATION_RAW_KEY) !== null
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
     const handleClick = (event: MouseEvent) => {
       if (!ref.current?.contains(event.target as Node)) setOpen(false)
     }
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setOpen(false); triggerRef.current?.focus() }
+    }
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKey)
+    }
   }, [open])
 
-  const itemClass =
-    'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-dark-text-secondary transition-colors hover:bg-dark-hover hover:text-dark-text'
+  const itemClass = 'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-dark-text-secondary transition-colors hover:bg-dark-hover hover:text-dark-text'
+  const run = (action: () => void) => () => { action(); setOpen(false) }
 
-  const run = (action: () => void) => () => {
-    action()
-    setOpen(false)
-  }
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="rounded-xl border border-dark-border bg-dark-surface/80 p-2.5 text-dark-text-muted shadow-sm shadow-black/15 transition-colors hover:border-dark-text-muted/40 hover:bg-dark-hover hover:text-dark-text"
-        aria-label="Mais opções"
-        aria-expanded={open}
-      >
-        <MoreVertical size={16} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-dark-border bg-dark-card p-1.5 shadow-xl shadow-black/40">
-          <button type="button" className={itemClass} onClick={run(onExport)}>
-            <Download size={14} />
-            Exportar backup
-          </button>
-          {lastExport && <p className="px-3 pb-1 text-xs text-dark-text-muted">Última exportação solicitada: {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(lastExport))}</p>}
-          {hasMigrationOriginal && <button type="button" className={itemClass} onClick={run(downloadPreLedgerMigrationRaw)}>
-            <Download size={14} /> Baixar original pré-migração
-          </button>}
-          {hasMigrationOriginal && <p className="px-3 pb-1 text-xs text-dark-text-muted">Documento bruto para análise; use uma cópia automática para restaurar pelo app.</p>}
-          <button type="button" className={itemClass} onClick={run(onImport)}>
-            <Upload size={14} />
-            Importar backup
-          </button>
-          <button type="button" className={itemClass} onClick={run(onShortcuts)}>
-            <Keyboard size={14} />
-            Atalhos de teclado
-          </button>
-
-          {autoBackups.length > 0 && (
-            <div className="mt-1.5 border-t border-dark-border-subtle pt-1.5">
-              <span className="flex items-center gap-2 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-dark-text-muted">
-                <Archive size={12} />
-                Cópias automáticas
-              </span>
-              {autoBackups.map((backup) => (
-                <button
-                  key={backup.createdAt}
-                  type="button"
-                  className={itemClass}
-                  onClick={run(() => onRestoreAuto(backup.createdAt))}
-                >
-                  <RotateCcw size={14} />
-                  Restaurar de {formatDate(backup.createdAt)}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-1.5 border-t border-dark-border-subtle pt-1.5">
-            <button
-              type="button"
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-dark-text-muted transition-colors hover:bg-rose-500/10 hover:text-rose-300"
-              onClick={run(onResetCurrent)}
-            >
-              <RotateCcw size={14} />
-              Limpar dados atuais
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-rose-300 transition-colors hover:bg-rose-500/10"
-              onClick={run(onResetAll)}
-            >
-              <Trash2 size={14} />
-              Apagar dados e cópias
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  return <div ref={ref} className="relative">
+    <button ref={triggerRef} type="button" onClick={() => setOpen((prev) => !prev)}
+      className="rounded-xl border border-dark-border bg-dark-surface/80 p-2.5 text-dark-text-muted shadow-sm shadow-black/15 transition-colors hover:border-dark-text-muted/40 hover:bg-dark-hover hover:text-dark-text"
+      aria-label="Mais opções" aria-expanded={open}>
+      <MoreVertical size={16} />
+    </button>
+    {open && <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-dark-border bg-dark-card p-1.5 shadow-xl shadow-black/40">
+      <button type="button" className={itemClass} onClick={run(onSettings)} aria-current={settingsActive ? 'page' : undefined}><Settings size={14} /> Configurações</button>
+      <button type="button" className={itemClass} onClick={run(onExport)}><Download size={14} /> Exportar backup</button>
+      <button type="button" className={itemClass} onClick={run(onShortcuts)}><Keyboard size={14} /> Atalhos de teclado</button>
+    </div>}
+  </div>
 }
 
 function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
@@ -393,11 +327,16 @@ function ViewIntro({ view }: { view: View }) {
 function AppShell() {
   const importInputRef = useRef<HTMLInputElement>(null)
   const [activeView, setActiveView] = useState<View>('closing')
+  const [settingsReturnView, setSettingsReturnView] = useState<View>('closing')
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showAIAnalysis, setShowAIAnalysis] = useState(false)
   const [dialog, setDialog] = useState<AppDialogState | null>(null)
   const scenarios = useScenarioStore()
   const persistence = usePersistenceStatus()
+  const openSettings = () => {
+    if (activeView !== 'settings') setSettingsReturnView(activeView)
+    setActiveView('settings')
+  }
   const closeDialog = useCallback(() => setDialog(null), [])
 
   const showNotice = useCallback((title: string, description: string) => {
@@ -525,7 +464,7 @@ function AppShell() {
 
           <div className="flex items-center gap-2">
             <div className="hidden sm:block">
-              <CycleSwitcher />
+              <CycleIndicator />
             </div>
             <ScenarioSwitcher />
             <button
@@ -540,11 +479,9 @@ function AppShell() {
             </button>
             <AppMenu
               onExport={downloadBackup}
-              onImport={() => importInputRef.current?.click()}
-              onResetCurrent={handleResetCurrent}
-              onResetAll={handleResetAll}
+              onSettings={openSettings}
+              settingsActive={activeView === 'settings'}
               onShortcuts={() => setShowShortcuts(true)}
-              onRestoreAuto={handleRestoreAuto}
             />
             <input
               ref={importInputRef}
@@ -588,9 +525,10 @@ function AppShell() {
           <TabBar activeView={activeView} setActiveView={setActiveView} className="flex-1" />
         </div>
         <div className="sm:hidden">
-          <CycleSwitcher />
+          <CycleIndicator />
         </div>
 
+        {activeView === 'settings' && <SecondaryButton onClick={() => setActiveView(settingsReturnView)}><ArrowLeft size={14} /> Voltar para {VIEWS.find((view) => view.id === settingsReturnView)?.label}</SecondaryButton>}
         <ViewIntro view={activeView} />
 
         {activeView === 'closing' && (
@@ -624,10 +562,17 @@ function AppShell() {
             </div>
           }
         >
-          {activeView === 'cards' && <CreditCardManager />}
+          {activeView === 'cards' && <CreditCardManager onOpenSettings={openSettings} />}
           {activeView === 'investments' && <InvestmentsManager />}
           {activeView === 'history' && <HistoryView />}
           {activeView === 'forecast' && <ForecastView />}
+          {activeView === 'settings' && <SettingsView
+            onExport={downloadBackup}
+            onImport={() => importInputRef.current?.click()}
+            onResetCurrent={handleResetCurrent}
+            onResetAll={handleResetAll}
+            onRestoreAuto={handleRestoreAuto}
+          />}
         </Suspense>
       </main>
 

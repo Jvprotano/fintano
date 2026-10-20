@@ -55,7 +55,7 @@ Um documento inválido bloqueia gravações que poderiam destruir a origem. A re
 
 Antes de importar, validar estrutura, centavos, IDs e referências; apresentar contagens, avisos e comparação de totais. Criar cópia automática validada antes da substituição. Se a gravação falhar, conservar/restaurar o documento anterior. Não normalizar ou sobrescrever o arquivo original fornecido pelo usuário.
 
-O menu distingue backup público de cópias brutas de recuperação e registra exportação solicitada, sem afirmar que o navegador salvou o arquivo no disco. Preferências de interface e cópias automáticas ficam separadas dos fatos financeiros.
+Configurações → Dados e backup distingue backup público de cópias brutas de recuperação e registra exportação solicitada, sem afirmar que o navegador salvou o arquivo no disco. Preferências de interface e cópias automáticas ficam separadas dos fatos financeiros.
 
 Ao mudar o contrato, conferir a ida e volta somente nos campos e totais afetados, com cópia isolada. Não remover informação financeira para simplificar uma tela. Campos sem função visual atual só podem ser retirados quando sua finalidade e efeito sobre os dados estiverem resolvidos.
 

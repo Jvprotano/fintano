@@ -26,7 +26,7 @@ export function CardAccountsPanel() {
     if (!addAccount({ name: clean, closingDay, dueDay, limit })) { setError('Não foi possível cadastrar o cartão. Tente novamente.'); return }
     setName(''); setLimit(0); setClosingDay(0); setDueDay(0); setError('')
   }
-  return <Card title="Configurar cartões" icon={<CreditCard size={17} />} collapsible storageKey={accounts.length > 0 ? 'card-accounts-settings' : undefined} defaultCollapsed={accounts.length > 0}>
+  return <Card title="Cartões e vencimentos" icon={<CreditCard size={17} />}>
     <div className="space-y-4">
       <p className="text-xs leading-relaxed text-dark-text-muted">Basta o nome para cadastrar. Informe o dia de vencimento uma vez para ver a data em Faturas dos cartões; o mês acompanha a fatura e o ciclo automaticamente. Fechamento e limite do banco são referências opcionais.</p>
       {accounts.length > 0 && <ul className="space-y-2">

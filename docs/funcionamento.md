@@ -15,6 +15,16 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
 | Futuro | Agrupar metas e dividir entradas previstas entre elas; acompanhar ocorrências, registrar ou vincular fatos e consultar projeção sob demanda. |
 
+## Configurações
+
+O menu de três pontos → **Configurações** reúne ajustes de uso ocasional: competência ativa, teto pessoal somando todos os cartões, cadastro de cartões, fechamento, vencimento, limite do banco e correção de calendário/faturas. A tela permite voltar à aba de origem; as abas principais continuam disponíveis.
+
+O cabeçalho mostra o ciclo apenas como referência visual. Para corrigir a competência operacional, escolher **Ciclo ativo → Revisar alteração → Ativar ciclo** em Configurações. A mudança exige confirmação, define o padrão dos novos lançamentos e edições e não transfere fatos entre ciclos, confirma pagamentos ou fecha o mês. O fechamento e a virada normal continuam na aba Ciclo; consultar o passado continua no Histórico. A competência específica de uma movimentação permanece no formulário correspondente.
+
+O teto pessoal é editado em Configurações; o uso e o valor disponível continuam em Cartões. Sem cartões cadastrados, a aba oferece um atalho para o cadastro em Configurações. Renda, descontos, custos, Desejos e aporte continuam em Planejar, pois pertencem ao plano da competência; as premissas de simulação continuam junto à projeção no Futuro.
+
+**Dados e backup** reúne exportação/importação. **Recuperação e limpeza**, recolhida inicialmente, dá acesso às cópias automáticas, ao original pré-migração quando disponível e à limpeza com confirmação. Importar/restaurar conserva a conferência antes da substituição. Exportar backup também continua como atalho no menu de três pontos, junto aos atalhos de teclado.
+
 ## Plano, referência e simulação
 
 Cada competência tem seu próprio plano, inicialmente derivado do modelo recorrente. Editar Planejar altera o plano do ciclo ativo. Selecionar uma simulação não altera esse plano nem os fatos; Aplicar simulação ao ciclo copia seus valores explicitamente.
@@ -37,11 +47,11 @@ O fechamento permite **Confirmar pendentes e virar ciclo**: revisa cartões, mes
 
 Cadastrar cartão exige somente o nome. Dias de fechamento e vencimento e limite do banco são opcionais. Cartões novos começam atribuídos ao ciclo ativo, inicialmente com vencimento no mês seguinte; a fatura anterior é confirmada vazia por se tratar de um novo cadastro. Dados existentes conservam seus meses e pagamentos até uma correção explícita.
 
-Em **Configurar cartões**, informar **Vence dia** uma vez. **Faturas dos cartões** mostra o vencimento completo de cada fatura usando esse dia e seu mês de vencimento. Se o dia não existir no mês, usa o último dia disponível; a referência não ajusta feriados ou fins de semana. Sem dia cadastrado, mostra **Vencimento não informado**. Após confirmar o pagamento, conserva a data da fatura paga e mostra também o próximo vencimento; ao virar o ciclo, a data principal acompanha a nova fatura. Faturas anteriores pendentes mostram seu próprio vencimento.
+Em **Configurações → Cartões e vencimentos**, informar **Vence dia** uma vez. **Faturas dos cartões** mostra o vencimento completo de cada fatura usando esse dia e seu mês de vencimento. Se o dia não existir no mês, usa o último dia disponível; a referência não ajusta feriados ou fins de semana. Sem dia cadastrado, mostra **Vencimento não informado**. Após confirmar o pagamento, conserva a data da fatura paga e mostra também o próximo vencimento; ao virar o ciclo, a data principal acompanha a nova fatura. Faturas anteriores pendentes mostram seu próprio vencimento.
 
 Cada cartão tem um calendário independente: **no mesmo mês do ciclo** ou **no mês seguinte ao ciclo**. A consulta, os lançamentos, a importação e o fechamento usam essa definição; pagar avança apenas a fatura aberta daquele cartão. A prévia do próximo salário usa as faturas que vencem naquele mês civil, incluindo parcelas de cartões com calendários diferentes.
 
-Em **Configurar cartões → Ajustar calendário e faturas de [cartão] → Preparar ajuste**, escolher o mês de vencimento da fatura aberta e sua relação com o ciclo. Informar motivo, **Revisar ajuste** e **Salvar ajuste de calendário**. Nada grava enquanto é rascunho; **Cancelar** ou Escape descarta. Mudanças nos dados durante a revisão recusam a gravação e conservam o rascunho.
+Em **Configurações → Cartões e vencimentos → Ajustar calendário e faturas de [cartão] → Preparar ajuste**, escolher o mês de vencimento da fatura aberta e sua relação com o ciclo. Informar motivo, **Revisar ajuste** e **Salvar ajuste de calendário**. Nada grava enquanto é rascunho; **Cancelar** ou Escape descarta. Mudanças nos dados durante a revisão recusam a gravação e conservam o rascunho.
 
 A diferença de meses desloca todas as compras, parcelas seguintes, abatimentos e confirmações de fatura vazia daquele cartão, preservando IDs, números de parcelas, valores e datas reais. **Corrigir também os meses das faturas já pagas deste cartão** desloca também seus vencimentos e composição; sem essa opção, as pagas permanecem intactas e uma colisão é recusada. A revisão apresenta antes/depois e diferenças nos fechamentos afetados. O Histórico conserva marcas patrimoniais e registra o motivo; calendário e registros relacionados são gravados juntos. Não refazer um pagamento para corrigir sua data de vencimento.
 

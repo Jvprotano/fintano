@@ -112,7 +112,7 @@ it('confere o crédito que passa de uma fatura anterior para a do ciclo no pagam
 
 it('confere os controles de pagamento, nova compra e fechamento sem alterar a consulta deste ciclo', () => {
   seed()
-  const { container } = render(<FinancasProvider><CreditCardManager /><ClosingView onGoToCards={() => {}} onGoToPlanning={() => {}} /></FinancasProvider>)
+  const { container } = render(<FinancasProvider><CreditCardManager onOpenSettings={() => {}} /><ClosingView onGoToCards={() => {}} onGoToPlanning={() => {}} /></FinancasProvider>)
   const card = screen.getByRole('heading', { name: 'X' }).closest('section')!
   fireEvent.click(within(card).getByRole('button', { name: 'Confirmar pagamento' }))
   fireEvent.click(within(card).getAllByRole('button', { name: 'Confirmar pagamento' }).at(-1)!)

@@ -18,17 +18,14 @@ import {
 import { CurrencyInput } from './CurrencyInput'
 import { Card } from './Card'
 import { CardImportPanel } from './cards/CardImportPanel'
-import { CardAccountsPanel } from './cards/CardAccountsPanel'
 import { CardSummaryPanels } from './cards/CardSummaryPanels'
 import { CardAreaCell } from './cards/CardAreaCell'
 import { CardEntryForm } from './cards/CardEntryForm'
 import { InvoiceCreditForm } from './cards/InvoiceCreditForm'
 import { InvoicePaymentReview } from './cards/InvoicePaymentReview'
 import {
-  Meter,
   FormField,
   Panel,
-  PanelHeader,
   SecondaryButton,
   SegmentedControl,
   StatTile,
@@ -40,7 +37,6 @@ import {
 } from '../lib/cardImport'
 import { useCardsStore, useFinancasStore, useMetrics } from '../context/financasStore'
 import type { CreditCardCycle, CreditCardEntry } from '../types'
-import { BUDGET_AREA_COLORS } from '../types/constants'
 import { repositoryRevision } from '../data/repositoryCommand'
 import { calculateCreditCardSummary, formatCardDueDate } from '../lib/creditCards'
 import { cardEntriesForCycle } from '../lib/cardCycleView'
@@ -61,7 +57,7 @@ function dateSortValue(raw: string) {
   return Number(match[2]) * 100 + Number(match[1])
 }
 
-export function CreditCardManager() {
+export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => void }) {
   const {
     entries,
     migrationError,
@@ -76,7 +72,6 @@ export function CreditCardManager() {
     anticipateInstallments,
     payInvoice,
     confirmEmptyInvoice,
-    setSettings,
   } = useCardsStore()
   const { availableForBudget, budgetComparison, plannedOnCard } = useMetrics()
   const { activeCycle, cardCycleAccounting } = useFinancasStore()
@@ -278,7 +273,10 @@ export function CreditCardManager() {
 
   return (
     <div className="space-y-4">
-      {accounts.length === 0 && <CardAccountsPanel />}
+      {accounts.length === 0 && <div className="flex items-center justify-between gap-4 rounded-xl border border-dark-border bg-dark-card p-4">
+        <p className="text-sm text-dark-text-secondary">Cadastre seu primeiro cartão em Configurações para começar.</p>
+        <SecondaryButton onClick={onOpenSettings}>Cadastrar cartão</SecondaryButton>
+      </div>}
       {accounts.length > 0 && <Card title="Faturas dos cartões" icon={<CreditCard size={17} />} collapsible storageKey="card-invoices">
         <p className="text-sm text-dark-text-muted">Faturas deste ciclo. Pagar preserva os lançamentos; a consulta avança junto com o ciclo.</p>
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
@@ -300,7 +298,7 @@ export function CreditCardManager() {
                 <div>
                   <h3 className="font-semibold text-dark-text">{account.name}</h3>
                   <p className="mt-1 text-sm tabular-nums text-dark-text-secondary">{dueDate ? `Vencimento ${dueDate}` : 'Vencimento não informado'}</p>
-                  {!dueDate && <p className="mt-1 text-xs text-dark-text-muted">Informe o dia em Configurar cartões.</p>}
+                  {!dueDate && <p className="mt-1 text-xs text-dark-text-muted">Informe o dia em Configurações → Cartões e vencimentos.</p>}
                   {invoicePaid && nextDueDate && <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">Próximo vencimento {nextDueDate}</p>}
                   <p className="mt-1 text-xs text-dark-text-muted">Ciclo {formatMonthLong(activeCycle.month)} · {accountEntries.filter((entry) => entry.cycle === 'current').length} lançamentos</p>
                 </div>
@@ -358,45 +356,6 @@ export function CreditCardManager() {
           {formatCurrency(summary.currentUnappliedCreditTotal)} em abatimentos excedem a sua parte devida no cartão correspondente. Ao pagar a fatura, esse saldo passará para a próxima.
         </p>
       )}
-
-      <Panel>
-        <PanelHeader
-          title="Seu teto de gasto"
-          description="Defina seu limite pessoal somando todos os cartões. Cada compra pertence a este ciclo ou ao próximo. Pagamentos não mudam o período consultado."
-          className="mb-4"
-        />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-dark-text-muted">
-              Limite pessoal (somando todos os cartões)
-            </span>
-            <CurrencyInput
-              value={settings.personalSpendingLimit}
-              onChange={(value) => setSettings({ ...settings, personalSpendingLimit: value })}
-            />
-          </label>
-          <div className="flex flex-col justify-end">
-            <div className="mb-1.5 flex items-end justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">
-                Uso do limite
-              </span>
-              <strong
-                className={`text-sm tabular-nums ${
-                  summary.availablePersonalLimit >= 0 ? 'text-dark-text' : 'text-rose-400'
-                }`}
-              >
-                {personalSpendPct.toFixed(0)}%
-              </strong>
-            </div>
-            <Meter
-              value={summary.currentPersonalTotal}
-              max={settings.personalSpendingLimit}
-              color={BUDGET_AREA_COLORS.investimentos}
-              height={8}
-            />
-          </div>
-        </div>
-      </Panel>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SegmentedControl
@@ -871,8 +830,6 @@ export function CreditCardManager() {
         budgetComparison={budgetComparison}
         plannedOnCard={plannedOnCard}
       />
-
-      {accounts.length > 0 && <CardAccountsPanel />}
 
       {pendingUndo && (
         <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-dark-border bg-dark-surface/95 px-4 py-3 shadow-2xl backdrop-blur">
