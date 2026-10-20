@@ -1,3 +1,4 @@
+import { legacyInvoiceIdentificationError } from '../lib/legacyInvoiceIdentification'
 import type {
   Asset,
   BudgetArea,
@@ -633,6 +634,12 @@ export function repositoryToBackupV7(
         totalCents: statement.total === null ? null : toCents(statement.total),
         personalTotalCents: toCents(statement.personalTotal),
         paidAt: normalizePersistedInstant(statement.paidAt),
+        identification: statement.identification && {
+          recordedAt: statement.identification.recordedAt, reason: statement.identification.reason,
+          cards: statement.identification.cards.map((row) => ({ accountId: row.accountId,
+            totalCents: toCents(row.total), personalTotalCents: toCents(row.personalTotal),
+            others: row.others.map((person) => ({ name: person.name, amountCents: toCents(person.amount) })) })),
+        },
         calendarAdjustments: statement.calendarAdjustments?.map(({ totalDelta, personalDelta, referenceTotal, referencePersonalTotal, ...row }) => ({ ...row, totalDeltaCents: toCents(totalDelta), personalDeltaCents: toCents(personalDelta), referenceTotalCents: toCents(referenceTotal), referencePersonalTotalCents: toCents(referencePersonalTotal) })),
         charges: statement.entries?.map((entry) => ({
           id: entry.id,
@@ -1038,6 +1045,12 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
         total: statement.totalCents === null ? null : fromCents(statement.totalCents),
         personalTotal: fromCents(statement.personalTotalCents),
         paidAt: statement.paidAt,
+        identification: statement.identification && {
+          recordedAt: statement.identification.recordedAt, reason: statement.identification.reason,
+          cards: statement.identification.cards.map((row) => ({ accountId: row.accountId,
+            total: fromCents(row.totalCents), personalTotal: fromCents(row.personalTotalCents),
+            others: row.others.map((person) => ({ name: person.name, amount: fromCents(person.amountCents) })) })),
+        },
         calendarAdjustments: statement.calendarAdjustments?.map(({ totalDeltaCents, personalDeltaCents, referenceTotalCents, referencePersonalTotalCents, ...row }) => ({ ...row, totalDelta: fromCents(totalDeltaCents), personalDelta: fromCents(personalDeltaCents), referenceTotal: fromCents(referenceTotalCents), referencePersonalTotal: fromCents(referencePersonalTotalCents) })),
         entries: statement.charges?.map((charge) => ({
           id: charge.id, accountId: charge.accountId, dueMonth: charge.dueMonth,
@@ -1548,6 +1561,10 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
   for (const statement of backup.cards.statements) {
+    if (statement.identification !== undefined && (statement.accountId !== null ||
+      legacyInvoiceIdentificationError(statement.identification, accountIds, statement.totalCents, statement.personalTotalCents, true))) {
+      add('error', 'legacy_identification_invalid', 'Identificação do pagamento antigo inválida: confira cartões, pessoas e somas com o original.', statement.id)
+    }
     if (statement.calendarAdjustments !== undefined && (!Array.isArray(statement.calendarAdjustments) || statement.accountId !== null || statement.calendarAdjustments.some((row) =>
       !row || typeof row.id !== 'string' || !row.id || !accountIds.has(row.accountId) || typeof row.reason !== 'string' || !row.reason.trim() ||
       typeof row.correctedAt !== 'string' || !Number.isFinite(Date.parse(row.correctedAt)) || !Number.isSafeInteger(row.totalDeltaCents) || !Number.isSafeInteger(row.personalDeltaCents) ||

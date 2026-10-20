@@ -30,9 +30,19 @@ export interface PaidInvoiceSnapshot {
   forecastOccurrences?: { id: string; amount: number }[]
   credits?: { id: string; accountId?: string; cardName: string; description: string; purchaseDate: string; amount: number; source: 'payment' | 'reward'; cashCycleMonth?: string; originCreditId?: string }[]
   entries?: CreditCardEntry[]
+  /** Identificação informada do agregado original; somente consulta, sem novo pagamento. */
+  identification?: LegacyInvoiceIdentification
   /** Diferenças explícitas de calendário sobre um agregado legado; o original permanece intacto. */
   calendarAdjustments?: { id: string; accountId: string; correctedAt: string; reason: string; totalDelta: number; personalDelta: number; referenceTotal: number; referencePersonalTotal: number }[]
 }
+
+export interface LegacyInvoiceIdentification {
+  recordedAt: string
+  reason: string
+  cards: { accountId: string; total: number; personalTotal: number; others: { name: string; amount: number }[] }[]
+}
+
+export const legacyInvoiceId = (invoice: PaidInvoiceSnapshot) => invoice.id ?? `legacy:${invoice.dueMonth}:${invoice.paidAt}`
 
 export interface CardMonthSpending {
   spendingMonth: string
@@ -125,6 +135,7 @@ export function normalizePaidInvoiceSnapshot(
       typeof credit.description === 'string' && Number.isFinite(credit.amount) && credit.amount > 0,
     ).map((credit) => ({ ...credit, source: credit.source === 'reward' ? 'reward' as const : 'payment' as const })) : [],
     entries: Array.isArray(raw.entries) ? raw.entries : undefined,
+    identification: raw.identification,
     calendarAdjustments: raw.calendarAdjustments,
   }
 }

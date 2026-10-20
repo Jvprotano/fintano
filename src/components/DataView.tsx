@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ChartNoAxesCombined, CreditCard } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useCardsStore, useFinancasStore } from '../context/financasStore'
-import { buildCardDataInvoices, cardDataMonths, cardInvoiceChange, type CardDataMetric } from '../lib/cardData'
+import { buildCardDataInvoices, cardDataMonths, cardDataPeople, cardInvoiceChange, type CardDataMetric } from '../lib/cardData'
 import { addMonths } from '../lib/shared'
 import { formatCurrency, formatCurrencyShort, formatMonthKey, inputClass } from '../lib/format'
 import { INVESTMENT_CLASS_PRESET_COLORS } from '../types/constants'
@@ -15,14 +15,17 @@ export function DataView() {
   const { accounts, entries, paidInvoices } = useCardsStore()
   const { activeCycle } = useFinancasStore()
   const [metric, setMetric] = useState<CardDataMetric>('personalTotal')
+  const [person, setPerson] = useState('')
+  const people = useMemo(() => cardDataPeople(entries, paidInvoices), [entries, paidInvoices])
+  const selectedPerson = person || people[0] || ''
   const [includeOpen, setIncludeOpen] = useState(false)
   const [period, setPeriod] = useState<Period>('12')
   const [customRange, setCustomRange] = useState({ start: '', end: '' })
   const [selectedIds, setSelectedIds] = useState<string[] | null>(null)
 
   const allInvoices = useMemo(
-    () => buildCardDataInvoices(accounts, entries, paidInvoices, activeCycle.month),
-    [accounts, entries, paidInvoices, activeCycle.month],
+    () => buildCardDataInvoices(accounts, entries, paidInvoices, activeCycle.month, selectedPerson, includeOpen),
+    [accounts, entries, paidInvoices, activeCycle.month, selectedPerson, includeOpen],
   )
   const eligible = allInvoices.filter((invoice) => includeOpen || invoice.paid)
   const lastMonth = eligible.at(-1)?.dueMonth ?? activeCycle.month
@@ -44,9 +47,10 @@ export function DataView() {
     ...Object.fromEntries(series.map((account) => [account.key, byKey.get(`${account.id}:${month}`)?.[metric] ?? null])),
   }))
   const hasValues = invoices.some((invoice) => invoice[metric] !== null)
-  const legacyCount = rangeValid ? paidInvoices.filter((invoice) => !invoice.accountId
+  const legacyCount = rangeValid ? paidInvoices.filter((invoice) => !invoice.accountId && !invoice.identification
     && invoice.dueMonth >= start && invoice.dueMonth <= end).length : 0
-  const metricLabel = metric === 'personalTotal' ? 'Minha parte da fatura' : 'Total da fatura ao banco'
+  const metricLabel = metric === 'personalTotal' ? 'Minha parte da fatura' : metric === 'total' ? 'Total da fatura ao banco'
+    : metric === 'nonPersonalTotal' ? 'Parte de outras pessoas' : `Parte de ${selectedPerson || 'pessoa específica'}`
   const changeRange = (key: 'start' | 'end', value: string) => {
     setCustomRange({ start, end, [key]: value })
     setPeriod('custom')
@@ -60,7 +64,7 @@ export function DataView() {
     <PanelHeader title="Evolução dos cartões" icon={<ChartNoAxesCombined size={16} />}
       description="Compare as faturas de cada cartão por mês de vencimento." />
 
-    <div className="mt-5 grid grid-cols-3 gap-3 xl:grid-cols-5">
+    <div className={`mt-5 grid grid-cols-3 gap-3 ${metric === 'personTotal' ? 'xl:grid-cols-6' : 'xl:grid-cols-5'}`}>
       <FormField label="Período">
         <select className={inputClass} value={period} onChange={(event) => {
           if (event.target.value === 'custom') setCustomRange({ start, end })
@@ -81,8 +85,14 @@ export function DataView() {
       <FormField label="Valor comparado">
         <select className={inputClass} value={metric} onChange={(event) => setMetric(event.target.value as CardDataMetric)}>
           <option value="personalTotal">Minha parte da fatura</option><option value="total">Total ao banco</option>
+          <option value="nonPersonalTotal">Parte de outras pessoas</option><option value="personTotal" disabled={!people.length}>Pessoa específica</option>
         </select>
       </FormField>
+      {metric === 'personTotal' && <FormField label="Pessoa">
+        <select className={inputClass} value={selectedPerson} onChange={(event) => setPerson(event.target.value)}>
+          {people.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+      </FormField>}
       <FormField label="Faturas">
         <select className={inputClass} value={includeOpen ? 'all' : 'paid'} onChange={(event) => setIncludeOpen(event.target.value === 'all')}>
           <option value="paid">Somente pagas</option><option value="all">Pagas e em aberto</option>
@@ -115,7 +125,10 @@ export function DataView() {
         {rangeValid && <span className="text-xs text-dark-text-muted">{formatMonthKey(start)} — {formatMonthKey(end)} · por vencimento</span>}
       </div>
       <p className="mt-1 text-xs leading-relaxed text-dark-text-muted">
-        {metric === 'personalTotal' ? 'Sua parcela da fatura, após abatimentos e antecipações.' : 'Valor devido ao banco, incluindo a parte não pessoal, após abatimentos e antecipações.'}
+        {metric === 'personalTotal' ? 'Sua parcela da fatura, após abatimentos e antecipações.' : metric === 'total'
+          ? 'Valor devido ao banco, incluindo a parte não pessoal, após abatimentos e antecipações.'
+          : metric === 'nonPersonalTotal' ? 'Total da fatura menos a sua parte, coberto pelo repasse das outras pessoas.'
+          : 'Somente a parte não pessoal atribuída a esse nome nas compras ou na identificação manual. Valores sem identificação completa ficam como lacunas.'}
         {' '}Parcelas aparecem na fatura correspondente, não no mês da compra. Lacunas são dados ausentes, não zero.
         {includeOpen && ' Em aberto: valores provisórios até o pagamento; inclui até a fatura do ciclo ativo de cada cartão.'}
       </p>

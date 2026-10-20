@@ -191,6 +191,11 @@ export interface CardStatementV7 {
   totalCents: MoneyCents | null
   personalTotalCents: MoneyCents
   paidAt: string
+  identification?: {
+    recordedAt: string
+    reason: string
+    cards: { accountId: string; totalCents: MoneyCents; personalTotalCents: MoneyCents; others: { name: string; amountCents: MoneyCents }[] }[]
+  }
   calendarAdjustments?: { id: string; accountId: string; correctedAt: string; reason: string; totalDeltaCents: MoneyCents; personalDeltaCents: MoneyCents; referenceTotalCents: MoneyCents; referencePersonalTotalCents: MoneyCents }[]
   charges?: CardChargeV7[]
   forecastOccurrences?: { id: string; amountCents: MoneyCents }[]

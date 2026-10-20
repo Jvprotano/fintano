@@ -436,7 +436,7 @@ export function useCreditCards(activeCycleMonth = monthKey(), cardDueHintDay = 5
   const removeAccount = useCallback(
     (id: string) => {
       const thirds = readRepositoryDocument().collections.cardThirdParties as CardThirdParty[] ?? []
-      if (entries.some((entry) => entry.accountId === id) || paidInvoices.some((invoice) => invoice.accountId === id) || thirds.some((row) => row.accountId === id)) return false
+      if (entries.some((entry) => entry.accountId === id) || paidInvoices.some((invoice) => invoice.accountId === id || invoice.identification?.cards.some((row) => row.accountId === id)) || thirds.some((row) => row.accountId === id)) return false
       return setStoredAccounts((prev) => prev.filter((account) => account.id !== id))
     },
     [entries, paidInvoices, setStoredAccounts],

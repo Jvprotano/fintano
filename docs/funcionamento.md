@@ -191,9 +191,15 @@ A competência dos movimentos pode ser revisada no mesmo rascunho. Todas as part
 
 Faturas pagas podem ser consultadas com sua composição disponível. Um total histórico não substitui compras, créditos ou o pagamento ao banco: a edição isolada do agregado só existe quando não há fatura preservada. As referências de plano continuam as capturadas no fechamento.
 
+**Faturas antigas → Identificar cartões e pessoas** permite distribuir manualmente um pagamento agregado entre os cartões, com total ao banco, minha parte e nomes/valores das outras pessoas. É possível adicionar cartões e mais de uma pessoa por cartão. A soma precisa conferir com o total original conhecido e com a parte pessoal original; valores ausentes não viram zero. Informar motivo, revisar e salvar. Cancelar ou Escape descarta o rascunho; conflito de revisão ou falha de gravação o conserva. Editar identificação permite conferir novamente a divisão.
+
+Essa identificação serve à consulta em Dados, sem criar compras, repasses ou pagamentos e sem alterar o caixa, os fechamentos ou o calendário. O pagamento original e sua data permanecem preservados. Não incluir na divisão pagamentos separados nem diferenças posteriores de calendário. Se houver outro pagamento identificado para o mesmo cartão e vencimento, Dados soma os valores dos dois registros, uma vez.
+
+O mês exibido nesses pagamentos antigos é o **vencimento**, e a data ao lado é a do pagamento registrado. Uma fatura com vencimento em outubro paga em setembro já está paga; não representa a fatura aberta do ciclo de outubro. O ciclo ativo continua indicado no cabeçalho.
+
 ## Consultas na aba Dados
 
-Dados reúne consultas dos registros financeiros. A primeira é **Evolução dos cartões**: gráfico de linhas por cartão, com filtros de período (6 meses, 12 meses, todo o histórico ou intervalo personalizado), seleção de cartões, minha parte da fatura ou total ao banco e somente pagas ou pagas e em aberto. O atalho de teclado é **7**. Histórico continua responsável pelos fechamentos e suas correções.
+Dados reúne consultas dos registros financeiros. A primeira é **Evolução dos cartões**: gráfico de linhas por cartão, com filtros de período (6 meses, 12 meses, todo o histórico ou intervalo personalizado), seleção de cartões, minha parte da fatura, total ao banco, **Parte de outras pessoas** ou **Pessoa específica**, e somente pagas ou pagas e em aberto. Ao escolher pessoa específica, selecionar um nome, como Mãe, encontrado nas compras ou na identificação das faturas antigas. O atalho de teclado é **7**. Histórico continua responsável pelos fechamentos e suas correções.
 
 O eixo do tempo usa o **mês de vencimento**, independente do calendário de cada cartão, da data da compra e da data do pagamento. Parcelas entram na fatura correspondente. Por padrão, a consulta inclui somente pagamentos preservados e termina no último vencimento registrado; o período é de calendário. Incluir abertas acrescenta os lançamentos existentes até a fatura do ciclo ativo de cada cartão, com estado provisório explícito. Parcelas de ciclos futuros não são projetadas nessa consulta.
 
@@ -201,7 +207,9 @@ Os valores são os da fatura após abatimentos e antecipações, não o total br
 
 A comparação por cartão mostra a última fatura no período e sua diferença em reais e percentual contra o mês imediatamente anterior, quando ambos existem nos filtros. Lacunas ou valores desconhecidos não geram comparação, e uma base zero não gera percentual. Uma fatura aberta continua provisória também nessa comparação. **Ver valores por mês** abre a tabela completa dos mesmos dados, com o estado de cada fatura.
 
-Meses sem registro e totais antigos desconhecidos aparecem como lacunas, sem ligar pontos separados ou estimar zero. Zero só aparece quando registrado, inclusive em faturas confirmadas vazias. Faturas antigas sem cartão identificado ficam fora das séries individuais e são indicadas para consulta no Histórico; não são repartidas por inferência.
+Parte de outras pessoas é o total ao banco menos a parte pessoal. Pessoa específica usa apenas a parte não pessoal atribuída ao nome, incluindo o campo livre de nome dos registros antigos; não usa o valor pessoal de compras compartilhadas. Nomes diferindo apenas em acentos, maiúsculas ou espaços externos são agrupados. Antecipações saem do valor da fatura; abatimentos afetam a parte pessoal. Se faltar composição ou houver parte não pessoal sem nome, a consulta por pessoa conserva a lacuna, sem presumir zero ou atribuir o restante a Mãe.
+
+Meses sem registro e totais antigos desconhecidos aparecem como lacunas, sem ligar pontos separados ou estimar zero. Zero só aparece quando registrado, inclusive em faturas confirmadas vazias. Faturas antigas sem identificação manual ficam fora das séries individuais e são indicadas para consulta no Histórico; não são repartidas por inferência. Após identificar o pagamento, os cartões e as pessoas informados passam a compor o gráfico, as comparações e a tabela mensal.
 
 ## Fotografia para análise externa
 

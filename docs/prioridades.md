@@ -8,4 +8,4 @@ Calendários pessoais existentes precisam ser conferidos e ajustados pela aplica
 
 Configurações centraliza os ajustes ocasionais pelo menu de três pontos. O ciclo no cabeçalho é apenas visual; cartões e teto pessoal são configurados nessa tela. Sem pendências de implementação para essa centralização.
 
-A aba Dados reúne consultas filtráveis. A evolução das faturas por cartão está disponível com gráfico de linhas, período, seleção de cartões, valor pessoal/total, pagas/em aberto e tabela mensal. Novas consultas serão definidas conforme a necessidade; nenhuma outra consulta está especificada como pendência.
+A aba Dados reúne consultas filtráveis. A evolução das faturas por cartão está disponível com gráfico de linhas, período, seleção de cartões, valor pessoal/total, parte de outras pessoas ou pessoa específica, pagas/em aberto e tabela mensal. Histórico permite identificar manualmente os pagamentos antigos por cartão e pessoa, com conferência dos totais e preservação do original. Sem pendências de implementação para esses filtros e a identificação histórica. Novas consultas serão definidas conforme a necessidade.
