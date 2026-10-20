@@ -14,6 +14,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | Patrimônio | Consultar e registrar posições, reserva, metas, bens, dívidas e livros de movimentos. |
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
 | Futuro | Agrupar metas e dividir entradas previstas entre elas; acompanhar ocorrências, registrar ou vincular fatos e consultar projeção sob demanda. |
+| Dados | Filtrar registros e consultar séries ao longo do tempo. A primeira consulta compara a evolução das faturas por cartão. |
 
 ## Configurações
 
@@ -189,6 +190,18 @@ Extras, custos e Desejos com origem são corrigidos nos fatos correspondentes, c
 A competência dos movimentos pode ser revisada no mesmo rascunho. Todas as partes vinculadas mudam juntas; a data real e o valor continuam os do fato. Aportes e caixa dos ciclos envolvidos são reconciliados e os fechamentos existentes registram o motivo e os ciclos revisados. Amortização de parcela confirmada acompanha o ciclo de seu pagamento. O patrimônio passado não é substituído pelos saldos de hoje. Para corrigir valor ou desfazer uma operação patrimonial, usar o livro de movimentos em Patrimônio.
 
 Faturas pagas podem ser consultadas com sua composição disponível. Um total histórico não substitui compras, créditos ou o pagamento ao banco: a edição isolada do agregado só existe quando não há fatura preservada. As referências de plano continuam as capturadas no fechamento.
+
+## Consultas na aba Dados
+
+Dados reúne consultas dos registros financeiros. A primeira é **Evolução dos cartões**: gráfico de linhas por cartão, com filtros de período (6 meses, 12 meses, todo o histórico ou intervalo personalizado), seleção de cartões, minha parte da fatura ou total ao banco e somente pagas ou pagas e em aberto. O atalho de teclado é **7**. Histórico continua responsável pelos fechamentos e suas correções.
+
+O eixo do tempo usa o **mês de vencimento**, independente do calendário de cada cartão, da data da compra e da data do pagamento. Parcelas entram na fatura correspondente. Por padrão, a consulta inclui somente pagamentos preservados e termina no último vencimento registrado; o período é de calendário. Incluir abertas acrescenta os lançamentos existentes até a fatura do ciclo ativo de cada cartão, com estado provisório explícito. Parcelas de ciclos futuros não são projetadas nessa consulta.
+
+Os valores são os da fatura após abatimentos e antecipações, não o total bruto de compras. Minha parte exclui a parte não pessoal; total ao banco a inclui. Reduzir a fatura por crédito ou antecipação não significa necessariamente reduzir compras. A composição paga prevalece sobre lançamentos abertos da mesma identidade de cartão e vencimento. A consulta não precisa de fechamento mensal e não altera os registros ou o backup.
+
+A comparação por cartão mostra a última fatura no período e sua diferença em reais e percentual contra o mês imediatamente anterior, quando ambos existem nos filtros. Lacunas ou valores desconhecidos não geram comparação, e uma base zero não gera percentual. Uma fatura aberta continua provisória também nessa comparação. **Ver valores por mês** abre a tabela completa dos mesmos dados, com o estado de cada fatura.
+
+Meses sem registro e totais antigos desconhecidos aparecem como lacunas, sem ligar pontos separados ou estimar zero. Zero só aparece quando registrado, inclusive em faturas confirmadas vazias. Faturas antigas sem cartão identificado ficam fora das séries individuais e são indicadas para consulta no Histórico; não são repartidas por inferência.
 
 ## Fotografia para análise externa
 

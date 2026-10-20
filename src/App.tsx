@@ -12,6 +12,7 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
+  ChartNoAxesCombined,
   CalendarCheck,
   CalendarClock,
   CreditCard,
@@ -54,7 +55,7 @@ import {
   restoreAutoBackup,
 } from './lib/backup'
 
-type View = 'closing' | 'planning' | 'cards' | 'investments' | 'history' | 'forecast' | 'settings'
+type View = 'closing' | 'planning' | 'cards' | 'investments' | 'history' | 'forecast' | 'data' | 'settings'
 
 function PlanningBalance() {
   const { balanceAfterPlan, paycheckInAccount, totalCosts, totalWantsAmount, directInvestmentTarget } = useMetrics()
@@ -92,6 +93,10 @@ const SettingsView = lazy(() =>
   import('./components/SettingsView').then((module) => ({ default: module.SettingsView })),
 )
 
+const DataView = lazy(() =>
+  import('./components/DataView').then((module) => ({ default: module.DataView })),
+)
+
 interface AppDialogState {
   title: string
   description: ReactNode
@@ -110,9 +115,15 @@ const VIEWS: { id: View; label: string; icon: typeof CalendarCheck }[] = [
   { id: 'investments', label: 'Patrimônio', icon: Landmark },
   { id: 'history', label: 'Histórico', icon: History },
   { id: 'forecast', label: 'Futuro', icon: CalendarClock },
+  { id: 'data', label: 'Dados', icon: ChartNoAxesCombined },
 ]
 
 const VIEW_CONTEXT: Record<View, { eyebrow: string; title: string; description: string }> = {
+  data: {
+    eyebrow: 'Consulta · dados registrados',
+    title: 'Dados',
+    description: 'Filtre seus registros e acompanhe como os valores mudam ao longo do tempo.',
+  },
   settings: {
     eyebrow: 'Preferências e manutenção',
     title: 'Configurações',
@@ -168,7 +179,7 @@ function TabBar({
 }) {
   return (
     <nav
-      className={`grid grid-cols-3 gap-1 rounded-2xl border border-dark-border/90 bg-dark-card/85 p-1.5 shadow-inner shadow-black/20 sm:grid-cols-6 ${className}`}
+      className={`grid grid-cols-3 gap-1 rounded-2xl border border-dark-border/90 bg-dark-card/85 p-1.5 shadow-inner shadow-black/20 sm:grid-cols-7 ${className}`}
       aria-label="Navegação principal"
     >
       {VIEWS.map(({ id, label, icon: Icon }) => {
@@ -566,6 +577,7 @@ function AppShell() {
           {activeView === 'investments' && <InvestmentsManager />}
           {activeView === 'history' && <HistoryView />}
           {activeView === 'forecast' && <ForecastView />}
+          {activeView === 'data' && <DataView />}
           {activeView === 'settings' && <SettingsView
             onExport={downloadBackup}
             onImport={() => importInputRef.current?.click()}

@@ -7,3 +7,5 @@ Metas já permitem acompanhar automaticamente 100% de uma posição, além de de
 Calendários pessoais existentes precisam ser conferidos e ajustados pela aplicação, com motivo e revisão. Não alterar dados antigos por inferência.
 
 Configurações centraliza os ajustes ocasionais pelo menu de três pontos. O ciclo no cabeçalho é apenas visual; cartões e teto pessoal são configurados nessa tela. Sem pendências de implementação para essa centralização.
+
+A aba Dados reúne consultas filtráveis. A evolução das faturas por cartão está disponível com gráfico de linhas, período, seleção de cartões, valor pessoal/total, pagas/em aberto e tabela mensal. Novas consultas serão definidas conforme a necessidade; nenhuma outra consulta está especificada como pendência.
