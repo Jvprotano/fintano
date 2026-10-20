@@ -60,7 +60,7 @@ Se o caixa usa uma fatura antiga agregada sem cartão identificado, a correção
 
 Exemplo no ciclo de outubro: Itaú pode ter fatura aberta de 05/11, Nubank de 13/11 e ML de 16/10. Para corrigir Nubank cuja Hering 1/5 paga foi registrada em novembro, ajustar a aberta para novembro, manter **mês seguinte** e incluir pagas: Hering 1/5 passa para outubro, 2/5 para novembro e 3/5 para dezembro. Para ML com Umbro 1/3 registrada em novembro, ajustar a aberta para outubro e escolher **mesmo mês**: 1/3 passa para outubro e 2/3 para novembro. O ciclo ativo continua outubro.
 
-Novas compras manuais começam com a área Desejos selecionada; é possível escolher outra área ou deixar sem classificação. Após salvar, a próxima compra volta ao padrão Desejos. O bloco Faturas dos cartões pode ser recolhido pelo cabeçalho e guarda essa preferência no navegador.
+Novas compras manuais começam com a área Desejos selecionada; é possível escolher outra área ou deixar sem classificação. Após salvar, a próxima compra mantém a última Área e o texto de OBS/DE (pessoa ou observação), assim como a data e o cartão, enquanto o formulário estiver aberto. Limpar OBS/DE também mantém o campo vazio para a próxima compra. O bloco Faturas dos cartões pode ser recolhido pelo cabeçalho e guarda essa preferência no navegador.
 
 Separar total a pagar ao banco, parte pessoal, valores de terceiros e valores antecipados. Antecipação é dinheiro já pago; recompensa é abatimento sem nova saída. Créditos excedentes passam para a próxima fatura sem repetir movimento de caixa.
 

@@ -105,7 +105,6 @@ export function CardEntryForm({
     setInstallmentCurrent('')
     setInstallmentTotal('')
     setIsRecurring(false)
-    setArea('desejos')
     descriptionRef.current?.focus()
   }
 
