@@ -62,6 +62,12 @@ Exemplo no ciclo de outubro: Itaú pode ter fatura aberta de 05/11, Nubank de 13
 
 Novas compras manuais começam com a área Desejos selecionada; é possível escolher outra área ou deixar sem classificação. Após salvar, a próxima compra mantém a última Área e o texto de OBS/DE (pessoa ou observação), assim como a data e o cartão, enquanto o formulário estiver aberto. Limpar OBS/DE também mantém o campo vazio para a próxima compra. O bloco Faturas dos cartões pode ser recolhido pelo cabeçalho e guarda essa preferência no navegador.
 
+Na lista de **Cartões**, os filtros se combinam: busca por palavras na descrição/cartão/OBS/DE, cartão identificado, pessoa ou observação (com sugestões dos textos registrados) e participação na compra: com parte minha, com parte de outras pessoas, só minhas, só de outras pessoas ou compartilhadas. **Mais filtros** reúne compras sem parcelamento, parceladas (mais de uma parcela), assinaturas e abatimentos; área ou compras sem área; em aberto sem antecipação, em fatura paga ou compras antecipadas; intervalo da data real da compra e valor mínimo/máximo da linha na fatura. Participação e área filtram compras, sem atribuir abatimentos a uma pessoa ou área.
+
+Datas são inclusivas. `DD/MM` consulta dia/mês sem presumir ano; `20/12` a `10/01` cruza dezembro. `DD/MM/AAAA` exige ano registrado na compra; as duas pontas, quando preenchidas, precisam usar o mesmo formato. Datas ausentes, inválidas ou sem o ano exigido não entram no intervalo. Datas ISO completas registradas também são reconhecidas. Valores comparam o total da linha/parcela, não o saldo restante nem a soma de todas as parcelas.
+
+Os filtros permanecem ao alternar Este ciclo/Próximo ciclo, durante a permanência na aba. Afetam somente os lançamentos e os totais do recorte; faturas, pagamentos, teto e resumos gerais continuam completos. O rodapé conta todos os lançamentos exibidos, soma compras em centavos e separa parte pessoal, não pessoal, abatimentos e compras já antecipadas. Compras do recorte incluem valores já pagos/antecipados e não representam um novo saldo a pagar. **Limpar filtros** restaura a consulta completa. A filtragem não altera registros financeiros nem o backup.
+
 Separar total a pagar ao banco, parte pessoal, valores de terceiros e valores antecipados. Antecipação é dinheiro já pago; recompensa é abatimento sem nova saída. Créditos excedentes passam para a próxima fatura sem repetir movimento de caixa.
 
 O envelope Cartão inclui seus itens filhos. Não somar novamente seus detalhes ou contabilizar a mesma compra como conta e fatura.

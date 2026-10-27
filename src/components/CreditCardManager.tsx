@@ -5,11 +5,9 @@ import {
   ChevronUp,
   CreditCard,
   FastForward,
-  Filter,
   HandCoins,
   Pencil,
   Repeat,
-  Search,
   Trash2,
   Undo2,
   X,
@@ -31,7 +29,9 @@ import {
   StatTile,
 } from './ui'
 import { formatCurrency, formatDate, formatMonthLong } from '../lib/format'
-import { addMonths, normalizeText } from '../lib/shared'
+import { addMonths } from '../lib/shared'
+import { EMPTY_CARD_FILTERS, filterCardEntries, parseCardPurchaseDate } from '../lib/cardEntryFilters'
+import { CardEntryFilters } from './cards/CardEntryFilters'
 import {
   buildRemainingAmount,
 } from '../lib/cardImport'
@@ -49,13 +49,6 @@ type SortState = { key: SortKey; dir: 'asc' | 'desc' }
 
 const TABLE_COLS =
   'grid-cols-[minmax(140px,1.4fr)_84px_64px_92px_128px_104px_104px_104px_minmax(72px,0.8fr)_56px]'
-
-// Converte "dd/mm" num inteiro comparável (mm*100+dd). Sem data vai para o fim.
-function dateSortValue(raw: string) {
-  const match = raw.match(/(\d{1,2})\s*\/\s*(\d{1,2})/)
-  if (!match) return Number.MAX_SAFE_INTEGER
-  return Number(match[2]) * 100 + Number(match[1])
-}
 
 export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => void }) {
   const {
@@ -91,8 +84,7 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
 
   const [view, setView] = useState<View>('current')
 
-  const [ownerFilter, setOwnerFilter] = useState('all')
-  const [search, setSearch] = useState('')
+  const [filters, setFilters] = useState({ ...EMPTY_CARD_FILTERS })
   const [sort, setSort] = useState<SortState | null>(null)
   const [importText, setImportText] = useState('')
   const [importCycle, setImportCycle] = useState<CreditCardCycle>('current')
@@ -110,44 +102,40 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const visibleCycle: CreditCardCycle = view === 'next' ? 'next' : 'current'
-  const normalizedSearch = normalizeText(search)
-
-  const filteredEntries = cycleEntries.filter((entry) => {
-    if (entry.cycle !== visibleCycle) return false
-    if (
-      normalizedSearch &&
-      !normalizeText(
-        `${entry.description} ${entry.cardName} ${entry.ownerName ?? ''} ${entry.ownerNote ?? ''}`,
-      ).includes(normalizedSearch)
-    ) {
-      return false
-    }
-    if (ownerFilter === 'all') return true
-    if (ownerFilter === 'mine') return entry.personalAmount > 0
-    if (ownerFilter === 'third-party') return entry.entryType !== 'invoiceCredit' && entry.amount - entry.personalAmount > 0
-    if (ownerFilter === 'prepaid') return entry.isPrepaid === true
-    if (ownerFilter === 'unclassified') return entry.entryType !== 'invoiceCredit' && !entry.budgetArea
-    return (entry.ownerName || entry.ownerNote || 'Outro') === ownerFilter
+  const entriesInCycle = cycleEntries.filter((entry) => entry.cycle === visibleCycle)
+  const filteredEntries = filterCardEntries(entriesInCycle, filters)
+  const hasFilters = Object.values(filters).some((value) => value !== '' && value !== null)
+  const sortDatesWithYear = filteredEntries.every((entry) => {
+    const date = parseCardPurchaseDate(entry.purchaseDate)
+    return !date || date.full !== null
   })
 
   const visibleEntries = sort
     ? [...filteredEntries].sort((a, b) => {
         const dir = sort.dir === 'asc' ? 1 : -1
         if (sort.key === 'amount') return dir * (a.amount - b.amount)
-        if (sort.key === 'purchaseDate')
-          return dir * (dateSortValue(a.purchaseDate) - dateSortValue(b.purchaseDate))
+        if (sort.key === 'purchaseDate') {
+          const dateA = parseCardPurchaseDate(a.purchaseDate)
+          const dateB = parseCardPurchaseDate(b.purchaseDate)
+          if (!dateA || !dateB) return dateA ? -1 : dateB ? 1 : 0
+          return dir * (sortDatesWithYear ? dateA.full! - dateB.full! : dateA.dayMonth - dateB.dayMonth)
+        }
         return dir * (a[sort.key] || '').localeCompare(b[sort.key] || '', 'pt-BR')
       })
     : filteredEntries
   const filteredTotals = filteredEntries.reduce(
     (totals, entry) => {
-      if (entry.entryType === 'invoiceCredit') return totals
-      totals.amount += entry.amount
-      totals.personal += entry.personalAmount
-      totals.thirdParty += Math.max(0, entry.amount - entry.personalAmount)
+      if (entry.entryType === 'invoiceCredit') {
+        totals.credits += Math.round(entry.amount * 100)
+        return totals
+      }
+      totals.amount += Math.round(entry.amount * 100)
+      totals.personal += Math.round(entry.personalAmount * 100)
+      totals.thirdParty += Math.max(0, Math.round(entry.amount * 100) - Math.round(entry.personalAmount * 100))
+      if (entry.isPrepaid) totals.prepaid += Math.round(entry.amount * 100)
       return totals
     },
-    { amount: 0, personal: 0, thirdParty: 0 },
+    { amount: 0, personal: 0, thirdParty: 0, credits: 0, prepaid: 0 },
   )
   const toggleSort = (key: SortKey) =>
     setSort((prev) => {
@@ -179,13 +167,6 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
       : 0
 
   const knownCards = accounts.map((account) => account.name)
-  const knownOwners = Array.from(
-    new Set(
-      entries
-        .filter((entry) => entry.amount - entry.personalAmount > 0)
-        .map((entry) => entry.ownerName || entry.ownerNote || 'Outro'),
-    ),
-  )
 
   const personalSpendPct =
     settings.personalSpendingLimit > 0
@@ -390,59 +371,7 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
             <InvoiceCreditForm cycle={visibleCycle} cashCycleMonth={activeCycle.month} knownCards={knownCards} paidCards={visibleCycle === 'current' ? paidCards : []} onAdd={addSelectedEntry} onCancel={() => setShowCreditForm(false)} />
           )}
           <p className="border-b border-dark-border-subtle px-4 py-3 text-sm text-dark-text-secondary">{view === 'next' ? `Próximo ciclo · ${formatMonthLong(addMonths(activeCycle.month, 1))}` : `Este ciclo · ${formatMonthLong(activeCycle.month)}`}. Compras em cartões com a fatura deste ciclo paga entram no próximo ciclo.</p>
-          <div className="flex flex-wrap items-center gap-2 border-b border-dark-border-subtle p-3">
-            <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-dark-text-muted">
-              <Filter size={13} />
-              Filtrar
-            </span>
-            {[
-              { key: 'all', label: 'Todos' },
-              { key: 'mine', label: 'Meus' },
-              { key: 'third-party', label: 'Não são meus' },
-              ...(summary.unclassifiedPersonal > 0
-                ? [{ key: 'unclassified', label: 'Sem área' }]
-                : []),
-              ...(entries.some((entry) => entry.isPrepaid) ? [{ key: 'prepaid', label: 'Antecipados' }] : []),
-              ...knownOwners.map((owner) => ({ key: owner, label: owner })),
-            ].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setOwnerFilter(item.key)}
-                className={`rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
-                  ownerFilter === item.key
-                    ? 'border-primary-500/60 bg-primary-500/10 text-primary-200'
-                    : 'border-transparent bg-dark-input text-dark-text-muted hover:bg-white/[0.06] hover:text-dark-text'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-            <div className="relative ml-auto">
-              <Search
-                size={13}
-                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-dark-text-muted"
-              />
-              <input
-                data-card-search
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar..."
-                aria-label="Buscar lançamentos"
-                className="w-40 rounded-lg border border-dark-border bg-dark-input py-1.5 pl-8 pr-7 text-xs text-dark-text outline-none transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/25"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-dark-text-muted transition-colors hover:text-dark-text"
-                  title="Limpar busca"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-          </div>
+          <CardEntryFilters filters={filters} onChange={setFilters} accounts={accounts} entries={cycleEntries} />
 
           {anticipatingEntry && anticipateMax > 0 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/20 bg-amber-500/[0.07] px-4 py-3">
@@ -510,7 +439,7 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
             <div className="space-y-2 p-3">
               {visibleEntries.length === 0 && (
                 <p className="app-inset px-4 py-6 text-center text-sm text-dark-text-secondary">
-                  {search || ownerFilter !== 'all' ? 'Nenhum lançamento corresponde ao filtro.' : 'Nenhum lançamento nesta fatura. Adicione uma compra acima.'}
+                  {hasFilters ? 'Nenhum lançamento corresponde ao filtro.' : 'Nenhum lançamento nesta fatura. Adicione uma compra acima.'}
                 </p>
               )}
               {visibleEntries.map((entry) => entry.paidAt ? <PaidCardEntry key={entry.id} entry={entry} /> : entry.entryType === 'invoiceCredit' ? (
@@ -606,7 +535,7 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
               <div className="divide-y divide-dark-border/40">
                 {visibleEntries.length === 0 ? (
                   <div className="px-4 py-8 text-center text-sm text-dark-text-muted">
-                    {search || ownerFilter !== 'all'
+                    {hasFilters
                       ? 'Nenhum lançamento corresponde ao filtro.'
                       : 'Nenhum lançamento nesta fatura.'}
                   </div>
@@ -781,19 +710,19 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-dark-border-subtle px-4 py-3 text-xs text-dark-text-muted">
             <span>
               {filteredEntries.length} de{' '}
-              {visibleCycle === 'current' ? summary.currentEntriesCount : summary.nextEntriesCount}{' '}
-              lançamentos · total do filtro:{' '}
+              {entriesInCycle.length}{' '}
+              lançamentos · compras do recorte:{' '}
               <strong className="font-semibold tabular-nums text-dark-text">
-                {formatCurrency(filteredTotals.amount)}
+                {formatCurrency(filteredTotals.amount / 100)}
               </strong>{' '}
-              · meu: {formatCurrency(filteredTotals.personal)} · não meu:{' '}
-              {formatCurrency(filteredTotals.thirdParty)}
-              {filteredEntries.some((entry) => entry.entryType === 'invoiceCredit') && ` · abatimentos: ${formatCurrency(filteredEntries.filter((entry) => entry.entryType === 'invoiceCredit').reduce((sum, entry) => sum + entry.amount, 0))}`}
+              · meu: {formatCurrency(filteredTotals.personal / 100)} · não meu:{' '}
+              {formatCurrency(filteredTotals.thirdParty / 100)}
+              {filteredTotals.credits > 0 && ` · abatimentos: ${formatCurrency(filteredTotals.credits / 100)}`}
             </span>
-            {visibleCycle === 'current' && summary.currentPrepaidTotal > 0 && (
+            {filteredTotals.prepaid > 0 && (
               <span className="flex items-center gap-1.5 text-primary-400">
                 <HandCoins size={13} />
-                {formatCurrency(summary.currentPrepaidTotal)} pagos antecipadamente, fora do total
+                {formatCurrency(filteredTotals.prepaid / 100)} das compras do recorte já antecipados
               </span>
             )}
           </div>

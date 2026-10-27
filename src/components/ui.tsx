@@ -708,12 +708,15 @@ export function SecondaryButton({
   disabled,
   tone = 'neutral',
   className = '',
+  ...accessibility
 }: {
   children: ReactNode
   onClick?: () => void
   disabled?: boolean
   tone?: 'neutral' | 'danger'
   className?: string
+  'aria-expanded'?: boolean
+  'aria-controls'?: string
 }) {
   const toneClass =
     tone === 'danger'
@@ -725,6 +728,7 @@ export function SecondaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      {...accessibility}
       className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border bg-dark-surface/80 px-3.5 py-2 text-sm font-medium shadow-sm shadow-black/10 transition-[background-color,border-color,color,transform] hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${toneClass} ${className}`}
     >
       {children}
