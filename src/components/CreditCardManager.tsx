@@ -33,6 +33,7 @@ import { addMonths } from '../lib/shared'
 import { EMPTY_CARD_FILTERS, filterCardEntries, parseCardPurchaseDate } from '../lib/cardEntryFilters'
 import { CardEntryFilters } from './cards/CardEntryFilters'
 import { CardReportExport } from './cards/CardReportExport'
+import { cardEntryTotals } from '../lib/cardEntryTotals'
 import {
   buildRemainingAmount,
 } from '../lib/cardImport'
@@ -124,20 +125,7 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
         return dir * (a[sort.key] || '').localeCompare(b[sort.key] || '', 'pt-BR')
       })
     : filteredEntries
-  const filteredTotals = filteredEntries.reduce(
-    (totals, entry) => {
-      if (entry.entryType === 'invoiceCredit') {
-        totals.credits += Math.round(entry.amount * 100)
-        return totals
-      }
-      totals.amount += Math.round(entry.amount * 100)
-      totals.personal += Math.round(entry.personalAmount * 100)
-      totals.thirdParty += Math.max(0, Math.round(entry.amount * 100) - Math.round(entry.personalAmount * 100))
-      if (entry.isPrepaid) totals.prepaid += Math.round(entry.amount * 100)
-      return totals
-    },
-    { amount: 0, personal: 0, thirdParty: 0, credits: 0, prepaid: 0 },
-  )
+  const filteredTotals = cardEntryTotals(filteredEntries)
   const toggleSort = (key: SortKey) =>
     setSort((prev) => {
       if (!prev || prev.key !== key) return { key, dir: 'asc' }
@@ -374,6 +362,19 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
           <p className="border-b border-dark-border-subtle px-4 py-3 text-sm text-dark-text-secondary">{view === 'next' ? `Próximo ciclo · ${formatMonthLong(addMonths(activeCycle.month, 1))}` : `Este ciclo · ${formatMonthLong(activeCycle.month)}`}. Compras em cartões com a fatura deste ciclo paga entram no próximo ciclo.</p>
           <CardEntryFilters filters={filters} onChange={setFilters} accounts={accounts} entries={cycleEntries} />
           <CardReportExport entries={visibleEntries} filters={filters} />
+          <div className="flex items-start justify-between gap-6 border-b border-dark-border-subtle px-4 py-4">
+            <div>
+              <p className="text-sm font-medium text-dark-text-secondary">A pagar nos lançamentos exibidos</p>
+              <strong className="mt-1 block text-2xl font-semibold tabular-nums text-dark-text">{formatCurrency(filteredTotals.due / 100)}</strong>
+              <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">Minha parte: {formatCurrency(filteredTotals.personalDue / 100)} · Outras pessoas: {formatCurrency(filteredTotals.thirdPartyDue / 100)}</p>
+            </div>
+            <div className="space-y-1 text-right text-xs tabular-nums text-dark-text-muted">
+              <p>Total das compras: {formatCurrency(filteredTotals.purchases / 100)}</p>
+              {filteredTotals.prepaid > 0 && <p>Já antecipado: {formatCurrency(filteredTotals.prepaid / 100)}</p>}
+              {filteredTotals.paid > 0 && <p>Pago em faturas: {formatCurrency(filteredTotals.paid / 100)}</p>}
+              {filteredTotals.appliedCredits > 0 && <p>Abatimentos aplicados: {formatCurrency(filteredTotals.appliedCredits / 100)}</p>}
+            </div>
+          </div>
 
           {anticipatingEntry && anticipateMax > 0 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/20 bg-amber-500/[0.07] px-4 py-3">
@@ -709,24 +710,8 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-dark-border-subtle px-4 py-3 text-xs text-dark-text-muted">
-            <span>
-              {filteredEntries.length} de{' '}
-              {entriesInCycle.length}{' '}
-              lançamentos · compras do recorte:{' '}
-              <strong className="font-semibold tabular-nums text-dark-text">
-                {formatCurrency(filteredTotals.amount / 100)}
-              </strong>{' '}
-              · meu: {formatCurrency(filteredTotals.personal / 100)} · não meu:{' '}
-              {formatCurrency(filteredTotals.thirdParty / 100)}
-              {filteredTotals.credits > 0 && ` · abatimentos: ${formatCurrency(filteredTotals.credits / 100)}`}
-            </span>
-            {filteredTotals.prepaid > 0 && (
-              <span className="flex items-center gap-1.5 text-primary-400">
-                <HandCoins size={13} />
-                {formatCurrency(filteredTotals.prepaid / 100)} das compras do recorte já antecipados
-              </span>
-            )}
+          <div className="border-t border-dark-border-subtle px-4 py-3 text-xs text-dark-text-muted">
+            {filteredEntries.length} de {entriesInCycle.length} lançamentos
           </div>
         </Panel>
       ) : (
