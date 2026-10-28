@@ -373,7 +373,7 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
           )}
           <p className="border-b border-dark-border-subtle px-4 py-3 text-sm text-dark-text-secondary">{view === 'next' ? `Próximo ciclo · ${formatMonthLong(addMonths(activeCycle.month, 1))}` : `Este ciclo · ${formatMonthLong(activeCycle.month)}`}. Compras em cartões com a fatura deste ciclo paga entram no próximo ciclo.</p>
           <CardEntryFilters filters={filters} onChange={setFilters} accounts={accounts} entries={cycleEntries} />
-          <CardReportExport entries={visibleEntries} accounts={accounts} filters={filters} cycleMonth={addMonths(activeCycle.month, visibleCycle === 'next' ? 1 : 0)} />
+          <CardReportExport entries={visibleEntries} filters={filters} />
 
           {anticipatingEntry && anticipateMax > 0 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/20 bg-amber-500/[0.07] px-4 py-3">

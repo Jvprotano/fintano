@@ -1,6 +1,6 @@
 # Pendências do FinTano
 
-Cartões permite exportar a consulta filtrada e ordenada em relatório para salvar como PDF pelo navegador, com escolha entre valor inteiro, parte pessoal e parte de outras pessoas. Sem pendências de implementação para essa exportação; uso e significado dos totais em [funcionamento](funcionamento.md).
+Cartões permite exportar diretamente a consulta filtrada e ordenada em relatório para salvar como PDF pelo navegador, com os valores integrais das compras e sem identificar os filtros usados. Sem pendências de implementação para essa exportação; uso e significado dos totais em [funcionamento](funcionamento.md).
 
 Nenhuma pendência de implementação registrada para o calendário independente por cartão. O funcionamento atual e o ajuste explícito das faturas estão em [funcionamento](funcionamento.md); o contrato de persistência está em [dados e backup](dados-e-backup.md).
 
