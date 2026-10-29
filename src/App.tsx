@@ -39,6 +39,7 @@ import { ClosingView } from './components/ClosingView'
 import { AIAnalysisDialog } from './components/AIAnalysisDialog'
 import { ScenarioSwitcher } from './components/ScenarioSwitcher'
 import { CyclePlanReference } from './components/CyclePlanReference'
+import { SavePlanScenario } from './components/SavePlanScenario'
 import { CycleIndicator } from './components/CycleIndicator'
 import { ConfirmationDialog, SecondaryButton } from './components/ui'
 import { formatCurrency, formatDate } from './lib/format'
@@ -73,6 +74,7 @@ function PlanningBalance() {
       {formatCurrency(paycheckInAccount)} − {formatCurrency(totalCosts)} contas − {formatCurrency(totalWantsAmount)} Desejos − {formatCurrency(directInvestmentTarget)} aporte
     </p>
     <div className="mt-3"><CyclePlanReference /></div>
+    <SavePlanScenario />
   </div>
 }
 
@@ -477,7 +479,7 @@ function AppShell() {
             <div className="hidden sm:block">
               <CycleIndicator />
             </div>
-            <ScenarioSwitcher />
+            <ScenarioSwitcher onGoToPlanning={() => setActiveView('planning')} />
             <button
               type="button"
               onClick={() => setShowAIAnalysis(true)}

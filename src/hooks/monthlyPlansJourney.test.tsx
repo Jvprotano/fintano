@@ -11,7 +11,7 @@ import { backupV9ToRepository, inspectBackupPayload, repositoryToBackupV9 } from
 describe('plano separado por competência', () => {
   beforeEach(() => localStorage.clear())
 
-  it('preserva o plano fixado após ajustes, simulação, restauração e fechamento', () => {
+  it('preserva o plano fixado após ajustes, seleção de simulação, restauração e fechamento', () => {
     const base = createDefaultScenario('Atual')
     base.salaryNet = 5000
     base.deductions = []
@@ -36,7 +36,7 @@ describe('plano separado por competência', () => {
     act(() => expect(app.result.current.scenarios.fixCurrentPlan()).toBe(true))
     const reference = structuredClone(app.result.current.scenarios.currentPlan.fixedReference)
     act(() => expect(app.result.current.scenarios.setSalaryNet(5500)).toBe(true))
-    act(() => expect(app.result.current.scenarios.applyScenarioToActiveCycle(alternative.id)).toBe(true))
+    act(() => expect(app.result.current.scenarios.setActiveScenarioId(alternative.id)).toBe(true))
     expect(app.result.current.planComparison).toMatchObject({ costs: 1000, wants: 200, invested: 500, paycheck: 5000 })
     expect(app.result.current.scenarios.currentPlan.fixedReference).toEqual(reference)
     act(() => expect(app.result.current.scenarios.fixCurrentPlan()).toBe(false))
@@ -79,18 +79,15 @@ describe('plano separado por competência', () => {
     act(() => expect(app.result.current.scenarios.setActiveScenarioId(alternative.id)).toBe(true))
     expect(app.result.current.scenarios.salaryNet).toBe(5000)
     expect(app.result.current.actuals.summary.effectiveCosts).toBe(1000)
-    act(() => expect(app.result.current.scenarios.applyScenarioToActiveCycle(alternative.id)).toBe(true))
-    expect(app.result.current.scenarios.salaryNet).toBe(9000)
-    expect(app.result.current.actuals.summary.effectiveCosts).toBe(1000)
     act(() => expect(app.result.current.activeCycle.setCycleMonth('2026-11')).toBe(true))
     expect(app.result.current.scenarios.salaryNet).toBe(5000)
     act(() => expect(app.result.current.scenarios.setSalaryNet(6000)).toBe(true))
     const plans = readRepositoryDocument().collections.monthlyPlans as MonthlyPlan[]
-    expect(plans.find((plan) => plan.month === '2026-10')?.salaryNet).toBe(9000)
+    expect(plans.find((plan) => plan.month === '2026-10')?.salaryNet).toBe(5000)
     expect(plans.find((plan) => plan.month === '2026-11')?.salaryNet).toBe(6000)
     expect(plans.find((plan) => plan.month === '2026-11')?.customized).toBe(true)
     expect((readRepositoryDocument().collections.actuals as Array<{ month: string }>)[0].month).toBe('2026-10')
-    act(() => expect(app.result.current.scenarios.saveCurrentPlanAsRecurring('model_only')).toBe(true))
+    act(() => expect(app.result.current.scenarios.saveCurrentPlanAsScenario({ scenarioId: base.id, useForNextCycles: true }).ok).toBe(true))
     const template = (readRepositoryDocument().collections.scenarios as Array<typeof base>)
       .find((item) => item.id === base.id)
     expect(template?.salaryNet).toBe(6000)
@@ -113,7 +110,7 @@ describe('plano separado por competência', () => {
     act(() => expect(app.result.current.activeCycle.setCycleMonth('2026-12')).toBe(true))
     act(() => expect(app.result.current.activeCycle.setCycleMonth('2026-10')).toBe(true))
     act(() => expect(app.result.current.scenarios.setSalaryNet(7000)).toBe(true))
-    act(() => expect(app.result.current.scenarios.saveCurrentPlanAsRecurring('future_unmodified')).toBe(true))
+    act(() => expect(app.result.current.scenarios.saveCurrentPlanAsScenario({ scenarioId: base.id, useForNextCycles: true }).ok).toBe(true))
     const plans = readRepositoryDocument().collections.monthlyPlans as MonthlyPlan[]
     expect(plans.find((item) => item.month === '2026-10')?.salaryNet).toBe(7000)
     expect(plans.find((item) => item.month === '2026-11')?.salaryNet).toBe(8000)

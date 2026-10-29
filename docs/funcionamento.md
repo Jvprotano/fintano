@@ -28,11 +28,15 @@ O teto pessoal é editado em Configurações; o uso e o valor disponível contin
 
 ## Plano, referência e simulação
 
-Cada competência tem seu próprio plano, inicialmente derivado do modelo recorrente. Editar Planejar altera o plano do ciclo ativo. Selecionar uma simulação não altera esse plano nem os fatos; Aplicar simulação ao ciclo copia seus valores explicitamente.
+Cada competência tem seu próprio plano, inicialmente derivado do modelo recorrente. Editar Planejar altera o plano do ciclo ativo. Simulações ficam separadas: selecionar uma não altera o plano nem os fatos. Não há ação para substituir o plano do ciclo por uma simulação.
 
-Fixar plano do ciclo guarda uma cópia independente com data, uma vez por competência. Ajustes posteriores e aplicação de simulação preservam a referência. O fechamento compara custos fora do cartão, Desejos fora do cartão, investimentos pessoais e cartão com essa referência. Sem referência fixada, compara com o plano vigente no fechamento. Não reconstruir uma intenção original que não foi registrada.
+Fixar plano do ciclo guarda uma cópia independente com data, uma vez por competência. Ajustes posteriores preservam a referência. O fechamento compara custos fora do cartão, Desejos fora do cartão, investimentos pessoais e cartão com essa referência. Sem referência fixada, compara com o plano vigente no fechamento. Não reconstruir uma intenção original que não foi registrada.
 
-Fixar plano não fecha o ciclo, não confirma pagamentos e não altera o modelo recorrente. Publicar o plano como modelo é uma ação separada, com alcance explícito sobre o modelo e, se escolhido, planos futuros ainda intactos.
+Fixar plano não fecha o ciclo, não confirma pagamentos e não altera o modelo recorrente. **Planejar → Salvar plano como cenário** permite atualizar um cenário existente ou criar um novo com nome, copiando o plano completo da competência: renda, descontos, custos, Desejos e aporte. Revisar o destino e a renda antes de **Salvar cenário**. Cancelar descarta a gravação; falha mantém o formulário, e dados alterados durante a revisão exigem nova conferência.
+
+**Usar como modelo dos próximos ciclos** define esse cenário como origem dos novos meses e atualiza também os planos futuros do modelo anterior ou do cenário escolhido que ainda estejam intactos. Planos editados, fixados, fechados ou com folha/custos/Desejos/extras realizados são preservados. Atualizar o cenário que já é o modelo inclui esse alcance. Um novo cenário ou outro cenário existente pode ser salvo separadamente, desmarcando a opção. O plano atual e sua referência fixada permanecem preservados; salvar cenário não registra recebimentos ou pagamentos.
+
+Exemplo: editar a renda de novembro de R$ 8.800 para R$ 8.980 salva novembro imediatamente; fixar guarda essa intenção. Para usar o novo salário em dezembro e nos meses seguintes, salvar o plano no cenário Atual com **Usar como modelo dos próximos ciclos**. A prévia passa a usar esse modelo, salvo se dezembro já tiver um plano protegido pelas condições acima. O dropdown **Plano do ciclo** identifica a renda do plano atual, os valores dos cenários salvos e qual deles é o modelo dos próximos ciclos.
 
 ## Ciclo e cartão
 
@@ -45,6 +49,8 @@ Cartões usa **Este ciclo** e **Próximo ciclo**, ancorados na competência oper
 Novas compras em um cartão cuja fatura deste ciclo já foi paga entram no próximo ciclo, com aviso no formulário. Importação exige escolher Próximo ciclo nessa situação; faturas pagas não podem ser substituídas ou reimportadas. Trocar o cartão de uma compra mantém sua competência e recusa uma fatura de destino já paga.
 
 O fechamento permite **Confirmar pendentes e virar ciclo**: revisa cartões, meses de vencimento e valor cheio ao banco, incluindo faturas anteriores ainda abertas, e confirma tudo numa gravação única. Faturas já pagas são puladas. Créditos excedentes passam uma vez para a seguinte; valores desconhecidos exigem conferência. Continua disponível fechar apenas o ciclo, sem declarar pagamento.
+
+Uma fatura sem compras e sem confirmação de vazio é desconhecida, não zero. Em Ciclo, **Minha parte da fatura** mostra a soma conhecida como parcial e identifica os cartões e vencimentos que faltam conferir. Em **Cartões → Faturas dos cartões**, conferir o cartão indicado: lançar as compras que faltam ou, se estiver zerado, usar **Confirmar sem lançamentos**. Essa confirmação informa zero, sem registrar pagamento; vale somente para aquele cartão e vencimento, e precisa ser feita novamente se a próxima fatura também estiver vazia.
 
 Cadastrar cartão exige somente o nome. Dias de fechamento e vencimento e limite do banco são opcionais. Cartões novos começam atribuídos ao ciclo ativo, inicialmente com vencimento no mês seguinte; a fatura anterior é confirmada vazia por se tratar de um novo cadastro. Dados existentes conservam seus meses e pagamentos até uma correção explícita.
 

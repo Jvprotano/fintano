@@ -69,6 +69,7 @@ export interface CycleInvoiceCash {
   paid: boolean
   /** false quando uma versão antiga já girou a fatura e não deixou snapshot do valor pago. */
   amountKnown: boolean
+  missingInvoices?: { accountId: string; dueMonth: string }[]
 }
 
 export interface CardCycleAccounting {
@@ -427,6 +428,7 @@ export function calculateCardCycleAccounting(input: {
       let personalTotal = 0
       let amountKnown = true
       let paidCount = 0
+      const missingInvoices: NonNullable<CycleInvoiceCash['missingInvoices']> = []
       for (const account of input.accounts!) {
         const month = byCalendar ? cardDueMonthForCycle(account, cycleMonth) : cycleMonth
         const snapshot = paidInvoices.find((item) => item.accountId === account.id && item.dueMonth === month)
@@ -434,6 +436,7 @@ export function calculateCardCycleAccounting(input: {
           total += snapshot.total ?? 0
           personalTotal += snapshot.personalTotal
           amountKnown &&= snapshot.total !== null
+          if (snapshot.total === null) missingInvoices.push({ accountId: account.id, dueMonth: month })
           paidCount++
           continue
         }
@@ -443,10 +446,12 @@ export function calculateCardCycleAccounting(input: {
           accountEntries.length === 0 && !account.confirmedEmptyDueMonths?.includes(month)) {
           // Faturas legadas agregadas não permitem inferir a parte de cada cartão.
           amountKnown = false
+          missingInvoices.push({ accountId: account.id, dueMonth: month })
           continue
         }
         if (accountEntries.length === 0 && !account.confirmedEmptyDueMonths?.includes(month)) {
           amountKnown = false
+          missingInvoices.push({ accountId: account.id, dueMonth: month })
           continue
         }
         const statement = summarizeInvoiceEntries(accountEntries)
@@ -460,7 +465,7 @@ export function calculateCardCycleAccounting(input: {
         return legacyInvoiceCash(legacy, entries, paidInvoices)
       }
       return { dueMonth: month, dueMonths, total: amountKnown ? total : null, personalTotal,
-        paid: paidCount === input.accounts!.length, amountKnown }
+        paid: paidCount === input.accounts!.length, amountKnown, missingInvoices }
     }
     const spendingMonth = activeCycleMonth
     const dueMonth = addMonths(spendingMonth, 1)

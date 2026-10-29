@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { readRepositoryDocument, useRepositoryState } from '../data/repository'
 import { runRepositoryCommand } from '../data/repositoryCommand'
 import { deleteUnusedCatalog } from '../data/catalogDeletion'
+import { savePlanScenarioInDocument, type SavePlanScenarioInput } from '../data/planScenarioCommand'
 import type {
   CostCategory,
   CostItem,
@@ -143,64 +144,10 @@ export function useScenarios(activeCycleMonth = monthKey()) {
     } }).ok,
   [activeCycleMonth])
 
-  const applyScenarioToActiveCycle = useCallback((scenarioId: string, expectedRevision?: string | null) =>
-    runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
-      const templates = Array.isArray(document.collections.scenarios)
-        ? document.collections.scenarios as FinanceScenario[] : []
-      const selected = templates.find((item) => item.id === scenarioId)
-      if (!selected) return null
-      const plans = Array.isArray(document.collections.monthlyPlans)
-        ? document.collections.monthlyPlans as MonthlyPlan[] : []
-      const existing = plans.find((item) => item.month === activeCycleMonth)
-      const next = planFromTemplate(activeCycleMonth, selected)
-      const now = nowIso()
-      const costIds = new Set(next.costs.map((item) => item.id))
-      const wantIds = new Set(next.wants.map((item) => item.id))
-      const updated: MonthlyPlan = { ...next,
-        id: existing?.id ?? next.id, createdAt: existing?.createdAt ?? next.createdAt,
-        updatedAt: now, customized: true,
-        fixedReference: existing?.fixedReference,
-        costs: [...next.costs, ...(existing?.costs ?? []).filter((item) => !costIds.has(item.id))
-          .map((item) => ({ ...item, archivedAt: item.archivedAt ?? now }))],
-        wants: [...next.wants, ...(existing?.wants ?? []).filter((item) => !wantIds.has(item.id))
-          .map((item) => ({ ...item, archivedAt: item.archivedAt ?? now }))],
-      }
-      return { ...document, collections: { ...document.collections,
-        monthlyPlans: [...plans.filter((item) => item.month !== activeCycleMonth), updated]
-          .sort((a, b) => a.month.localeCompare(b.month)),
-      } }
-    } }).ok,
-  [activeCycleMonth])
-
-  const saveCurrentPlanAsRecurring = useCallback((scope: 'model_only' | 'future_unmodified', expectedRevision?: string | null) =>
-    runRepositoryCommand({ id: uid(), expectedRevision, apply: (document) => {
-      const templates = Array.isArray(document.collections.scenarios)
-        ? document.collections.scenarios as FinanceScenario[] : []
-      const templateId = document.collections.recurringTemplateId
-      const template = templates.find((item) => item.id === templateId)
-      const plans = Array.isArray(document.collections.monthlyPlans)
-        ? document.collections.monthlyPlans as MonthlyPlan[] : []
-      const current = plans.find((item) => item.month === activeCycleMonth)
-      if (!template || !current) return null
-      const now = nowIso()
-      const updatedModel: FinanceScenario = { ...template, ...planAsScenario(current),
-        id: template.id, name: template.name, createdAt: template.createdAt, updatedAt: now }
-      const actuals = Array.isArray(document.collections.actuals)
-        ? document.collections.actuals as MonthlyActuals[] : []
-      const hasFacts = (month: string) => actuals.some((item) => item.month === month &&
-        (Object.keys(item.costs ?? {}).length > 0 || Object.keys(item.wants ?? {}).length > 0 ||
-          item.extraIncome?.length > 0 || item.extraExpenses?.length > 0))
-      return { ...document, collections: { ...document.collections,
-        scenarios: templates.map((item) => item.id === template.id ? updatedModel : item),
-        monthlyPlans: scope === 'model_only' ? plans : plans.map((plan) => {
-          if (plan.month <= activeCycleMonth || plan.customized || plan.fixedReference ||
-            plan.sourceTemplateId !== template.id || hasFacts(plan.month)) return plan
-          return { ...planFromTemplate(plan.month, updatedModel), id: plan.id,
-            createdAt: plan.createdAt, updatedAt: now, customized: false }
-        }),
-      } }
-    } }).ok,
-  [activeCycleMonth])
+  const saveCurrentPlanAsScenario = useCallback((input: Omit<SavePlanScenarioInput, 'month'>, expectedRevision?: string | null) =>
+    runRepositoryCommand({ id: uid(), expectedRevision,
+      apply: (document) => savePlanScenarioInDocument(document, { ...input, month: activeCycleMonth }),
+    }), [activeCycleMonth])
 
   // Cenários -----------------------------------------------------------------
 
@@ -636,8 +583,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
     recurringTemplateId,
     setRecurringTemplateId,
     setActiveScenarioId,
-    applyScenarioToActiveCycle,
-    saveCurrentPlanAsRecurring,
+    saveCurrentPlanAsScenario,
     createScenario,
     duplicateScenario,
     renameScenario,

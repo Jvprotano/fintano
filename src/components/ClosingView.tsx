@@ -104,6 +104,11 @@ export function ClosingView({
   const closingInvoiceDue = cardCycleAccounting.invoiceFormedByCycle.personalTotal
   const closingInvoiceTotal = cardCycleAccounting.invoiceFormedByCycle.total
   const invoiceKnown = cardCycleAccounting.invoiceFormedByCycle.amountKnown
+  const missingInvoices = cardCycleAccounting.invoiceFormedByCycle.missingInvoices ?? []
+  const missingInvoiceLabels = missingInvoices.map((invoice) => {
+    const account = cards.accounts.find((account) => account.id === invoice.accountId)
+    return `${account?.name ?? 'Cartão'} (${formatMonthLong(invoice.dueMonth)})`
+  })
   const closingInvoiceAlreadyPaid = cardCycleAccounting.invoiceFormedByCycle.paid
   const currentInvoiceKnown = cardCycleAccounting.invoiceThisCycle.amountKnown
   const incomeKnown = actuals.summary.paycheck !== null
@@ -390,8 +395,8 @@ export function ClosingView({
             tone={wantsStatus.tone}
           />
           <StatTile
-            label="Minha parte da fatura"
-            value={invoiceKnown ? formatCurrency(closingInvoiceDue) : '—'}
+            label={`Minha parte da fatura${invoiceKnown ? '' : ' (parcial)'}`}
+            value={formatCurrency(closingInvoiceDue)}
             detail={
               invoiceKnown
                 ? (
@@ -401,7 +406,9 @@ export function ClosingView({
                       suffix={` · vencimentos em ${(cardCycleAccounting.invoiceFormedByCycle.dueMonths ?? [cardCycleAccounting.invoiceFormedByCycle.dueMonth]).map(formatMonthLong).join(' e ')}`}
                     />
                   )
-                : 'confira Cartões antes de fechar'
+                : missingInvoices.length > 0
+                  ? `Falta conferir em Cartões: ${missingInvoiceLabels.join(', ')}. Se estiver vazia, use “Confirmar sem lançamentos”.`
+                  : 'Valor parcial. Confira Cartões antes de fechar.'
             }
             tone={invoiceKnown ? invoiceStatus.tone : 'neutral'}
           />

@@ -22,7 +22,7 @@ export function CyclePlanReference() {
           {planComparison.fixedAt
             ? `Plano de ${formatMonthKey(activeCycle.month)} fixado em ${formatDate(planComparison.fixedAt)}. Ajustes preservam essa referência para o Histórico.`
             : closed ? 'Ciclo fechado. Consulte a comparação em Histórico.'
-            : 'Fixe o plano para comparar sua intenção original com o realizado ao fechar o ciclo.'}
+            : 'Fixe o plano para comparar sua intenção original com o realizado ao fechar o ciclo. Isso não atualiza o modelo dos próximos meses.'}
         </p>
         {!planComparison.fixedAt && !closed && <SecondaryButton onClick={() => {
           setError(scenarios.fixCurrentPlan(repositoryRevision()) ? '' : 'Não foi possível fixar o plano. Confira o armazenamento e tente novamente.')
