@@ -279,7 +279,8 @@ export function useFinancas() {
 
   const financialCycle = useMemo(
     () => {
-      const pendingExtraExpense = forecastAgenda.flatMap((row) => row.items)
+      const items = forecastAgenda.flatMap((row) => row.items)
+      const pendingExtraExpense = items
         .filter((item) => item.event.kind === 'expense' && requiresExtraCash(item) && item.month <= activeCycle.month && item.status !== 'cancelled')
         .reduce((sum, item) => sum + item.remainingAmount, 0)
       return calculateFinancialCycle({
@@ -287,8 +288,10 @@ export function useFinancas() {
         income: cashFlow.totalIn,
         invoiceToPay: cashFlow.invoiceToPay,
         costsOnAccount: cashFlow.costsOnAccount,
-        costsCommitted: forecastCostsCommitted(actuals.summary.rows, forecastAgenda.flatMap((row) => row.items), activeCycle.month),
+        costsCommitted: forecastCostsCommitted(actuals.summary.rows, items, activeCycle.month),
+        projectedCostsCommitted: forecastCostsCommitted(actuals.summary.rows, items, activeCycle.month, true),
         wantsOnAccount: cashFlow.wantsOnAccount,
+        projectedWantsCommitted: forecastWantsCommitted(actuals.summary.wantRows, items, activeCycle.month, true),
         directInvestment: cashFlow.directInvestment,
         investmentWithdrawals: cashFlow.investmentWithdrawals,
         directInvestmentCommitted: metrics.directInvestmentTarget,
@@ -300,7 +303,7 @@ export function useFinancas() {
       })
     },
     [activeCycle.month, nextInvoiceCash.personalTotal, cashFlow,
-      actuals.summary.rows, metrics.directInvestmentTarget,
+      actuals.summary.rows, actuals.summary.wantRows, metrics.directInvestmentTarget,
       forecastAgenda],
   )
 

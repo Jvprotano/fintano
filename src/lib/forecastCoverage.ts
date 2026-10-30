@@ -13,24 +13,25 @@ export function requiresExtraCash(item: ExpectedOccurrence): boolean {
     !item.event.occurrenceOverrides?.[item.originalMonth]?.links?.some((link) => link.type !== 'cash')
 }
 
-/** Um custo vinculado ocupa sua própria verba, incluindo o restante, uma vez. */
-export function forecastCostsCommitted(rows: ActualsSummary['rows'], items: ReconciledOccurrence[], month: string): number {
+/** Um custo vinculado ocupa sua própria verba, incluindo o restante, uma vez.
+ * reserveFullPlan mantém também o orçamento de cada item na projeção do Ciclo. */
+export function forecastCostsCommitted(rows: ActualsSummary['rows'], items: ReconciledOccurrence[], month: string, reserveFullPlan = false): number {
   const expected = new Map<string, number>()
   for (const item of items) if (item.month === month && item.status !== 'cancelled' && item.event.planLink?.type === 'cost') {
     const id = item.event.planLink.id
     expected.set(id, Math.max(expected.get(id) ?? 0, item.unregisteredAmount))
   }
-  return rows.reduce((sum, row) => sum + Math.max(row.actual ?? row.planned, (row.actual ?? 0) + (expected.get(row.cost.id) ?? 0)), 0)
+  return rows.reduce((sum, row) => sum + Math.max(reserveFullPlan ? row.planned : 0, row.actual ?? row.planned, (row.actual ?? 0) + (expected.get(row.cost.id) ?? 0)), 0)
 }
 
 /** Desejos ligados ao plano ocupam a própria verba, sem outra saída prevista. */
-export function forecastWantsCommitted(rows: ActualsSummary['wantRows'], items: ReconciledOccurrence[], month: string): number {
+export function forecastWantsCommitted(rows: ActualsSummary['wantRows'], items: ReconciledOccurrence[], month: string, reserveFullPlan = false): number {
   const expected = new Map<string, number>()
   for (const item of items) if (item.month === month && item.status !== 'cancelled' && item.event.planLink?.type === 'want') {
     const id = item.event.planLink.id
     expected.set(id, Math.max(expected.get(id) ?? 0, item.unregisteredAmount))
   }
-  return rows.reduce((sum, row) => sum + Math.max(row.actual ?? row.planned, (row.actual ?? 0) + (expected.get(row.want.id) ?? 0)), 0)
+  return rows.reduce((sum, row) => sum + Math.max(reserveFullPlan ? row.planned : 0, row.actual ?? row.planned, (row.actual ?? 0) + (expected.get(row.want.id) ?? 0)), 0)
 }
 
 export interface ReconciledOccurrence extends ExpectedOccurrence {

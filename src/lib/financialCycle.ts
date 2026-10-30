@@ -9,7 +9,10 @@ export interface FinancialCycleInput {
   costsOnAccount: number
   /** Contas confirmadas ou ainda reservadas pelo plano. */
   costsCommitted?: number
+  /** Soma por item do maior entre plano, realizado e compromisso conhecido. */
+  projectedCostsCommitted?: number
   wantsOnAccount: number
+  projectedWantsCommitted?: number
   /** Aportes brutos efetivamente registrados pela conta. */
   directInvestment: number
   /** Resgates registrados; a parcela reaplicada compensa os aportes brutos. */
@@ -75,6 +78,11 @@ export interface FinancialCycleSummary {
   discretionaryShortfall: number
   /** Verba restante depois dos Desejos efetivamente destinados. */
   remainingAfterWants: number
+  /** Complementos do plano ainda não incluídos no saldo pelos valores atuais. */
+  remainingCostsToPlan: number
+  remainingWantsToPlan: number
+  /** Projeção após consumir o restante do plano, preservando excessos já conhecidos. */
+  projectedRemainingAfterWants: number
 }
 
 export function calculateFinancialCycle(input: FinancialCycleInput): FinancialCycleSummary {
@@ -101,6 +109,9 @@ export function calculateFinancialCycle(input: FinancialCycleInput): FinancialCy
   const commitmentsBeforeWants =
     input.invoiceToPay + costsCommitted + directInvestmentCommitted + extraExpenseCommitted
   const discretionaryAvailable = income - commitmentsBeforeWants
+  const remainingAfterWants = discretionaryAvailable - input.wantsOnAccount
+  const remainingCostsToPlan = Math.max(0, (input.projectedCostsCommitted ?? costsCommitted) - costsCommitted)
+  const remainingWantsToPlan = Math.max(0, (input.projectedWantsCommitted ?? input.wantsOnAccount) - input.wantsOnAccount)
 
   return {
     cashMonth: input.cashMonth,
@@ -128,7 +139,10 @@ export function calculateFinancialCycle(input: FinancialCycleInput): FinancialCy
     discretionaryAvailable,
     discretionaryPool: Math.max(0, discretionaryAvailable),
     discretionaryShortfall: Math.max(0, -discretionaryAvailable),
-    remainingAfterWants: discretionaryAvailable - input.wantsOnAccount,
+    remainingAfterWants,
+    remainingCostsToPlan,
+    remainingWantsToPlan,
+    projectedRemainingAfterWants: remainingAfterWants - remainingCostsToPlan - remainingWantsToPlan,
   }
 }
 

@@ -66,6 +66,7 @@ export function buildFinancialAnalysisSnapshot(store: FinancasStore): FinancialA
         `Sobra calculada pelo Ciclo: ${analysisMoney(facts.cash.leftover)}${knownCash ? '' : ' (parcial: salário ou fatura desconhecidos)'}. Inclui a fatura paga/a pagar; não é saldo bancário conferido.`,
         `Disponível antes de alocar Desejos: ${analysisMoney(cycle.discretionaryAvailable)}${knownCash ? '' : ' (parcial)'}`,
         `Compromissos antes de Desejos: ${analysisMoney(cycle.commitmentsBeforeWants)}; custos reservados ${analysisMoney(cycle.costsCommitted)}; aporte direto líquido reservado ${analysisMoney(cycle.directInvestmentCommitted)}; extraordinários pagos e pendentes ${analysisMoney(cycle.extraExpenseCommitted)}`,
+        `Saldo após Desejos destinados: ${analysisMoney(knownCash ? cycle.remainingAfterWants : null)}; saldo projetado pelo plano vigente: ${analysisMoney(knownCash ? cycle.projectedRemainingAfterWants : null)}. A projeção reserva mais ${analysisMoney(cycle.remainingCostsToPlan)} em custos e ${analysisMoney(cycle.remainingWantsToPlan)} em Desejos em conta, preservando excessos por item; não registra pagamentos nem representa saldo bancário.`,
       ] },
       { title: 'INVESTIMENTOS DO CICLO — livros e folha', lines: [
         `Previdência pessoal pela folha, sem segunda saída de caixa: ${analysisMoney(summary.paycheck ? facts.actual.payrollInvestment : null)}`,

@@ -1,7 +1,45 @@
 import { describe, expect, it } from 'vitest'
 import { calculateAllocationPreview, calculateFinancialCycle } from './financialCycle'
+import { summarizeActuals } from './actuals'
+import { buildForecastAgenda, forecastCostsCommitted, forecastWantsCommitted } from './forecastCoverage'
+import { normalizeExpectedEvent } from './forecast'
 
 describe('calculateFinancialCycle', () => {
+  it.each([
+    { market: null, fuel: 0, want: null, projected: 800 },
+    { market: 200, fuel: 100, want: 100, projected: 800 },
+    { market: 1330, fuel: 300, want: 400, projected: 800 },
+    { market: 1500, fuel: 100, want: 500, projected: 530 },
+  ])('projeta o restante por item com mercado $market, combustível $fuel e Desejos $want', ({ market, fuel, want, projected }) => {
+    const costs = [
+      { id: 'market', name: 'Mercado', value: 1330, category: 'alimentacao' as const, paidWith: 'account' as const },
+      { id: 'fuel', name: 'Combustível', value: 300, category: 'transporte' as const, paidWith: 'account' as const },
+      { id: 'energy', name: 'Energia', value: 100, category: 'contas' as const, paidWith: 'account' as const },
+      { id: 'card', name: 'No cartão', value: 900, category: 'outros' as const, paidWith: 'card' as const },
+    ]
+    const summary = summarizeActuals(costs, {
+      costs: { ...(market === null ? {} : { market }), fuel, energy: 170 },
+      wants: want === null ? {} : { travel: want },
+    }, '2026-11', [{ id: 'travel', name: 'Viagem', plannedAmount: 400, paidWith: 'account' }])
+    const event = normalizeExpectedEvent({ id: 'fuel-event', name: 'Abastecer', kind: 'expense', amount: 300,
+      month: '2026-11', cashTreatment: 'planned', planLink: { type: 'cost', id: 'fuel' } })
+    const items = buildForecastAgenda([event], [{ month: '2026-11', costs: { fuel }, wants: {}, extraIncome: [], extraExpenses: [] }], '2026-11', '2026-11-01').flatMap((row) => row.items)
+    const cycle = calculateFinancialCycle({
+      cashMonth: '2026-11', income: 4000, invoiceToPay: 500,
+      costsOnAccount: summary.confirmedCosts,
+      costsCommitted: forecastCostsCommitted(summary.rows, items, '2026-11'),
+      projectedCostsCommitted: forecastCostsCommitted(summary.rows, items, '2026-11', true),
+      wantsOnAccount: summary.confirmedWants,
+      projectedWantsCommitted: forecastWantsCommitted(summary.wantRows, items, '2026-11', true),
+      directInvestment: 0, directInvestmentCommitted: 500, extraExpense: 0,
+      nextInvoicePersonal: 900, plannedNextInvoice: 1000,
+    })
+    expect(cycle.projectedRemainingAfterWants).toBe(projected)
+    expect(cycle.remainingCostsToPlan).toBe(market === null ? 0 : Math.max(0, 1330 - market))
+    expect(cycle.remainingWantsToPlan).toBe(Math.max(0, 400 - (want ?? 0)))
+    expect(cycle.remainingAfterWants - cycle.projectedRemainingAfterWants).toBe(cycle.remainingCostsToPlan + cycle.remainingWantsToPlan)
+  })
+
   it.each([
     { contribution: 1000, withdrawal: 1000, planned: 1000, available: 4000, used: 0 },
     { contribution: 500, withdrawal: 0, planned: 1000, available: 4000, used: 0 },

@@ -169,17 +169,32 @@ export function ClosingView({
         <PanelHeader
           title={`Ciclo ${formatMonthLong(activeCycle.month)}`}
           icon={<CalendarCheck size={16} />}
-          description={`O salário do fim de ${formatMonthLong(salaryMonth)} financia este ciclo. Desejos ficam fora dos compromissos-base para mostrar quanto ainda pode ser alocado.`}
+          description={`O salário do fim de ${formatMonthLong(salaryMonth)} financia este ciclo. Compare os valores atuais com a projeção de consumo do plano vigente.`}
         />
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-2">
           <StatTile
-            label="Disponível para Desejos"
+            label="Saldo projetado pelo plano"
+            value={cashCompositionKnown ? formatCurrency(financialCycle.projectedRemainingAfterWants) : '—'}
+            detail={<>Após consumir o restante do plano em conta, preservando gastos acima dele.<br />Reserva adicional: {formatCurrency(financialCycle.remainingCostsToPlan)} em custos e {formatCurrency(financialCycle.remainingWantsToPlan)} em Desejos.</>}
+            tone={!cashCompositionKnown ? 'neutral' : financialCycle.projectedRemainingAfterWants < -0.005 ? 'negative' : financialCycle.projectedRemainingAfterWants > 0.005 ? 'positive' : 'neutral'}
+          />
+          <StatTile
+            label="Saldo após Desejos destinados"
+            value={cashCompositionKnown ? formatCurrency(financialCycle.remainingAfterWants) : '—'}
+            detail={`Pelos valores atuais, com ${formatCurrency(cashFlow.wantsOnAccount)} destinados fora do cartão. Custos parciais ainda podem crescer.`}
+            tone={!cashCompositionKnown ? 'neutral' : financialCycle.remainingAfterWants < -0.005 ? 'negative' : 'neutral'}
+          />
+        </div>
+        <p className="mt-2 text-xs text-dark-text-muted">Saldos calculados do ciclo; não representam o saldo bancário conferido. A projeção não registra pagamentos.</p>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <StatTile
+            label="Verba antes de Desejos"
             value={
               cashCompositionKnown
                 ? formatCurrency(financialCycle.discretionaryAvailable)
                 : '—'
             }
-            detail="após fatura, contas e aporte incluindo pendências do plano"
+            detail="após faturas, custos atuais, pendências conhecidas e aporte reservado"
             tone={!cashCompositionKnown ? 'neutral' : financialCycle.discretionaryShortfall > 0 ? 'negative' : 'accent'}
           />
           <StatTile
@@ -193,13 +208,7 @@ export function ClosingView({
           <StatTile
             label="Compromissos antes de Desejos"
             value={currentInvoiceKnown ? formatCurrency(financialCycle.commitmentsBeforeWants) : '—'}
-            detail="inclui contas pendentes e aporte ainda não executado"
-          />
-          <StatTile
-            label="Após Desejos destinados"
-            value={cashCompositionKnown ? formatCurrency(financialCycle.remainingAfterWants) : '—'}
-            detail={`${formatCurrency(cashFlow.wantsOnAccount)} efetivamente destinados fora do cartão`}
-            tone={!cashCompositionKnown ? 'neutral' : financialCycle.remainingAfterWants < -0.005 ? 'negative' : financialCycle.remainingAfterWants > 0.005 ? 'positive' : 'neutral'}
+            detail="custos atuais, pendências conhecidas, faturas e aporte reservado"
           />
         </div>
 
@@ -242,7 +251,7 @@ export function ClosingView({
             <span className="flex items-start gap-2">
               <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-300" />
               A fatura que vence neste ciclo ainda não tem valor confiável. O FinTano não calcula
-              um livre incompleto.
+              os saldos com uma fatura incompleta.
             </span>
             <SecondaryButton onClick={onGoToCards}>Conferir cartões</SecondaryButton>
           </div>
