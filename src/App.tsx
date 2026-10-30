@@ -27,6 +27,8 @@ import {
   X,
 } from 'lucide-react'
 import { FinancasProvider } from './context/FinancasContext'
+import { PlanningProvider, PlanningViewProvider } from './context/PlanningProvider'
+import { usePlanningWorkspace } from './context/planningStore'
 import { useMetrics, useScenarioStore } from './context/financasStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePersistenceStatus } from './hooks/usePersistenceStatus'
@@ -59,12 +61,14 @@ import {
 type View = 'closing' | 'planning' | 'cards' | 'investments' | 'history' | 'forecast' | 'data' | 'settings'
 
 function PlanningBalance() {
+  const { selectedId, scenarios, hasChanges, discard, select } = usePlanningWorkspace()
   const { balanceAfterPlan, paycheckInAccount, totalCosts, totalWantsAmount, directInvestmentTarget } = useMetrics()
   return <div className="rounded-xl border border-dark-border bg-dark-card/85 px-4 py-3">
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <div>
-        <p className="text-xs uppercase tracking-wider text-dark-text-muted">Saldo após o plano do ciclo</p>
-        <p className="mt-1 text-xs text-dark-text-muted">Renda em conta planejada menos contas, Desejos e aporte direto.</p>
+        <p className="text-xs uppercase tracking-wider text-dark-text-muted">{selectedId ? `Cenário · ${scenarios.activeScenarioAll.name}` : 'Atual · plano do ciclo'}</p>
+        {selectedId && <p className="mt-1 text-sm text-dark-text-secondary">Simulação independente · {hasChanges ? 'alterações por salvar' : 'cenário salvo'}.</p>}
+        <p className="mt-1 text-xs text-dark-text-muted">Saldo após o plano: renda em conta planejada menos contas, Desejos e aporte direto.</p>
       </div>
       <strong className={`text-xl tabular-nums ${balanceAfterPlan < -0.005 ? 'text-rose-300' : 'text-dark-text'}`}>
         {formatCurrency(balanceAfterPlan)}
@@ -73,7 +77,11 @@ function PlanningBalance() {
     <p className="mt-2 text-xs tabular-nums text-dark-text-muted">
       {formatCurrency(paycheckInAccount)} − {formatCurrency(totalCosts)} contas − {formatCurrency(totalWantsAmount)} Desejos − {formatCurrency(directInvestmentTarget)} aporte
     </p>
-    <div className="mt-3"><CyclePlanReference /></div>
+    {selectedId ? <div className="mt-3 flex items-center justify-between gap-3">
+      <p className="text-xs text-dark-text-muted">Renda, custos, Desejos e aportes deste cenário. O Ciclo continua usando o plano Atual.</p>
+      <div className="flex shrink-0 gap-2">{hasChanges && <SecondaryButton onClick={discard}>Descartar alterações</SecondaryButton>}
+        <SecondaryButton onClick={() => select(null)}>Voltar ao Atual</SecondaryButton></div>
+    </div> : <div className="mt-3"><CyclePlanReference /></div>}
     <SavePlanScenario />
   </div>
 }
@@ -338,6 +346,7 @@ function ViewIntro({ view }: { view: View }) {
 }
 
 function AppShell() {
+  const { selectedId: planningScenarioId } = usePlanningWorkspace()
   const importInputRef = useRef<HTMLInputElement>(null)
   const [activeView, setActiveView] = useState<View>('closing')
   const [settingsReturnView, setSettingsReturnView] = useState<View>('closing')
@@ -484,8 +493,8 @@ function AppShell() {
               type="button"
               onClick={() => setShowAIAnalysis(true)}
               className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary-400/15 bg-primary-500/[0.06] px-3 text-primary-200 shadow-sm shadow-black/15 transition-colors hover:border-primary-400/30 hover:bg-primary-500/[0.1] hover:text-primary-100"
-              aria-label="Pedir análise do cenário à IA"
-              title="Pedir análise do cenário à IA"
+              aria-label="Pedir análise do plano Atual à IA"
+              title="Pedir análise do plano Atual à IA"
             >
               <Sparkles size={15} />
               <span className="hidden xl:inline text-xs font-semibold">Analisar</span>
@@ -552,6 +561,7 @@ function AppShell() {
         )}
 
         {activeView === 'planning' && (
+          <PlanningViewProvider key={`${scenarios.currentPlan.month}:${planningScenarioId ?? 'current'}`}>
           <div className="space-y-4">
           <PlanningBalance />
           <div className="grid items-start gap-4 xl:grid-cols-2">
@@ -566,6 +576,7 @@ function AppShell() {
             </div>
           </div>
           </div>
+          </PlanningViewProvider>
         )}
 
         <Suspense
@@ -617,7 +628,9 @@ function AppShell() {
 export default function App() {
   return (
     <FinancasProvider>
+      <PlanningProvider>
       <AppShell />
+      </PlanningProvider>
     </FinancasProvider>
   )
 }

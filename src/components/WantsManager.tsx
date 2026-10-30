@@ -36,6 +36,7 @@ export function WantsManager() {
     setWantPaidWith,
     setWantIncludedInCardPlan,
     moveWant,
+    isSimulation,
   } = useScenarioStore()
   const [deleteError, setDeleteError] = useState('')
   const {
@@ -55,7 +56,7 @@ export function WantsManager() {
 
   const desejosTarget = budgetAllocation.desejos
   const remaining = desejosTarget - totalWantsAmount
-  const realized = summary.personalByArea.desejos
+  const realized = isSimulation ? 0 : summary.personalByArea.desejos
   const cardEnvelopeAmount = wants
     .filter(isCardEnvelopeWant)
     .reduce((sum, want) => sum + want.plannedAmount, 0)

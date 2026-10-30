@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Layers3, Pencil, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, Layers3, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { formatCurrency, formatMonthKey } from '../lib/format'
 import { useFinancasStore } from '../context/financasStore'
-import { SecondaryButton } from './ui'
+import { usePlanningWorkspace } from '../context/planningStore'
+import { PrimaryButton, SecondaryButton } from './ui'
 
 export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => void }) {
   const store = useFinancasStore()
+  const workspace = usePlanningWorkspace()
   const {
     scenarios,
-    activeScenarioId,
-    setActiveScenarioId,
     currentPlan,
     recurringTemplateId,
-    setRecurringTemplateId,
     renameScenario,
     removeScenario,
   } = store.scenarios
@@ -22,6 +21,8 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
   const [removeError, setRemoveError] = useState('')
+  const [newName, setNewName] = useState('')
+  const [creating, setCreating] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -43,7 +44,9 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative" onKeyDown={(event) => {
+      if (event.key === 'Escape') { setOpen(false); setEditingId(null) }
+    }}>
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -51,7 +54,7 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
         className="flex h-10 items-center gap-2 rounded-xl border border-dark-border bg-dark-surface/80 px-3 text-sm font-medium text-dark-text shadow-sm shadow-black/15 transition-colors hover:border-dark-text-muted/40 hover:bg-dark-hover"
       >
         <Layers3 size={14} className="text-dark-text-muted" />
-        <span className="max-w-36 truncate">Plano do ciclo</span>
+        <span className="max-w-48 truncate">Planejar · {workspace.selectedId ? workspace.scenarios.activeScenarioAll.name : 'Atual'}</span>
         <ChevronDown
           size={14}
           className={`text-dark-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
@@ -63,12 +66,17 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
           <p className="border-b border-dark-border-subtle px-3 py-2 text-xs leading-relaxed text-dark-text-muted">
             Plano de {formatMonthKey(store.activeCycle.month)} · {currentPlan.fixedReference ? 'referência fixada' : 'em edição'}. Renda em conta: {formatCurrency(store.metrics.paycheckInAccount)}.
           </p>
+          <button type="button" onClick={() => { workspace.select(null); setOpen(false); onGoToPlanning() }}
+            className={`m-1.5 block w-[calc(100%-0.75rem)] rounded-lg px-2 py-2 text-left text-sm ${!workspace.selectedId ? 'bg-primary-500/10 text-primary-300' : 'text-dark-text hover:bg-dark-hover'}`}>
+            <span className="block font-medium">Atual · plano do ciclo</span>
+            <span className="text-xs text-dark-text-muted">Usado no Ciclo e nas projeções</span>
+          </button>
           <p className="px-3 pt-3 text-xs font-semibold text-dark-text-secondary">Cenários salvos</p>
-          <p className="px-3 py-1 text-xs leading-relaxed text-dark-text-muted">Os valores abaixo são dos cenários salvos. Para copiar suas alterações, use Planejar → Salvar plano como cenário.</p>
+          <p className="px-3 py-1 text-xs leading-relaxed text-dark-text-muted">Abra para consultar ou editar em Planejar. Crie uma variação antes de experimentar novos valores.</p>
           <div className="max-h-72 overflow-y-auto p-1.5">
             {scenarios.map((scenario) => {
               const summary = summaries.find((item) => item.id === scenario.id)
-              const isActive = scenario.id === activeScenarioId
+              const isActive = scenario.id === workspace.selectedId
 
               if (editingId === scenario.id) {
                 return (
@@ -114,7 +122,9 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
                   <button
                     type="button"
                     onClick={() => {
-                      if (setActiveScenarioId(scenario.id)) setOpen(false)
+                      workspace.select(scenario.id)
+                      setOpen(false)
+                      onGoToPlanning()
                     }}
                     className="min-w-0 flex-1 text-left"
                   >
@@ -124,6 +134,7 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
                       }`}
                     >
                       {scenario.name}{scenario.id === recurringTemplateId && <span className="ml-2 text-xs font-normal text-dark-text-muted">Modelo</span>}
+                      {workspace.pendingScenarioIds.includes(scenario.id) && <span className="ml-2 text-xs font-normal text-dark-text-muted">Rascunho</span>}
                     </span>
                     {summary && (
                       <span className="block text-xs tabular-nums text-dark-text-muted">
@@ -139,12 +150,6 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
                     )}
                   </button>
                   <div className="flex shrink-0 gap-0.5 opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100">
-                    <button type="button" onClick={() => { setRecurringTemplateId(scenario.id) }}
-                      className="rounded-md p-1.5 text-dark-text-muted hover:text-primary-300"
-                      aria-label={`Usar ${scenario.name} como modelo dos próximos ciclos`}
-                      title="Usar como modelo dos próximos ciclos">
-                      <Layers3 size={13} />
-                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -160,7 +165,7 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
                       type="button"
                       onClick={() => {
                         if (!removeScenario(scenario.id)) {
-                          setRemoveError('Não foi possível excluir. Confira se este cenário é a única origem de custos ou Desejos já realizados.')
+                          setRemoveError('Não foi possível excluir. O cenário pode ser modelo dos próximos ciclos, origem de planos ou de itens realizados.')
                         } else setRemoveError('')
                       }}
                       disabled={scenarios.length <= 1}
@@ -179,7 +184,15 @@ export function ScenarioSwitcher({ onGoToPlanning }: { onGoToPlanning: () => voi
             <p>Modelo dos próximos ciclos: {scenarios.find((item) => item.id === recurringTemplateId)?.name ?? 'Recorrente'}</p>
           </div>
           <div className="border-t border-dark-border-subtle p-2">
-            <SecondaryButton className="w-full" onClick={() => { setOpen(false); onGoToPlanning() }}>Abrir Planejar</SecondaryButton>
+            {creating ? <form className="space-y-2" onSubmit={(event) => {
+              event.preventDefault()
+              if (!workspace.createVariation(newName)) { setRemoveError('Não foi possível criar a variação. Confira o nome e o armazenamento.'); return }
+              setCreating(false); setNewName(''); setRemoveError(''); setOpen(false); onGoToPlanning()
+            }}>
+              <label className="app-form-label">Nome da variação<input className="app-field mt-1.5 w-full px-3 py-2" placeholder="Ex.: IDEAL" value={newName} onChange={(event) => setNewName(event.target.value)} autoFocus /></label>
+              <p className="text-xs text-dark-text-muted">Cópia de {workspace.selectedId ? workspace.scenarios.activeScenarioAll.name : 'Atual · plano do ciclo'}, com renda, custos, Desejos e aportes.</p>
+              <div className="flex gap-2"><PrimaryButton type="submit" disabled={!newName.trim()}>Criar cenário</PrimaryButton><SecondaryButton onClick={() => setCreating(false)}>Cancelar</SecondaryButton></div>
+            </form> : <SecondaryButton className="w-full" onClick={() => { setCreating(true); setRemoveError('') }}><Plus size={14} /> Criar variação</SecondaryButton>}
           </div>
         </div>
       )}

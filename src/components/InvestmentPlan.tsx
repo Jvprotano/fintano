@@ -28,6 +28,7 @@ export function InvestmentPlan() {
     assignRemainingToSlice,
     plannedInvestmentAmount,
     setPlannedInvestmentAmount,
+    isSimulation,
   } = useScenarioStore()
   const {
     investmentAllocation,
@@ -110,7 +111,7 @@ export function InvestmentPlan() {
             </div>
             {investmentDeductions > 0 && (
               <div className="flex justify-between">
-                <dt className="text-dark-text-secondary">Já investido via folha</dt>
+                <dt className="text-dark-text-secondary">{isSimulation ? 'Previsto via folha' : 'Já investido via folha'}</dt>
                 <dd className="font-medium tabular-nums text-dark-text-secondary">
                   − {formatCurrency(investmentDeductions)}
                 </dd>

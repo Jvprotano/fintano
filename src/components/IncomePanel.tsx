@@ -22,6 +22,7 @@ export function IncomePanel() {
     removeDeduction,
     updateDeductionEmployerContribution,
     updateDeductionHolding,
+    isSimulation,
   } = useScenarioStore()
   const { summary: investmentsSummary } = useInvestmentsStore()
   const { paycheckInAccount, totalDeductions, availableForBudget } = useMetrics()
@@ -167,7 +168,7 @@ export function IncomePanel() {
                             {formatCurrency(deduction.value + contribution)}
                           </strong>
                         </span>
-                        <p className="text-dark-text-muted sm:col-span-2">Ao confirmar a folha no Ciclo, seu desconto e a empresa entram automaticamente na posição vinculada. Carência e divisão do saldo ficam em Patrimônio.</p>
+                        <p className="text-dark-text-muted sm:col-span-2">{isSimulation ? 'Desconto e contribuição simulados. O vínculo não registra movimentos na posição.' : 'Ao confirmar a folha no Ciclo, seu desconto e a empresa entram automaticamente na posição vinculada. Carência e divisão do saldo ficam em Patrimônio.'}</p>
                       </div>
                     )}
                   </li>

@@ -31,7 +31,12 @@ function loadInitialScenarios(): FinanceScenario[] {
   return [createDefaultScenario('Atual')]
 }
 
-export function useScenarios(activeCycleMonth = monthKey()) {
+export interface ScenarioDraftEditor {
+  scenario: FinanceScenario
+  update: (updater: (scenario: FinanceScenario) => FinanceScenario) => boolean
+}
+
+export function useScenarios(activeCycleMonth = monthKey(), editor?: ScenarioDraftEditor) {
   const [storedScenarios, setScenarios] = useRepositoryState<FinanceScenario[]>(
     'scenarios',
     loadInitialScenarios,
@@ -97,7 +102,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
     setMonthlyPlans((previous) => previous.some((plan) => plan.month === activeCycleMonth)
       ? previous : [...previous, currentPlan])
   }, [activeCycleMonth, currentPlan, monthlyPlans, setMonthlyPlans])
-  const activeScenarioAll = useMemo(() => planAsScenario(currentPlan), [currentPlan])
+  const activeScenarioAll = useMemo(() => editor?.scenario ?? planAsScenario(currentPlan), [currentPlan, editor?.scenario])
   const activeScenario = useMemo(() => ({
     ...activeScenarioAll,
     costs: activeScenarioAll.costs.filter((cost) => !cost.archivedAt),
@@ -106,6 +111,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
 
   const updateActiveScenario = useCallback(
     (updater: (scenario: FinanceScenario) => FinanceScenario) => {
+      if (editor) return editor.update(updater)
       return setMonthlyPlans((previous) => {
         const current = previous.find((plan) => plan.month === activeCycleMonth) ?? currentPlan
         const updated = updater(planAsScenario(current))
@@ -117,7 +123,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
           .sort((a, b) => a.month.localeCompare(b.month))
       })
     },
-    [activeCycleMonth, currentPlan, setMonthlyPlans],
+    [activeCycleMonth, currentPlan, setMonthlyPlans, editor],
   )
 
   const setScenarioField = useCallback(
@@ -285,6 +291,9 @@ export function useScenarios(activeCycleMonth = monthKey()) {
 
   const removeCost = useCallback(
     (id: string) => {
+      if (editor) return updateActiveScenario((scenario) => ({ ...scenario,
+        costs: scenario.costs.map((cost) => cost.id === id ? { ...cost, archivedAt: nowIso() } : cost),
+      }))
       return runRepositoryCommand({
         id: uid(),
         apply: (document) => {
@@ -308,7 +317,7 @@ export function useScenarios(activeCycleMonth = monthKey()) {
         },
       }).ok
     },
-    [activeCycleMonth],
+    [activeCycleMonth, editor, updateActiveScenario],
   )
 
   const restoreCost = useCallback(
@@ -320,7 +329,13 @@ export function useScenarios(activeCycleMonth = monthKey()) {
     })),
     [updateActiveScenario],
   )
-  const deleteUnusedCost = useCallback((id: string) => deleteUnusedCatalog('cost', id, activeCycleMonth), [activeCycleMonth])
+  const deleteUnusedCost = useCallback((id: string) => {
+    if (!editor) return deleteUnusedCatalog('cost', id, activeCycleMonth)
+    const { actuals, debts } = readRepositoryDocument().collections
+    if ((actuals as MonthlyActuals[] ?? []).some((month) => Object.hasOwn(month.costs ?? {}, id)) ||
+      (debts as Debt[] ?? []).some((debt) => debt.linkedCostId === id)) return false
+    return updateActiveScenario((scenario) => ({ ...scenario, costs: scenario.costs.filter((cost) => cost.id !== id) }))
+  }, [activeCycleMonth, editor, updateActiveScenario])
 
   // Desejos ------------------------------------------------------------------
 
@@ -372,7 +387,14 @@ export function useScenarios(activeCycleMonth = monthKey()) {
     }),
     [updateActiveScenario],
   )
-  const deleteUnusedWant = useCallback((id: string) => deleteUnusedCatalog('want', id, activeCycleMonth), [activeCycleMonth])
+  const deleteUnusedWant = useCallback((id: string) => {
+    if (!editor) return deleteUnusedCatalog('want', id, activeCycleMonth)
+    const actuals = readRepositoryDocument().collections.actuals as MonthlyActuals[] ?? []
+    if (actuals.some((month) => Object.hasOwn(month.wants ?? {}, id))) return false
+    const target = activeScenarioAll.wants.find((want) => want.id === id)
+    if (target && isCardEnvelopeWant(target) && activeScenarioAll.wants.some((want) => isWantIncludedInCardPlan(want, activeScenarioAll.wants))) return false
+    return updateActiveScenario((scenario) => ({ ...scenario, wants: scenario.wants.filter((want) => want.id !== id) }))
+  }, [activeCycleMonth, editor, activeScenarioAll.wants, updateActiveScenario])
 
   const updateWantAmount = useCallback(
     (id: string, plannedAmount: number) => {
@@ -573,6 +595,8 @@ export function useScenarios(activeCycleMonth = monthKey()) {
   )
 
   return {
+    isSimulation: !!editor,
+    setScenarioField,
     scenarios,
     monthlyPlans,
     currentPlan,

@@ -1,19 +1,23 @@
 import { useState } from 'react'
 import { useFinancasStore } from '../context/financasStore'
 import { repositoryRevision } from '../data/repositoryCommand'
+import { readRepositoryDocument } from '../data/repository'
+import { usePlanningWorkspace } from '../context/planningStore'
+import type { FinanceScenario } from '../types'
 import { formatCurrency, formatMonthKey } from '../lib/format'
 import { ConfirmationDialog, FormField, PrimaryButton, SecondaryButton } from './ui'
 
 export function SavePlanScenario() {
   const { scenarios, activeCycle } = useFinancasStore()
+  const workspace = usePlanningWorkspace()
   const [open, setOpen] = useState(false)
   const [targetId, setTargetId] = useState('')
   const [name, setName] = useState('')
-  const [useNext, setUseNext] = useState(true)
+  const [useNext, setUseNext] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [review, setReview] = useState<{
-    scenarioId?: string; name: string; useForNextCycles: boolean; revision: string | null; salary: number; previousSalary?: number
+    scenarioId?: string; name: string; useForNextCycles: boolean; revision: string | null; salary: number; previousSalary?: number; source?: FinanceScenario
   } | null>(null)
   const target = scenarios.scenarios.find((scenario) => scenario.id === targetId)
   const isCurrentModel = target?.id === scenarios.recurringTemplateId
@@ -21,15 +25,17 @@ export function SavePlanScenario() {
 
   return <div className="mt-3 border-t border-dark-border-subtle pt-3">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="text-xs text-dark-text-muted">Planejar salva este ciclo automaticamente. Para reutilizar o plano nos próximos meses, salve-o como cenário.</p>
+      <p className="text-xs text-dark-text-muted">{workspace.selectedId
+        ? 'Salve as alterações para guardar este cenário. Ao trocar de consulta, seu rascunho continua disponível nesta sessão.'
+        : 'Atual salva o plano do ciclo automaticamente. Para experimentar sem alterá-lo, use o seletor Atual → Criar variação.'}</p>
       <SecondaryButton onClick={() => {
         setOpen(!open)
-        setTargetId(scenarios.recurringTemplateId)
+        setTargetId(workspace.selectedId ?? scenarios.recurringTemplateId)
         setName('')
-        setUseNext(true)
+        setUseNext(false)
         setError('')
         setSuccess('')
-      }} aria-expanded={open}>Salvar plano como cenário</SecondaryButton>
+      }} aria-expanded={open}>{workspace.selectedId ? 'Salvar cenário' : 'Salvar plano como cenário'}</SecondaryButton>
     </div>
     {success && <p role="status" className="mt-2 text-sm text-primary-300">{success}</p>}
     {open && <form className="mt-4 space-y-3" onSubmit={(event) => {
@@ -37,7 +43,8 @@ export function SavePlanScenario() {
       if (!target && !name.trim()) { setError('Informe o nome do novo cenário.'); return }
       setError('')
       setReview({ scenarioId: target?.id, name: target?.name ?? name.trim(), useForNextCycles,
-        revision: repositoryRevision(), salary: scenarios.currentPlan.salaryNet, previousSalary: target?.salaryNet })
+        revision: repositoryRevision(), salary: scenarios.activeScenarioAll.salaryNet, previousSalary: target?.salaryNet,
+        source: workspace.selectedId ? structuredClone(scenarios.activeScenarioAll) : undefined })
     }}>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Salvar em">
@@ -66,7 +73,7 @@ export function SavePlanScenario() {
     </form>}
     <ConfirmationDialog open={review !== null} title={review?.scenarioId ? 'Atualizar cenário com este plano?' : 'Salvar plano em um novo cenário?'}
       description={review && <div className="space-y-3">
-        <p>O plano completo de {formatMonthKey(activeCycle.month)} será copiado para <strong>{review.name}</strong>: renda, descontos, custos, Desejos e aporte.</p>
+        <p>{review.source ? `A simulação ${review.source.name}` : `O plano completo de ${formatMonthKey(activeCycle.month)}`} será copiado para <strong>{review.name}</strong>: renda, descontos, custos, Desejos e aporte.</p>
         <p className="tabular-nums">Renda informada: {review.previousSalary !== undefined && `${formatCurrency(review.previousSalary)} → `}{formatCurrency(review.salary)}.</p>
         <p>{review.useForNextCycles ? 'Será o modelo dos próximos ciclos, incluindo planos futuros desse modelo ainda intactos.' : 'O modelo dos próximos ciclos continua como está.'}</p>
         <p>O plano deste ciclo e sua referência fixada permanecem preservados. Nenhum recebimento ou pagamento será registrado.</p>
@@ -74,9 +81,10 @@ export function SavePlanScenario() {
       confirmLabel="Salvar cenário" onClose={() => setReview(null)} onConfirm={() => {
         if (!review) return
         const result = scenarios.saveCurrentPlanAsScenario({ scenarioId: review.scenarioId, name: review.name,
-          useForNextCycles: review.useForNextCycles }, review.revision)
+          useForNextCycles: review.useForNextCycles, source: review.source }, review.revision)
         if (!result.ok) { setError(result.message); return }
         setOpen(false)
+        workspace.saved(readRepositoryDocument().collections.activeScenarioId as string)
         setSuccess(`Cenário “${review.name}” salvo${review.useForNextCycles ? ' e definido como modelo dos próximos ciclos' : ''}.`)
       }} />
   </div>

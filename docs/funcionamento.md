@@ -9,7 +9,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | Aba | Função |
 | --- | --- |
 | Ciclo | Registrar recebido/pago, acompanhar verba para Desejos, consultar prévia do próximo ciclo e revisar o fechamento. |
-| Planejar | Editar o plano da competência ativa: renda, descontos em folha, custos, Desejos e aporte. Fixar uma referência para comparação posterior. |
+| Planejar | Editar o plano da competência ativa ou consultar e criar cenários independentes com renda, descontos, custos, Desejos e aporte. Fixar a referência do plano real para comparação posterior. |
 | Cartões | Conferir/importar compras por ciclo, separar minha parte e confirmar faturas pagas pelo valor total. |
 | Patrimônio | Consultar e registrar posições, reserva, metas, bens, dívidas e livros de movimentos. |
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
@@ -28,15 +28,19 @@ O teto pessoal é editado em Configurações; o uso e o valor disponível contin
 
 ## Plano, referência e simulação
 
-Cada competência tem seu próprio plano, inicialmente derivado do modelo recorrente. Editar Planejar altera o plano do ciclo ativo. Simulações ficam separadas: selecionar uma não altera o plano nem os fatos. Não há ação para substituir o plano do ciclo por uma simulação.
+Cada competência tem seu próprio plano, inicialmente derivado do modelo recorrente. O seletor **Planejar · Atual** abre **Atual · plano do ciclo**: editar essa consulta salva automaticamente o plano real da competência ativa, usado no Ciclo e nas projeções.
+
+Selecionar um cenário salvo, como **IDEAL**, abre em Planejar a renda, descontos, custos, Desejos, aporte e destinos daquele cenário, com seus próprios totais. Essa consulta é uma simulação; não mistura gastos realizados do cartão nos indicadores. As outras abas continuam usando o plano real. **Voltar ao Atual** recupera a consulta do plano real, sem precisar reverter valores. O cenário salvo chamado Atual, quando existir, é um cadastro separado do botão **Atual · plano do ciclo** e pode continuar sendo o modelo dos próximos meses.
+
+Para experimentar, usar o seletor → **Criar variação**, informar o nome e **Criar cenário** antes de alterar os valores. A variação copia o plano exibido completo e começa independente do modelo. Editar um cenário cria um rascunho; **Salvar cenário → Revisar gravação → Salvar cenário** guarda suas alterações no cenário escolhido ou em um novo. **Descartar alterações** recupera o cenário salvo. Rascunhos permanecem ao alternar cenários e abas na mesma sessão, mas não fazem parte do backup; o navegador avisa antes de sair se houver rascunhos. Ao reabrir a aplicação, a consulta começa no Atual. Não há ação para substituir o plano do ciclo por uma simulação.
 
 Fixar plano do ciclo guarda uma cópia independente com data, uma vez por competência. Ajustes posteriores preservam a referência. O fechamento compara custos fora do cartão, Desejos fora do cartão, investimentos pessoais e cartão com essa referência. Sem referência fixada, compara com o plano vigente no fechamento. Não reconstruir uma intenção original que não foi registrada.
 
-Fixar plano não fecha o ciclo, não confirma pagamentos e não altera o modelo recorrente. **Planejar → Salvar plano como cenário** permite atualizar um cenário existente ou criar um novo com nome, copiando o plano completo da competência: renda, descontos, custos, Desejos e aporte. Revisar o destino e a renda antes de **Salvar cenário**. Cancelar descarta a gravação; falha mantém o formulário, e dados alterados durante a revisão exigem nova conferência.
+Fixar plano não fecha o ciclo, não confirma pagamentos e não altera o modelo recorrente. A ação aparece apenas na consulta Atual. **Planejar → Salvar plano como cenário** permite copiar o plano real completo para um cenário existente ou novo: renda, descontos, custos, Desejos, aporte e destinos. Essa cópia não desfaz edições já feitas no Atual; para simular sem alterá-lo, criar a variação primeiro. Revisar o destino e a renda antes de **Salvar cenário**. Cancelar descarta a gravação; falha mantém o formulário e o rascunho, e dados alterados durante a revisão exigem nova conferência. Uma origem modificada por outra operação exige reabrir o cenário, preservando o rascunho para conferência.
 
 **Usar como modelo dos próximos ciclos** define esse cenário como origem dos novos meses e atualiza também os planos futuros do modelo anterior ou do cenário escolhido que ainda estejam intactos. Planos editados, fixados, fechados ou com folha/custos/Desejos/extras realizados são preservados. Atualizar o cenário que já é o modelo inclui esse alcance. Um novo cenário ou outro cenário existente pode ser salvo separadamente, desmarcando a opção. O plano atual e sua referência fixada permanecem preservados; salvar cenário não registra recebimentos ou pagamentos.
 
-Exemplo: editar a renda de novembro de R$ 8.800 para R$ 8.980 salva novembro imediatamente; fixar guarda essa intenção. Para usar o novo salário em dezembro e nos meses seguintes, salvar o plano no cenário Atual com **Usar como modelo dos próximos ciclos**. A prévia passa a usar esse modelo, salvo se dezembro já tiver um plano protegido pelas condições acima. O dropdown **Plano do ciclo** identifica a renda do plano atual, os valores dos cenários salvos e qual deles é o modelo dos próximos ciclos.
+Exemplo: editar a renda de novembro de R$ 8.800 para R$ 8.980 na consulta Atual salva novembro imediatamente; fixar guarda essa intenção. Para usar o novo salário em dezembro e nos meses seguintes, salvar o plano no cenário Atual com **Usar como modelo dos próximos ciclos**. A prévia passa a usar esse modelo, salvo se dezembro já tiver um plano protegido pelas condições acima. Para estudar uma renda de R$ 12.000, criar IDEAL, alterar a renda e os gastos, salvar sem torná-lo modelo e voltar ao Atual: novembro continua com R$ 8.980. O seletor identifica a consulta atual, os cenários salvos e qual deles é o modelo dos próximos ciclos. Trocar a consulta ou editar seu rascunho não publica um modelo; essa escolha fica na gravação revisada.
 
 ## Ciclo e cartão
 

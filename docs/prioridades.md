@@ -2,7 +2,7 @@
 
 Ciclo distingue o saldo após Desejos destinados do **Saldo projetado pelo plano**, que reserva o consumo restante por custo e Desejo em conta e preserva gastos acima do plano. Sem pendências de implementação para essa leitura; cálculo e limites em [funcionamento](funcionamento.md).
 
-Planejar permite salvar o plano completo em um cenário existente ou novo, com revisão e opção de usá-lo como modelo dos próximos ciclos. O dropdown distingue plano atual, cenários salvos e modelo. Sem pendências de implementação para esse fluxo; alcance e preservação dos planos futuros em [funcionamento](funcionamento.md).
+Planejar permite alternar entre Atual (plano real do ciclo) e cenários independentes, como IDEAL, consultar e editar todos os valores e criar variações antes de simular. Rascunhos de cenários são salvos explicitamente, com revisão e opção de usá-los como modelo dos próximos ciclos; selecionar ou editar uma simulação preserva o plano real, os fatos e as projeções operacionais. Sem pendências de implementação para esse fluxo; alcance e preservação dos planos futuros em [funcionamento](funcionamento.md).
 
 Ciclo identifica os cartões e vencimentos sem valor conhecido em **Minha parte da fatura**, mantendo a soma disponível marcada como parcial até a conferência em Cartões. A ação de aplicar simulação ao ciclo foi removida; o plano da competência é editado em Planejar. Sem pendências de implementação para esses ajustes.
 

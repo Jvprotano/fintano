@@ -48,7 +48,7 @@ const PAYMENT_OPTIONS: { value: PaymentMethod; label: ReactNode }[] = [
 ]
 
 export function CostManager() {
-  const { costs, archivedCosts, addCost, updateCost, removeCost, restoreCost, deleteUnusedCost } = useScenarioStore()
+  const { costs, archivedCosts, addCost, updateCost, removeCost, restoreCost, deleteUnusedCost, isSimulation } = useScenarioStore()
   const metrics = useMetrics()
   const { summary } = useCardsStore()
 
@@ -72,7 +72,7 @@ export function CostManager() {
   } = metrics
   const necessidadesTarget = metrics.budgetAllocation.necessidades
   const remaining = necessidadesTarget - totalCosts
-  const realized = summary.personalByArea.necessidades
+  const realized = isSimulation ? 0 : summary.personalByArea.necessidades
   const selectedCat = COST_CATEGORIES.find((c) => c.key === category)
 
   const handleAdd = () => {

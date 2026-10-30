@@ -3,7 +3,7 @@ import { useFinancasStore } from '../context/financasStore'
 import { CurrencyInput } from './CurrencyInput'
 import { PrimaryButton, SecondaryButton } from './ui'
 import { formatCurrency, inputClass } from '../lib/format'
-import { contributionPlan, type ContributionDestination } from '../lib/contributionPlan'
+import { contributionPlan, destinationError, type ContributionDestination } from '../lib/contributionPlan'
 import { repositoryRevision } from '../data/repositoryCommand'
 import { setContributionDestinations } from '../data/contributionCommands'
 
@@ -20,6 +20,22 @@ export function ContributionDestinations() {
   ]
   const rows = draft ?? scenarios.activeScenario.contributionDestinations ?? []
   const sum = rows.reduce((total, row) => total + row.amount, 0)
+  const saveDestinations = () => {
+    if (!draft) return
+    if (scenarios.isSimulation) {
+      const error = destinationError(draft)
+      const candidate = contributionPlan({ ...scenarios.activeScenario, contributionDestinations: draft }, investments.holdings, investments.goals, debts.debts)
+      if (error || candidate.excess > 0.005 || candidate.unavailable.length) {
+        setError(error || 'Revise os destinos ativos e os valores dentro da capacidade do cenário.'); return
+      }
+      scenarios.setScenarioField('contributionDestinations', draft)
+      setDraft(null)
+      return
+    }
+    const result = setContributionDestinations(scenarios.currentPlan, draft, revision)
+    if (!result.ok) setError(result.message)
+    else setDraft(null)
+  }
   return <div className="space-y-3 rounded-xl border border-dark-border p-4" onKeyDown={(event) => { if (event.key === 'Escape') setDraft(null) }}>
     <div className="flex items-start justify-between gap-3"><div><h4 className="text-sm font-semibold text-dark-text">Destinos do aporte direto</h4>
       <p className="mt-1 text-xs text-dark-text-muted">Capacidade no plano: {formatCurrency(plan.capacity)}/mês. Folha tem destinos próprios. Reservar saldo existente em Patrimônio não cria aporte.</p></div>
@@ -32,9 +48,9 @@ export function ContributionDestinations() {
     {plan.unavailable.length > 0 && <p role="alert" className="text-xs text-amber-200">Há destino inativo. A projeção das fontes aguarda revisão.</p>}
     {plan.uncoveredInstallments > 0 && <p className="text-xs text-amber-200">A capacidade desconta {formatCurrency(plan.uncoveredInstallments)} de parcelas que não estão cobertas por custos vinculados no plano. Confira os vínculos em Dívidas.</p>}
     {draft !== null && <><div className="flex gap-2"><label className="app-form-label flex-1">Novo destino<select className={inputClass} value={choice} onChange={(event) => setChoice(event.target.value)}><option value="">Escolha posição ou meta</option>{options.filter((option) => !draft.some((row) => `${row.type}:${row.id}` === option.key)).map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label><SecondaryButton disabled={!choice} onClick={() => { const [type, ...id] = choice.split(':'); setDraft([...draft, { type: type as 'holding' | 'goal', id: id.join(':'), amount: 0 }]); setChoice('') }}>Adicionar</SecondaryButton></div>
-      <div className="flex gap-2"><PrimaryButton onClick={() => { const result = setContributionDestinations(scenarios.currentPlan, draft, revision); if (!result.ok) setError(result.message); else setDraft(null) }}>Salvar destinos</PrimaryButton><SecondaryButton onClick={() => setDraft(null)}>Cancelar</SecondaryButton></div>
+      <div className="flex gap-2"><PrimaryButton onClick={saveDestinations}>{scenarios.isSimulation ? 'Usar no cenário' : 'Salvar destinos'}</PrimaryButton><SecondaryButton onClick={() => setDraft(null)}>Cancelar</SecondaryButton></div>
       {error && <p role="alert" className="text-xs text-amber-200">{error}</p>}
     </>}
-    <p className="text-xs text-dark-text-muted">Destinos desta competência. Publicar o plano como modelo leva a divisão aos próximos ciclos ainda intactos. Nenhum saldo é movimentado ao salvar. Valores sem destino continuam na projeção geral, sem financiar uma meta específica. Classes abaixo descrevem composição e não são outra promessa de aporte.</p>
+    <p className="text-xs text-dark-text-muted">{scenarios.isSimulation ? 'Destinos simulados; guarde a divisão em Salvar cenário.' : 'Destinos desta competência. Publicar o plano como modelo leva a divisão aos próximos ciclos ainda intactos.'} Nenhum saldo é movimentado ao salvar. Valores sem destino continuam na projeção geral, sem financiar uma meta específica. Classes abaixo descrevem composição e não são outra promessa de aporte.</p>
   </div>
 }
