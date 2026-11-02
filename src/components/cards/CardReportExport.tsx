@@ -25,10 +25,8 @@ export function CardReportExport({ entries, filters }: {
     report.document.getElementById('print-report')?.addEventListener('click', () => report.print())
     report.focus()
   }
-  return <div className="space-y-3 border-b border-dark-border-subtle px-4 py-3">
-    <div className="flex justify-end">
-      <SecondaryButton onClick={openReport} disabled={!entries.length || !!cardFilterError(filters)}><FileDown size={15} />Exportar relatório</SecondaryButton>
-    </div>
-    {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
+  return <div className="relative">
+    <SecondaryButton onClick={openReport} disabled={!entries.length || !!cardFilterError(filters)}><FileDown size={15} />Exportar relatório</SecondaryButton>
+    {error && <p role="alert" className="absolute right-0 top-full z-10 mt-2 w-80 rounded-xl border border-amber-500/25 bg-dark-surface p-3 text-sm text-amber-200">{error}</p>}
   </div>
 }

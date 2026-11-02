@@ -98,6 +98,7 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
   const [paymentReviewRevision, setPaymentReviewRevision] = useState<string | null>(null)
   const [paymentError, setPaymentError] = useState('')
   const [showCreditForm, setShowCreditForm] = useState(false)
+  const [showTotals, setShowTotals] = useState(false)
 
   // Exclusão com desfazer: guarda o último lançamento removido por alguns segundos.
   const [pendingUndo, setPendingUndo] = useState<CreditCardEntry | null>(null)
@@ -126,6 +127,16 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
       })
     : filteredEntries
   const filteredTotals = cardEntryTotals(filteredEntries)
+  const totalDetails = [
+    { label: 'Minha parte a pagar', value: filteredTotals.personalDue },
+    { label: 'Outras pessoas a pagar', value: filteredTotals.thirdPartyDue },
+    { label: 'Total das compras', value: filteredTotals.purchases },
+    ...[
+      { label: 'Já antecipado', value: filteredTotals.prepaid },
+      { label: 'Pago em faturas', value: filteredTotals.paid },
+      { label: 'Abatimentos aplicados', value: filteredTotals.appliedCredits },
+    ].filter(({ value }) => value > 0),
+  ]
   const toggleSort = (key: SortKey) =>
     setSort((prev) => {
       if (!prev || prev.key !== key) return { key, dir: 'asc' }
@@ -327,9 +338,11 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <Panel padded={false} className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3">
         <SegmentedControl
-          className="w-full sm:w-auto sm:min-w-80"
+          className="min-w-80"
           value={view}
           onChange={setView}
           options={[
@@ -338,43 +351,35 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
             { value: 'import' as View, label: 'Importar' },
           ]}
         />
-
-        {view !== 'import' && (
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <button type="button" disabled={accounts.length === 0} onClick={() => setShowCreditForm((value) => !value)} aria-expanded={showCreditForm} className="inline-flex items-center gap-1.5 rounded-lg border border-dark-border px-3 py-2 text-xs font-medium text-dark-text-secondary transition-colors hover:border-primary-500/40 hover:text-dark-text">
-              <HandCoins size={14} /> Abatimento avulso
-            </button>
+        {view !== 'import' && <span className="text-xs text-dark-text-muted">{formatMonthLong(addMonths(activeCycle.month, view === 'next' ? 1 : 0))}</span>}
+        </div>
+        {view !== 'import' && <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs text-dark-text-secondary">{hasFilters ? 'A pagar no filtro' : 'A pagar nesta lista'}</span>
+            <strong className="text-xl font-semibold tabular-nums text-dark-text">{formatCurrency(filteredTotals.due / 100)}</strong>
           </div>
-        )}
-        {view === 'next' && (
-          <span className="flex items-center gap-1.5 text-xs text-dark-text-muted">
-            <Zap size={13} />
-            Parcelas e assinaturas são geradas automaticamente
-          </span>
-        )}
+          <button type="button" onClick={() => setShowTotals(!showTotals)} aria-expanded={showTotals} aria-controls="card-query-totals" className="flex min-h-9 items-center gap-1 text-xs text-dark-text-secondary hover:text-dark-text">
+            Detalhes<ChevronDown size={14} className={showTotals ? 'rotate-180' : ''} />
+          </button>
+        </div>}
       </div>
 
       {view !== 'import' ? (
-        <Panel padded={false} className="overflow-hidden">
+        <>
+          <div id="card-query-totals" hidden={!showTotals} className="border-t border-dark-border-subtle px-4 py-3">
+            <dl className="flex flex-wrap gap-x-6 gap-y-2 text-xs tabular-nums">
+              {totalDetails.map(({ label, value }) => <div key={label}><dt className="text-dark-text-muted">{label}</dt><dd className="mt-1 font-medium text-dark-text-secondary">{formatCurrency(value / 100)}</dd></div>)}
+            </dl>
+          </div>
+          <CardEntryFilters filters={filters} onChange={setFilters} accounts={accounts} entries={cycleEntries} actions={<>
+            <SecondaryButton disabled={accounts.length === 0} onClick={() => setShowCreditForm((value) => !value)} aria-expanded={showCreditForm}>
+              <HandCoins size={14} /> Abatimento avulso
+            </SecondaryButton>
+            <CardReportExport entries={visibleEntries} filters={filters} />
+          </>} />
           {showCreditForm && accounts.length > 0 && (
             <InvoiceCreditForm cycle={visibleCycle} cashCycleMonth={activeCycle.month} knownCards={knownCards} paidCards={visibleCycle === 'current' ? paidCards : []} onAdd={addSelectedEntry} onCancel={() => setShowCreditForm(false)} />
           )}
-          <p className="border-b border-dark-border-subtle px-4 py-3 text-sm text-dark-text-secondary">{view === 'next' ? `Próximo ciclo · ${formatMonthLong(addMonths(activeCycle.month, 1))}` : `Este ciclo · ${formatMonthLong(activeCycle.month)}`}. Compras em cartões com a fatura deste ciclo paga entram no próximo ciclo.</p>
-          <CardEntryFilters filters={filters} onChange={setFilters} accounts={accounts} entries={cycleEntries} />
-          <CardReportExport entries={visibleEntries} filters={filters} />
-          <div className="flex items-start justify-between gap-6 border-b border-dark-border-subtle px-4 py-4">
-            <div>
-              <p className="text-sm font-medium text-dark-text-secondary">A pagar nos lançamentos exibidos</p>
-              <strong className="mt-1 block text-2xl font-semibold tabular-nums text-dark-text">{formatCurrency(filteredTotals.due / 100)}</strong>
-              <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">Minha parte: {formatCurrency(filteredTotals.personalDue / 100)} · Outras pessoas: {formatCurrency(filteredTotals.thirdPartyDue / 100)}</p>
-            </div>
-            <div className="space-y-1 text-right text-xs tabular-nums text-dark-text-muted">
-              <p>Total das compras: {formatCurrency(filteredTotals.purchases / 100)}</p>
-              {filteredTotals.prepaid > 0 && <p>Já antecipado: {formatCurrency(filteredTotals.prepaid / 100)}</p>}
-              {filteredTotals.paid > 0 && <p>Pago em faturas: {formatCurrency(filteredTotals.paid / 100)}</p>}
-              {filteredTotals.appliedCredits > 0 && <p>Abatimentos aplicados: {formatCurrency(filteredTotals.appliedCredits / 100)}</p>}
-            </div>
-          </div>
 
           {anticipatingEntry && anticipateMax > 0 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/20 bg-amber-500/[0.07] px-4 py-3">
@@ -713,9 +718,9 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
           <div className="border-t border-dark-border-subtle px-4 py-3 text-xs text-dark-text-muted">
             {filteredEntries.length} de {entriesInCycle.length} lançamentos
           </div>
-        </Panel>
+        </>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 border-t border-dark-border-subtle p-4">
         <label className="app-form-label block max-w-sm">Importar para o cartão
           <select value={importAccount?.id ?? ''} onChange={(event) => setImportAccountId(event.target.value)} className="app-field mt-1.5 w-full px-3 py-2.5 text-sm">
             {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
@@ -737,6 +742,7 @@ export function CreditCardManager({ onOpenSettings }: { onOpenSettings: () => vo
         />
         </div>
       )}
+      </Panel>
 
       {entryError && <p role="alert" className="text-xs text-rose-200">{entryError}</p>}
       <CardSummaryPanels
