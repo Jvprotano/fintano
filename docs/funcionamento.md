@@ -13,7 +13,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 | Cartões | Conferir/importar compras por ciclo, separar minha parte e confirmar faturas pagas pelo valor total. |
 | Patrimônio | Consultar e registrar posições, reserva, metas, bens, dívidas e livros de movimentos. |
 | Histórico | Consultar fechamentos, diferenças contra o plano, evolução e faturas antigas sem cartão identificado; acessar a correção dos registros. |
-| Futuro | Agrupar metas e dividir entradas previstas entre elas; acompanhar ocorrências, registrar ou vincular fatos e consultar projeção sob demanda. |
+| Futuro | Consultar projeção e premissas; agrupar metas e dividir entradas previstas entre elas; acompanhar ocorrências, registrar ou vincular fatos. |
 | Dados | Filtrar registros e consultar a evolução das faturas por cartão e dos custos fixos em conta, por categoria ou custo. |
 
 ## Configurações
@@ -142,6 +142,8 @@ Folhas já confirmadas antes da automação não são relançadas, inclusive ap�
 
 Reserva, carteira e metas atribuem finalidade ao dinheiro existente; não duplicam ativos. Bens físicos e dívidas entram no patrimônio líquido. Destinar saldo a uma meta não cria dinheiro novo.
 
+Em **Patrimônio → Metas**, cada meta com valor-alvo mostra o valor atual, o percentual alcançado e **Falta R$**, sem precisar abrir os detalhes. O restante considera somente o saldo atual da meta; entradas previstas não o reduzem. Metas atingidas ou ultrapassadas mostram falta de R$ 0,00; metas sem alvo não exibem restante.
+
 Em **Patrimônio → Metas → Onde está o dinheiro desta meta**, marcar **100% da posição** vincula todo o saldo utilizável à meta. Aportes, resgates, transferências e avaliações passam a atualizar o progresso automaticamente, inclusive depois de zerar e recompor a posição. O vínculo continua acompanhando o saldo acima do alvo, sem criar movimentos na meta ou duplicar patrimônio. Na previdência, valores em carência ou com divisão desconhecida continuam excluídos.
 
 Uma posição inteira é exclusiva de uma meta. Para ativar 100%, remover antes qualquer destinação da posição em outras metas, inclusive arquivadas. Desmarcar converte o vínculo para um valor fixo igual ao saldo utilizável atual; informar zero remove a destinação. Valores fixos continuam disponíveis para posições compartilhadas e não crescem automaticamente. Nenhuma destinação existente é convertida por inferência.
@@ -166,7 +168,9 @@ A reserva usa a média de custos fora do cartão mais Necessidades pessoais clas
 
 ## Projeção mensal
 
-Futuro permite escolher **Base sem entradas** ou **Se as entradas ocorrerem**. A base usa os saldos atuais e o aporte possível, sem somar recebimentos ainda previstos, inclusive os marcados como confirmados. A hipótese acrescenta somente a parcela ainda esperada que se planeja guardar; receber continua diferente de aportar. Cancelamento, parcial, adiamento e vínculos usam a mesma conciliação da agenda.
+Futuro começa por **Projeção e premissas**, aberto ao entrar na aba, com o gráfico e os controles da simulação. É possível recolher esse bloco pelo título. Em seguida vêm as metas e, ao final, as entradas e saídas esperadas.
+
+Na projeção, é possível escolher **Base sem entradas** ou **Se as entradas ocorrerem**. A base usa os saldos atuais e o aporte possível, sem somar recebimentos ainda previstos, inclusive os marcados como confirmados. A hipótese acrescenta somente a parcela ainda esperada que se planeja guardar; receber continua diferente de aportar. Cancelamento, parcial, adiamento e vínculos usam a mesma conciliação da agenda.
 
 O primeiro ponto considera o restante do aporte e as pendências conhecidas do ciclo ativo. A renda ainda não confirmada usa o plano, com indicação explícita. Os meses seguintes usam seus planos personalizados ou o modelo recorrente e os fatos já registrados naquela competência. Aportes e folha confirmados não são projetados novamente, inclusive quando têm competência futura. O aporte informado na simulação é limitado pela capacidade; contribuição da empresa fica separada e condicionada. Saldos em carência ou com divisão desconhecida não financiam saídas.
 
@@ -189,7 +193,7 @@ Receber não é guardar. Em recebimentos parciais, a parcela ainda esperada de c
 Exemplo: metas de R$ 14.350, com R$ 1.000 já destinados, exigem R$ 13.350 sem depender de entradas. Destinar R$ 7.500 do décimo terceiro e R$ 1.200 do dissídio deixa R$ 4.650 a guardar se ambas ocorrerem, ou R$ 465/mês de outubro/2026 a julho/2027, incluindo esses meses. A base continua exigindo R$ 13.350. Todos os valores deste planejamento são nominais em reais; ele não estima câmbio, conversão ou taxas da viagem. Ajustar alvo e prazo da meta conforme o orçamento e a data em que os recursos precisam estar preparados.
 ## Ocorrências e agenda
 
-A lista principal de Futuro ordena cada previsão pela próxima ocorrência pendente conciliada. O resumo mostra data e restante, incluindo vencidas e parciais; realizar uma ocorrência avança para a próxima. O detalhe permite consultar outras ocorrências e os registros realizados/cancelados. Projeção e premissas começam recolhidas.
+A lista principal de Futuro ordena cada previsão pela próxima ocorrência pendente conciliada. O resumo mostra data e restante, incluindo vencidas e parciais; realizar uma ocorrência avança para a próxima. O detalhe permite consultar outras ocorrências e os registros realizados/cancelados.
 
 Entradas e saídas esperadas também pode ser recolhido pelo cabeçalho. Esse bloco e Faturas dos cartões começam abertos e conservam a última escolha de exibição no navegador.
 

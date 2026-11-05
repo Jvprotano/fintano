@@ -12,7 +12,7 @@ Nenhuma pendência de implementação registrada para o calendário independente
 
 Cartões permite combinar busca, cartão, pessoa/observação, participação, parcelamento/assinatura/abatimento, área, pagamento, datas e valores na lista do ciclo. A consulta preserva os resumos completos e mostra os totais do recorte. Sem pendências de implementação para essa ampliação; detalhes em [funcionamento](funcionamento.md).
 
-Metas já permitem acompanhar automaticamente 100% de uma posição, além de destinar valores fixos. O uso está descrito em [funcionamento](funcionamento.md).
+Metas já permitem acompanhar automaticamente 100% de uma posição, além de destinar valores fixos, e mostram discretamente quanto falta em reais junto ao percentual alcançado. Futuro começa por Projeção e premissas, aberto ao entrar para consultar os gráficos. Sem pendências de implementação para esses ajustes; o uso está descrito em [funcionamento](funcionamento.md).
 
 Calendários pessoais existentes precisam ser conferidos e ajustados pela aplicação, com motivo e revisão. Não alterar dados antigos por inferência.
 

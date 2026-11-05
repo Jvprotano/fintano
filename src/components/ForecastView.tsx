@@ -368,99 +368,11 @@ export function ForecastView() {
 
   return (
     <div className="space-y-4">
+      <details open className="rounded-xl border border-dark-border p-4"><summary className="cursor-pointer text-sm font-semibold text-dark-text">Projeção e premissas</summary><div className="mt-4 space-y-4">
       <div className="flex items-center justify-between gap-4 rounded-xl border border-dark-border p-4">
         <p className="text-xs text-dark-text-secondary">Base: saldos atuais, aporte possível e compromissos. Entradas ainda não recebidas entram somente na hipótese. Nenhuma curva representa saldo bancário diário.</p>
         <SegmentedControl options={[{ value: false, label: 'Base sem entradas' }, { value: true, label: 'Se as entradas ocorrerem' }]} value={conditional} onChange={setConditional} />
       </div>
-      <GoalFundingPanel />
-      {datedGoals.length > 0 && (
-        <Panel padded={false} className="overflow-hidden">
-          <div className="border-b border-dark-border-subtle px-5 py-4">
-            <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-dark-text">
-              <Flag size={15} className="text-dark-text-muted" />
-              Metas pelas fontes destinadas
-            </h3>
-            <p className="mt-0.5 text-xs text-dark-text-muted">
-              Valores nominais em reais, como os alvos cadastrados. Indicadores acompanham apenas as fontes escolhidas; objetivos usam seus saldos e destinos mensais. Reduzir uma dívida não financia uma meta de carteira.
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-dark-text-muted">
-                  <th className="px-5 py-2.5 font-medium">Meta</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Hoje</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Alvo</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Prazo</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Previsão</th>
-                </tr>
-              </thead>
-              <tbody>
-                {datedGoals.map((goal) => {
-                  const sourcePoints = conditional ? projectionData.conditionalGoals : projectionData.baseGoals
-                  const sourceGoal = sourcePoints.find((point) => point.month === goal.targetMonth)?.goals.find((item) => item.id === goal.id)
-                  const sourceUnavailable = projectionData.invalidPlanMonths.some((month) => month <= goal.targetMonth!) || projection.some((point) => point.month <= goal.targetMonth! && point.unfunded > 0.005)
-                  const outlook = sourceGoal && !sourceUnavailable ? { mode: 'projection', value: sourceGoal.current, gap: sourceGoal.current - goal.targetAmount } : null
-                  const late = goal.monthsLeft !== null && goal.monthsLeft < 0
-
-                  return (
-                    <tr key={goal.id} className="border-t border-dark-border-subtle">
-                      <td className="px-5 py-2.5">
-                        <span className="flex items-center gap-2 font-medium text-dark-text">
-                          <span
-                            className="h-2 w-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: goal.color }}
-                          />
-                          {goal.name}
-                        </span>
-                        {goal.includedLabels.length > 0 && (
-                          <span className="ml-4 text-xs text-dark-text-muted">
-                            engloba {goal.includedLabels.join(' + ')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                        {formatCurrency(goal.current)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                        {formatCurrency(goal.targetAmount)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-dark-text-secondary">
-                        {formatMonthKey(goal.targetMonth!)}
-                      </td>
-                      <td className="px-5 py-2.5 text-right">
-                        {late ? (
-                          <span className="text-rose-400">prazo vencido</span>
-                        ) : outlook?.mode === 'projection' ? (
-                          <span
-                            className={`tabular-nums ${
-                              outlook.gap >= 0 ? 'text-primary-400' : 'text-amber-300'
-                            }`}
-                          >
-                            {formatCurrency(outlook.value)}
-                            <span className="ml-1.5 text-xs text-dark-text-muted">
-                              {outlook.gap >= 0
-                                ? `+ ${formatCurrency(outlook.gap)}`
-                                : `faltam ${formatCurrency(-outlook.gap)}`}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="tabular-nums text-dark-text-secondary">
-                            {sourceUnavailable ? 'Revise capacidade ou insuficiência' : 'Prazo fora do horizonte'}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      )}
-
-      <ExpectedEventsPanel />
-      <details className="rounded-xl border border-dark-border p-4"><summary className="cursor-pointer text-sm font-semibold text-dark-text">Projeção e premissas</summary><div className="mt-4 space-y-4">
       <p className="text-xs text-dark-text-muted">O ponto inicial inclui o restante do aporte e as pendências conhecidas do ciclo ativo: {formatCurrency(projectionData.initialContribution)} de aporte previsto, {formatCurrency(projectionData.initialExpense)} a cobrir além dos recursos do ciclo. Renda ainda não confirmada usa o plano. Saldos condicionados da previdência não financiam saídas. As demais competências usam seus planos ou o modelo recorrente.</p>
       <p className="text-xs text-dark-text-muted">Saídas além dos recursos mensais usam primeiro o patrimônio sem destino e depois rateiam as fontes utilizáveis; a hipótese pode reduzir o saldo reservado às metas. Rentabilidade e inflação são premissas, e receber uma entrada não registra aporte.</p>
       {projectionData.invoiceEstimated && <p className="text-xs text-amber-200">Há faturas sem total conhecido no ciclo inicial ou seguinte. A projeção usa o maior entre a parte conhecida e o plano do cartão; confirme as faturas para reduzir essa incerteza.</p>}
@@ -634,7 +546,7 @@ export function ForecastView() {
           <p className="mt-2 text-xs leading-relaxed text-dark-text-muted">
             Os valores estão descontados de {assumptions.inflationPct.toFixed(1)}% ao ano — é o que o
             dinheiro vai <em>comprar</em>, não o número que vai aparecer no extrato. A dívida
-            também está deflacionada no gráfico para manter a mesma unidade. Metas acima usam valores nominais, como seus alvos.
+            também está deflacionada no gráfico para manter a mesma unidade. Metas usam valores nominais, como seus alvos.
           </p>
         )}
 
@@ -663,6 +575,94 @@ export function ForecastView() {
       </Panel>
 
       </div></details>
+      <GoalFundingPanel />
+      {datedGoals.length > 0 && (
+        <Panel padded={false} className="overflow-hidden">
+          <div className="border-b border-dark-border-subtle px-5 py-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-dark-text">
+              <Flag size={15} className="text-dark-text-muted" />
+              Metas pelas fontes destinadas
+            </h3>
+            <p className="mt-0.5 text-xs text-dark-text-muted">
+              Valores nominais em reais, como os alvos cadastrados. Indicadores acompanham apenas as fontes escolhidas; objetivos usam seus saldos e destinos mensais. Reduzir uma dívida não financia uma meta de carteira.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wider text-dark-text-muted">
+                  <th className="px-5 py-2.5 font-medium">Meta</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Hoje</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Alvo</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Prazo</th>
+                  <th className="px-5 py-2.5 text-right font-medium">Previsão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {datedGoals.map((goal) => {
+                  const sourcePoints = conditional ? projectionData.conditionalGoals : projectionData.baseGoals
+                  const sourceGoal = sourcePoints.find((point) => point.month === goal.targetMonth)?.goals.find((item) => item.id === goal.id)
+                  const sourceUnavailable = projectionData.invalidPlanMonths.some((month) => month <= goal.targetMonth!) || projection.some((point) => point.month <= goal.targetMonth! && point.unfunded > 0.005)
+                  const outlook = sourceGoal && !sourceUnavailable ? { mode: 'projection', value: sourceGoal.current, gap: sourceGoal.current - goal.targetAmount } : null
+                  const late = goal.monthsLeft !== null && goal.monthsLeft < 0
+
+                  return (
+                    <tr key={goal.id} className="border-t border-dark-border-subtle">
+                      <td className="px-5 py-2.5">
+                        <span className="flex items-center gap-2 font-medium text-dark-text">
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: goal.color }}
+                          />
+                          {goal.name}
+                        </span>
+                        {goal.includedLabels.length > 0 && (
+                          <span className="ml-4 text-xs text-dark-text-muted">
+                            engloba {goal.includedLabels.join(' + ')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
+                        {formatCurrency(goal.current)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
+                        {formatCurrency(goal.targetAmount)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-dark-text-secondary">
+                        {formatMonthKey(goal.targetMonth!)}
+                      </td>
+                      <td className="px-5 py-2.5 text-right">
+                        {late ? (
+                          <span className="text-rose-400">prazo vencido</span>
+                        ) : outlook?.mode === 'projection' ? (
+                          <span
+                            className={`tabular-nums ${
+                              outlook.gap >= 0 ? 'text-primary-400' : 'text-amber-300'
+                            }`}
+                          >
+                            {formatCurrency(outlook.value)}
+                            <span className="ml-1.5 text-xs text-dark-text-muted">
+                              {outlook.gap >= 0
+                                ? `+ ${formatCurrency(outlook.gap)}`
+                                : `faltam ${formatCurrency(-outlook.gap)}`}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="tabular-nums text-dark-text-secondary">
+                            {sourceUnavailable ? 'Revise capacidade ou insuficiência' : 'Prazo fora do horizonte'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+
+      <ExpectedEventsPanel />
     </div>
   )
 }

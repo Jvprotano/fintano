@@ -138,6 +138,9 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
         <p className="text-xs tabular-nums text-dark-text-muted">
           {goal.targetAmount > 0 ? `${goal.progress.toFixed(0)}% de ${formatCurrency(goal.targetAmount)}` : 'sem valor-alvo'}
         </p>
+        {goal.targetAmount > 0 && <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">
+          Falta {formatCurrency(goal.remaining)}
+        </p>}
       </div>
       <ChevronDown size={15} className={`shrink-0 text-dark-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} />
     </button>
