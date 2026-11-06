@@ -18,7 +18,7 @@ Este documento descreve a base atual. Melhorias ainda não entregues estão em [
 
 ## Configurações
 
-O menu de três pontos → **Configurações** reúne ajustes de uso ocasional: competência ativa, teto pessoal somando todos os cartões, cadastro de cartões, fechamento, vencimento, limite do banco e correção de calendário/faturas. A tela permite voltar à aba de origem; as abas principais continuam disponíveis.
+O menu de três pontos → **Configurações** reúne ajustes de uso ocasional: competência ativa, teto pessoal somando todos os cartões, cadastro de cartões, fechamento, vencimento, limite do banco e correção de calendário/faturas. Todos os cards são recolhíveis pelo cabeçalho, com mouse ou teclado, e começam recolhidos. Cada seção guarda sua preferência de aberta ou fechada neste navegador. A tela permite voltar à aba de origem; as abas principais continuam disponíveis.
 
 O cabeçalho mostra o ciclo apenas como referência visual. Para corrigir a competência operacional, escolher **Ciclo ativo → Revisar alteração → Ativar ciclo** em Configurações. A mudança exige confirmação, define o padrão dos novos lançamentos e edições e não transfere fatos entre ciclos, confirma pagamentos ou fecha o mês. O fechamento e a virada normal continuam na aba Ciclo; consultar o passado continua no Histórico. A competência específica de uma movimentação permanece no formulário correspondente.
 

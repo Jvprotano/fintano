@@ -56,7 +56,7 @@ function CurrencyRow({ currency }: { currency: ForeignCurrency }) {
 export function ExchangeSettingsPanel() {
   const { exchange } = useInvestmentsStore()
   const [error, setError] = useState('')
-  return <Card title="Cotações para metas" icon={<ArrowLeftRight size={17} />}>
+  return <Card collapsible defaultCollapsed storageKey="settings-exchange" title="Cotações para metas" icon={<ArrowLeftRight size={17} />}>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p className="max-w-2xl text-sm text-dark-text-secondary">Custo em reais de cada unidade estrangeira. Atualiza as metas e o planejamento; seus saldos e movimentos continuam em reais.</p>
       <SecondaryButton onClick={() => void exchange.refresh()} disabled={exchange.refreshing}><RefreshCw size={14} className={exchange.refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />{exchange.refreshing ? 'Atualizando…' : 'Atualizar cotações'}</SecondaryButton>

@@ -21,7 +21,7 @@ function CycleSettings() {
   const [review, setReview] = useState<{ month: string; revision: string | null } | null>(null)
   const [error, setError] = useState('')
 
-  return <Card title="Competência ativa" icon={<CalendarCheck size={17} />}>
+  return <Card collapsible defaultCollapsed storageKey="settings-cycle" title="Competência ativa" icon={<CalendarCheck size={17} />}>
     <p className="mb-4 text-sm text-dark-text-secondary">Define o ciclo padrão dos lançamentos e do plano. Para encerrar o mês, use o fechamento na aba Ciclo.</p>
     <form className="flex items-end gap-3" onSubmit={(event) => {
       event.preventDefault()
@@ -62,7 +62,7 @@ function DataSettings({ onExport, onImport, onResetCurrent, onResetAll, onRestor
   const autoBackups = listAutoBackups()
   const hasMigrationOriginal = localStorage.getItem(PRE_LEDGER_MIGRATION_RAW_KEY) !== null
 
-  return <Card title="Dados e backup" icon={<Archive size={17} />}>
+  return <Card collapsible defaultCollapsed storageKey="settings-data" title="Dados e backup" icon={<Archive size={17} />}>
     <p className="text-sm text-dark-text-secondary">Seus dados ficam neste navegador. Exporte um backup para guardar uma cópia fora dele.</p>
     <div className="mt-4 flex flex-wrap gap-2">
       <SecondaryButton onClick={() => { onExport(); setLastExport(lastExternalExportRequestedAt()) }}><Download size={14} /> Exportar backup</SecondaryButton>
@@ -97,7 +97,7 @@ export function SettingsView(props: SettingsViewProps) {
   return <div className="space-y-4">
     <div className="grid items-start gap-4 xl:grid-cols-2">
       <CycleSettings />
-      <Card title="Teto pessoal dos cartões" icon={<SlidersHorizontal size={17} />}>
+      <Card collapsible defaultCollapsed storageKey="settings-card-limit" title="Teto pessoal dos cartões" icon={<SlidersHorizontal size={17} />}>
         <p className="mb-4 text-sm text-dark-text-secondary">Referência de gasto pessoal somando todos os cartões. O uso e o valor disponível continuam na aba Cartões.</p>
         <FormField label="Limite pessoal mensal">
           <CurrencyInput value={settings.personalSpendingLimit} onChange={(value) => setSettings({ ...settings, personalSpendingLimit: value })} />
