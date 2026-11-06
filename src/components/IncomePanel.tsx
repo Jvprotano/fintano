@@ -155,7 +155,7 @@ export function IncomePanel() {
                             className={`${selectClass} !py-1.5 !text-xs`}
                           >
                             <option value="">Não vinculada</option>
-                            {investmentsSummary.allHoldings.filter((holding) => !holding.archivedAt && holding.purpose !== 'emergency_fund').map((holding) => (
+                            {investmentsSummary.allHoldings.filter((holding) => !holding.archivedAt && !holding.fx && holding.purpose !== 'emergency_fund').map((holding) => (
                               <option key={holding.id} value={holding.id}>
                                 {holding.name}
                               </option>
@@ -215,7 +215,7 @@ export function IncomePanel() {
                     aria-label="Posição patrimonial vinculada"
                   >
                     <option value="">Posição patrimonial (opcional)</option>
-                    {investmentsSummary.allHoldings.map((holding) => (
+                    {investmentsSummary.allHoldings.filter((holding) => !holding.fx).map((holding) => (
                       <option key={holding.id} value={holding.id}>
                         {holding.name}
                       </option>

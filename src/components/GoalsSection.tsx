@@ -138,7 +138,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
         <p className="text-sm font-semibold tabular-nums text-dark-text">{foreign ? formatCurrency(goal.targetAmount, goal.currency) : formatCurrency(goal.current)}</p>
         {foreign && <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">{formatCurrency(goal.current)} destinados{goal.currentInTargetCurrency !== null ? ` ≈ ${formatCurrency(goal.currentInTargetCurrency, goal.currency)}` : ''}</p>}
         <p className="text-xs tabular-nums text-dark-text-muted">
-          {goal.targetAmount > 0 ? goal.progress === null ? 'Aguardando cotação em Configurações' : foreign ? `${goal.progress.toFixed(0)}% cobertos pelo câmbio utilizado${goal.marginPct ? ` · margem ${goal.marginPct}%` : ''}` : `${goal.progress.toFixed(0)}% de ${formatCurrency(goal.targetAmount)}` : 'sem valor-alvo'}
+          {goal.targetAmount > 0 ? goal.progress === null ? 'Aguardando cotação em Configurações' : foreign ? `${goal.progress.toFixed(0)}% do objetivo${goal.marginPct ? ` · margem ${goal.marginPct}%` : ''}` : `${goal.progress.toFixed(0)}% de ${formatCurrency(goal.targetAmount)}` : 'sem valor-alvo'}
         </p>
         {goal.targetAmount > 0 && goal.remaining !== null && <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">
           Falta {foreign ? `${formatCurrency(goal.remainingInTargetCurrency, goal.currency)} ≈ ` : ''}{formatCurrency(goal.remaining)}
@@ -152,7 +152,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
     {expanded && <div className="space-y-4 border-t border-dark-border/60 px-4 py-4">
       <label className="block max-w-md"><span className="mb-1 block text-xs text-dark-text-muted">Nome</span><input value={goal.name} onChange={(event) => updateGoal(goal.id, { name: event.target.value })} className={`${inputClass} !py-1.5`} /></label>
       <GoalTargetEditor goal={goal} />
-      {foreign && <p className="text-xs text-dark-text-muted">O equivalente indica quanto os reais destinados comprariam pelo câmbio utilizado; não representa moeda já comprada. Atualize ou ajuste a cotação em Configurações.</p>}
+      {foreign && <p className="text-xs text-dark-text-muted">{goal.ownedInTargetCurrency > 0 ? `${formatCurrency(goal.ownedInTargetCurrency, goal.currency)} já disponíveis nesta moeda nas posições vinculadas. O restante equivale aos outros saldos pelo custo de compra configurado.` : 'O equivalente indica quanto os reais destinados comprariam pelo câmbio utilizado. Informe o saldo em moeda na posição quando ela já guarda euros ou dólares.'}</p>}
 
       {kind === 'funding' ? <div>
         <div className="mb-2">

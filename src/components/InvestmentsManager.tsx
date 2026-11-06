@@ -14,6 +14,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import { ForeignPositionMove, ForeignPositionSettings } from './ForeignPosition'
 import { CurrencyInput } from './CurrencyInput'
 import { localDateKey } from '../lib/shared'
 import { LedgerList, LedgerMoveForm } from './Ledger'
@@ -81,7 +82,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
       .map((allocation) => ({ goal: goal.name, amount: allocation.allocated, color: goal.color })),
   )
   const missingLocation = !holding.institution?.trim()
-  const movementForm = (
+  const movementForm = holding.fx ? <ForeignPositionMove holding={holding} /> : (
     <LedgerMoveForm
         onMove={(amount, note, cycleMonth, occurredOn) =>
           addHoldingTransaction(holding.id, amount, note, cycleMonth, occurredOn)
@@ -116,7 +117,7 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(holding.marketValue)}</p><EvaluationDate date={holding.valuationDate} transactions={holding.transactions} />
+        <p className="text-sm font-semibold tabular-nums text-dark-text">{holding.fx ? formatCurrency(holding.fx.balance, holding.fx.currency) : formatCurrency(holding.marketValue)}</p>{holding.fx && <p className="text-xs text-dark-text-muted">≈ {formatCurrency(holding.marketValue)}</p>}<EvaluationDate date={holding.valuationDate} transactions={holding.transactions} />
         <p className="text-xs"><GainLabel gain={holding.gain} pct={holding.invested > 0 ? holding.gainPct : null} /></p>
       </div>
       <ChevronDown size={15} className={`shrink-0 text-dark-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -142,7 +143,8 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
           <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Saldo, classificação e identificação do produto.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {!isPension && <BalanceEvaluation id={holding.id} collection="investmentHoldings" value={holding.marketValue} date={holding.valuationDate} />}
+          {!isPension && <ForeignPositionSettings holding={holding} />}
+          {!isPension && !holding.fx && <BalanceEvaluation id={holding.id} collection="investmentHoldings" value={holding.marketValue} date={holding.valuationDate} />}
           <FormField label="Classe"><select value={holding.assetClassId} onChange={(event) => updateHolding(holding.id, { assetClassId: event.target.value })} className={`${inputClass} h-[42px]`}>{investmentClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FormField>
           {!isPension && <FormField label="Finalidade"><select value={purpose} onChange={(event) => updateHolding(holding.id, { purpose: event.target.value as InvestmentPurpose })} className={`${inputClass} h-[42px]`}><option value="portfolio">Carteira / metas</option><option value="emergency_fund">Reserva de emergência</option></select></FormField>}
           <FormField label="Produto"><input value={holding.name} onChange={(event) => updateHolding(holding.id, { name: event.target.value })} className={`${inputClass} !py-2`} placeholder="Ex.: CDB Itaú 110% CDI" /></FormField>
@@ -173,13 +175,16 @@ function PositionRow({ holding }: { holding: FinancialHoldingSummary }) {
 }
 
 function NewPositionForm({ onClose }: { onClose: () => void }) {
-  const { investmentClasses, addHolding, addClass, removeClass, holdings, goals } = useInvestmentsStore()
+  const { investmentClasses, addHolding, addClass, removeClass, holdings, goals, exchange } = useInvestmentsStore()
   const { activeCycle } = useFinancasStore()
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
   const [assetClassId, setAssetClassId] = useState(investmentClasses[0]?.id ?? '')
   const [purpose, setPurpose] = useState<InvestmentPurpose>('portfolio')
   const [initialAmount, setInitialAmount] = useState(0)
+  const [currency, setCurrency] = useState<'BRL' | 'EUR' | 'USD'>('BRL')
+  const [quantity, setQuantity] = useState(0)
+  const [fxError, setFxError] = useState('')
   const [initialKind, setInitialKind] = useState<'opening_balance' | 'contribution'>('opening_balance')
   const [initialCycleMonth, setInitialCycleMonth] = useState(activeCycle.month)
   const [occurredOn, setOccurredOn] = useState(localDateKey)
@@ -189,7 +194,9 @@ function NewPositionForm({ onClose }: { onClose: () => void }) {
 
   const handleAdd = () => {
     if (!name.trim() || !selectedClassId || (initialAmount > 0 && (!occurredOn || (initialKind === 'contribution' && !initialCycleMonth)))) return
-    if (!addHolding({ name, assetClassId: selectedClassId, institution, purpose, initialAmount,
+    const fx = currency === 'BRL' ? undefined : { currency, balance: quantity, rate: exchange.settings.currencies[currency].reference?.rate ?? 0 }
+    if (fx && (!fx.rate || quantity <= 0 || initialKind === 'contribution' && initialAmount <= 0)) { setFxError('Informe a quantidade, atualize a referência em Configurações e informe os reais pagos se for um aporte.'); return }
+    if (!addHolding({ fx, name, assetClassId: selectedClassId, institution, purpose, initialAmount: fx && initialKind === 'opening_balance' ? Math.round(fx.balance * fx.rate * 100) / 100 : initialAmount,
       initialKind, initialCycleMonth, occurredOn })) return
     onClose()
   }
@@ -223,13 +230,15 @@ function NewPositionForm({ onClose }: { onClose: () => void }) {
         {showNewClass ? <span className="inline-flex items-center gap-1 rounded-lg border border-primary-500/40 bg-dark-input px-2 py-1"><input autoFocus value={newClassName} onChange={(event) => setNewClassName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && handleAddClass()} placeholder="Nova classe" className="w-28 bg-transparent text-xs text-dark-text outline-none" /><button type="button" onClick={handleAddClass} className="text-primary-300"><Plus size={13} /></button></span> : <button type="button" onClick={() => setShowNewClass(true)} className="inline-flex items-center gap-1 rounded-lg border border-dashed border-dark-border px-3 py-1.5 text-xs text-dark-text-muted"><Plus size={12} /> Nova classe</button>}
       </div>
     </div>
+    <div className="grid grid-cols-2 gap-3"><FormField label="Moeda do saldo"><select value={currency} onChange={(event) => setCurrency(event.target.value as 'BRL' | 'EUR' | 'USD')} className={inputClass}><option value="BRL">Real</option><option value="EUR">Euro</option><option value="USD">Dólar</option></select></FormField>{currency !== 'BRL' && <FormField label="Quantidade já disponível"><CurrencyInput currency={currency} value={quantity} onChange={setQuantity} /></FormField>}</div>
+    {fxError && <p role="alert" className="text-xs text-amber-200">{fxError}</p>}
     <div className="space-y-2">
       <span className="block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Origem do valor inicial</span>
       <SegmentedControl options={[{ value: 'opening_balance' as const, label: 'Saldo que já existia' }, { value: 'contribution' as const, label: 'Aporte deste ciclo' }]} value={initialKind} onChange={setInitialKind} />
       <p className="text-xs text-dark-text-muted">{initialKind === 'opening_balance' ? 'Compõe o patrimônio, sem consumir a verba do ciclo.' : 'Conta como investimento realizado na competência escolhida.'}</p>
     </div>
     <div className="grid gap-2 sm:grid-cols-3">
-      <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Valor inicial</span><CurrencyInput value={initialAmount} onChange={setInitialAmount} /></label>
+      {(currency === 'BRL' || initialKind === 'contribution') && <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Valor em reais (custo se aporte)</span><CurrencyInput value={initialAmount} onChange={setInitialAmount} /></label>}
       <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Data real</span><input type="date" required={initialAmount > 0} value={occurredOn} onChange={(event) => setOccurredOn(event.target.value)} className={inputClass} /></label>
       {initialKind === 'contribution' && <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-dark-text-muted">Competência do aporte</span><input type="month" value={initialCycleMonth} onChange={(event) => setInitialCycleMonth(event.target.value)} className={inputClass} /></label>}
     </div>

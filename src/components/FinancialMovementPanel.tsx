@@ -19,6 +19,8 @@ export function FinancialMovementPanel() {
   const [date, setDate] = useState(localDateKey)
   const [note, setNote] = useState('')
   const [message, setMessage] = useState('')
+  const [foreignAmounts, setForeignAmounts] = useState<Record<string, number>>({})
+  const foreignEndpoints = investments.holdings.filter((row) => row.fx && [`holding:${row.id}`].some((key) => key === source || key === destination))
   const assets = [
     ...investments.holdings.filter((row) => !row.archivedAt).map((row) => ({ key: `holding:${row.id}`, name: `Posição: ${row.name}`, balance: usableHoldingValue(row) })),
     ...investments.goals.filter((row) => !row.archivedAt && row.kind === 'funding').map((row) => ({ key: `goal:${row.id}`, name: `Meta: ${row.name}`, balance: ledgerBalance(row.transactions) })),
@@ -52,12 +54,13 @@ export function FinancialMovementPanel() {
         <FormField label="Data real"><input className={inputClass} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
         <FormField label="Observação (opcional)"><input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: transferência para a reserva" /></FormField>
       </div>
+      {foreignEndpoints.map((holding) => <FormField key={holding.id} label={`Quantidade ${source === `holding:${holding.id}` ? 'retirada de' : 'recebida em'} ${holding.name}`}><CurrencyInput currency={holding.fx!.currency} value={foreignAmounts[holding.id] ?? 0} onChange={(value) => setForeignAmounts((previous) => ({ ...previous, [holding.id]: value }))} /></FormField>)}
       {kind === 'installment' && <p className="mt-2 text-xs text-dark-text-muted">{debt?.linkedCostId ? `Usa o pagamento de ${scenarios.activeScenarioAll.costs.find((row) => row.id === debt.linkedCostId)?.name ?? 'custo vinculado'} confirmado no Ciclo, sem uma segunda saída de caixa.` : 'Vincule a dívida a um custo e confirme o pagamento no Ciclo.'}</p>}
       <PrimaryButton className="mt-3" disabled={!source || !destination || amount <= 0 || kind === 'installment' && !debt?.linkedCostId} onClick={() => {
-        const result = recordMovement({ source: endpoint(source), destination: endpoint(destination), amount, month, occurredOn: date, note,
+        const result = recordMovement({ source: endpoint(source), destination: endpoint(destination), amount, month, occurredOn: date, note, foreignAmounts,
           linkedCostId: kind === 'installment' ? debt?.linkedCostId : undefined }, repositoryRevision())
         setMessage(result.ok ? 'Movimentação registrada.' : result.message)
-        if (result.ok) { setAmount(0); setNote('') }
+        if (result.ok) { setAmount(0); setForeignAmounts({}); setNote('') }
       }}>Registrar movimentação</PrimaryButton>
       {message && <p role="status" className="mt-2 text-xs text-dark-text-secondary">{message}</p>}
     </details>

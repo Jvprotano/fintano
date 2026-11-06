@@ -216,6 +216,7 @@ export interface InvestmentClassV7 {
 }
 
 export interface InvestmentHoldingV7 {
+  fx?: { currency: 'EUR' | 'USD'; balance: number; rate: number }
   valuationDate?: string
   pension?: { employerBalanceCents?: MoneyCents; employerRestrictedBalanceCents?: MoneyCents }
   id: string
@@ -250,6 +251,8 @@ export type LedgerEntryKind =
 export interface DomainLedgerEntryV7 {
   payrollMonth?: MonthKey
   contributor?: 'personal' | 'employer'
+  foreignAmount?: number
+  foreignCurrency?: 'EUR' | 'USD'
   pensionEmployerAmountCents?: MoneyCents
   id: string
   ownerType: LedgerOwnerType

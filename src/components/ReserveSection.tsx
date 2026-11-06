@@ -1,3 +1,4 @@
+import { ForeignPositionMove, ForeignPositionSettings } from './ForeignPosition'
 import { BalanceEvaluation, EvaluationDate } from './BalanceEvaluation'
 import { useState } from 'react'
 import { Archive, Building2, ChevronDown, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
@@ -102,7 +103,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
             </div>
           </div>
 
-          <LedgerMoveForm
+          {holding.fx ? <ForeignPositionMove holding={holding} /> : <LedgerMoveForm
             onMove={(amount, note, cycleMonth, occurredOn) =>
               addHoldingTransaction(holding.id, amount, note, cycleMonth, occurredOn)
             }
@@ -111,7 +112,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
             disableOut={holding.marketValue <= 0}
             notePlaceholder="Nota (opcional) — ex.: aporte mensal, resgate emergencial"
             cycleMonth={activeCycle.month}
-          />
+          />}
 
           <div className="rounded-2xl border border-dark-border/70 bg-dark-input/20 p-3 sm:p-4">
             <div className="mb-3">
@@ -119,7 +120,7 @@ function ReservePositionRow({ holding }: { holding: FinancialHoldingSummary }) {
               <p className="mt-0.5 text-xs leading-relaxed text-dark-text-muted">Identifique onde está o dinheiro e em quanto tempo ele fica disponível.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-            <BalanceEvaluation id={holding.id} collection="investmentHoldings" value={holding.marketValue} date={holding.valuationDate} />
+            {holding.fx ? <ForeignPositionSettings holding={holding} /> : <BalanceEvaluation id={holding.id} collection="investmentHoldings" value={holding.marketValue} date={holding.valuationDate} />}
             <FormField label="Classe do ativo">
               <select
                 value={holding.assetClassId}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useRepositoryState } from '../data/repository'
-import { recordAssetMove, changeLinkedMovementCycle, removeLinkedMovement } from '../data/financialMovement'
+import { recordAssetMove, moveInDocument, changeLinkedMovementCycle, removeLinkedMovement } from '../data/financialMovement'
 import { deleteUnusedCatalog } from '../data/catalogDeletion'
 import { runRepositoryCommand } from '../data/repositoryCommand'
 import { resolveLegacyLedgerKind } from '../data/ledgerClassification'
@@ -22,6 +22,7 @@ import {
   normalizeEmergencyFund,
   normalizeHolding,
   usableHoldingValue,
+  valueForeignHolding,
   type FinancialHolding,
   type InvestmentPurpose,
 } from '../lib/investments'
@@ -94,10 +95,10 @@ export function useInvestments(
   )
   const holdings = useMemo(
     () => (Array.isArray(storedHoldings) ? storedHoldings.map((raw) => {
-      const holding = normalizeHolding(raw)
+      const holding = valueForeignHolding(normalizeHolding(raw), exchange.settings)
       return pensionHoldingIds.includes(holding.id) && !holding.pension ? { ...holding, pension: {} } : holding
     }) : []),
-    [storedHoldings, pensionHoldingIds],
+    [storedHoldings, pensionHoldingIds, exchange.settings],
   )
 
   const [storedClasses, setClasses] = useRepositoryState<InvestmentAssetClass[]>(
@@ -185,6 +186,7 @@ export function useInvestments(
       assetClassId: string
       institution?: string
       initialAmount?: number
+      fx?: FinancialHolding['fx']
       initialKind?: 'opening_balance' | 'contribution'
       initialCycleMonth?: string
       occurredOn?: string
@@ -194,6 +196,17 @@ export function useInvestments(
       liquidity?: string
     }) => {
       const initial = Math.max(0, finiteNumber(input.initialAmount))
+      if (input.fx && (!['EUR', 'USD'].includes(input.fx.currency) || !Number.isFinite(input.fx.balance) || input.fx.balance < 0 || !Number.isFinite(input.fx.rate) || input.fx.rate <= 0)) return false
+      if (input.fx && input.initialKind === 'contribution') {
+        const id = uid()
+        return runRepositoryCommand({ id: uid(), apply: (document) => {
+          const holding = normalizeHolding({ id, name: input.name, assetClassId: input.assetClassId, institution: input.institution, purpose: input.purpose,
+            fx: { ...input.fx!, balance: 0 }, marketValue: 0, transactions: [] })
+          return moveInDocument({ ...document, collections: { ...document.collections, investmentHoldings: [...(document.collections.investmentHoldings as FinancialHolding[] ?? []), holding] } },
+            { source: { type: 'account' }, destination: { type: 'holding', id }, amount: initial, month: input.initialCycleMonth ?? activeCycleMonth,
+              occurredOn: input.occurredOn ?? nowIso().slice(0, 10), foreignAmounts: { [id]: input.fx!.balance }, note: input.note })
+        } }).ok
+      }
       return setHoldings((prev) => [
         ...(Array.isArray(prev) ? prev : []),
         normalizeHolding({
@@ -204,7 +217,9 @@ export function useInvestments(
           purpose: input.purpose ?? 'portfolio',
           benchmark: input.benchmark,
           liquidity: input.liquidity,
-          marketValue: initial,
+          fx: input.fx,
+          valuationDate: input.fx ? input.occurredOn : undefined,
+          marketValue: input.fx ? Math.round(input.fx.balance * input.fx.rate * 100) / 100 : initial,
           transactions:
             initial > 0
               ? [
@@ -240,6 +255,7 @@ export function useInvestments(
           | 'benchmark'
           | 'liquidity'
           | 'pension'
+          | 'fx'
         >
       >,
       expectedRevision?: string | null,
@@ -247,6 +263,11 @@ export function useInvestments(
       const current = holdings.find((holding) => holding.id === id)
       if (!current) return false
       const candidate = { ...current, ...patch }
+      if (candidate.fx && (candidate.pension || pensionHoldingIds.includes(id) || !['EUR', 'USD'].includes(candidate.fx.currency) ||
+        !Number.isFinite(candidate.fx.balance) || candidate.fx.balance < 0 || !Number.isSafeInteger(Math.round(candidate.fx.balance * 100)) ||
+        !Number.isFinite(candidate.fx.rate) || candidate.fx.rate <= 0)) return false
+      if (current.fx && 'fx' in patch && (!patch.fx || current.fx.currency !== patch.fx.currency)) return false
+      if (candidate.fx) patch = { ...patch, marketValue: Math.round(candidate.fx.balance * candidate.fx.rate * 100) / 100 }
       const pension = candidate.pension
       if (!Number.isFinite(candidate.marketValue) || candidate.marketValue < 0 || pension && (candidate.purpose === 'emergency_fund' ||
         [pension.employerBalance, pension.employerRestrictedBalance].some((value) => value !== undefined && (!Number.isFinite(value) || value < 0)) ||
@@ -263,7 +284,7 @@ export function useInvestments(
         ),
       )
     },
-    [holdings, setHoldings],
+    [holdings, setHoldings, pensionHoldingIds],
   )
 
   const removeHolding = useCallback(
@@ -306,6 +327,7 @@ export function useInvestments(
     if (holdings.find((row) => row.id === holdingId)?.transactions.find((tx) => tx.id === transactionId)?.payrollMonth) return false
     const current = holdings.find((row) => row.id === holdingId)
     const entry = current?.transactions.find((tx) => tx.id === transactionId)
+    if (current?.fx && !entry?.operationId) return false
     if (current?.pension && !entry?.operationId && current.marketValue - (entry?.amount ?? 0) < (current.pension.employerBalance ?? current.marketValue)) return false
     const linked = removeLinkedMovement('holding', holdingId, transactionId)
     if (linked !== null) return linked
@@ -324,7 +346,7 @@ export function useInvestments(
       setHoldings((prev) =>
         (Array.isArray(prev) ? prev : []).map((raw) => {
           const holding = normalizeHolding(raw)
-          return holding.id === holdingId
+          return holding.id === holdingId && !holding.fx
             ? { ...holding, marketValue: Math.max(0, value) }
             : holding
         }),
@@ -700,6 +722,7 @@ export function useInvestments(
           id: holding.id,
           name: holding.name,
           institution: holding.institution,
+          fx: holding.fx,
           marketValue: usableHoldingValue(holding),
         })),
       goalOwnBalances,

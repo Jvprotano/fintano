@@ -121,6 +121,8 @@ export function normalizeLedger(raw: unknown, fallbackDate = nowIso(), owner: Le
         payrollMonth: tx?.payrollMonth,
         contributor: tx?.contributor,
         pensionEmployerAmount: tx?.pensionEmployerAmount,
+        foreignAmount: tx?.foreignAmount,
+        foreignCurrency: tx?.foreignCurrency,
         note: tx?.note?.trim() || undefined,
         cycleMonth,
       }

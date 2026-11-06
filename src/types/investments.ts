@@ -63,6 +63,7 @@ export interface GoalSummary extends FinancialGoal {
   trackingBalance: number
   targetAmountBrl: number | null
   exchangeRate: number | null
+  ownedInTargetCurrency: number
   currentInTargetCurrency: number | null
   remainingInTargetCurrency: number | null
   remaining: number | null
@@ -79,6 +80,7 @@ export interface InvestmentAssetClass {
 }
 
 export interface InvestmentHolding {
+  fx?: { currency: 'EUR' | 'USD'; balance: number; rate: number }
   /** Data do último saldo conferido; movimentos posteriores conservam essa referência. */
   valuationDate?: string
   id: string

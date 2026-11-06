@@ -263,6 +263,7 @@ export function LedgerList({
                 }`}
               >
                 {isDeposit ? '+' : '−'} {formatCurrency(Math.abs(tx.amount))}
+                {tx.foreignAmount !== undefined && <span className="ml-2 text-xs text-dark-text-muted">· {formatCurrency(tx.foreignAmount, tx.foreignCurrency)}</span>}
               </span>
               {!tx.payrollMonth && <button
                 type="button"

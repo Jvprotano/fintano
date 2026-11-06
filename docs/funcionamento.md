@@ -34,11 +34,25 @@ Em **Ajustar**, informar custos percentuais estimados sobre a PTAX ou escolher *
 
 No cadastro de uma meta, escolher BRL, EUR ou USD e informar o valor na unidade correspondente. O prazo opcional **Dinheiro pronto até** é o mês em que os recursos precisam estar preparados. Metas estrangeiras permitem uma **Margem de segurança (%)**, separada dos custos de câmbio. A necessidade em reais é alvo × custo efetivo × (1 + margem/100), arredondada em centavos. Aportes, resgates, posições, destinações e patrimônio permanecem em reais; mudar cotação não cria movimentos, rendimentos ou mudanças nos fechamentos passados.
 
-O objetivo em moeda estrangeira aparece em destaque; a meta mostra reais destinados, equivalente estimado, percentual coberto e falta nas duas moedas. O progresso e o ritmo mensal consideram a margem quando informada. O equivalente representa o que os reais comprariam pelo câmbio utilizado, sem afirmar que a moeda já foi comprada. O controle de quantidades efetivamente compradas de moeda estrangeira não faz parte deste fluxo.
+O objetivo em moeda estrangeira aparece em destaque; a meta mostra reais destinados, equivalente estimado, percentual coberto e falta nas duas moedas. O progresso e o ritmo mensal consideram a margem quando informada. O equivalente representa o que os reais comprariam pelo câmbio utilizado, sem afirmar que a moeda já foi comprada. Posições em moeda estrangeira guardam as quantidades já compradas, conforme o fluxo abaixo.
 
 **Editar objetivo e prazo** abre uma edição com salvar/cancelar para moeda, alvo, prazo e margem. Trocar a moeda limpa o valor-alvo do rascunho e exige informar o novo objetivo; nenhum saldo guardado é convertido. Metas existentes permanecem em reais até alteração explícita. A moeda não é inferida pelo nome da viagem.
 
 Sem cotação, o saldo em reais continua conhecido, mas o progresso, a falta, o ritmo e a previsão de atendimento do objetivo ficam pendentes. Os grupos e o ritmo conjunto no Futuro são identificados como parciais; a divisão automática de entradas ignora necessidades sem cotação. Com cotação disponível, metas de diferentes moedas são somadas somente pelo equivalente em reais. Entradas previstas continuam separadas do dinheiro guardado e são destinadas em reais.
+
+## Posições em euro e dólar
+
+Na criação de uma posição em Patrimônio, selecionar a moeda e informar a quantidade já disponível. Um saldo anterior é avaliado pela referência do Banco Central e não consome verba do ciclo; para um aporte inicial, informar também os reais efetivamente pagos. Na posição existente, **Dados da posição → Cadastrar saldo em moeda** permite informar explicitamente a moeda, o saldo exato do extrato e a data. Nenhuma quantidade é deduzida do saldo antigo em reais; o histórico em reais é conservado. A moeda fica definida para essa posição, sem reinterpretar o histórico como outra moeda.
+
+A posição destaca a quantidade nativa e mostra seu equivalente patrimonial em reais. A avaliação patrimonial usa a referência do Banco Central, sem custos de compra nem margem da meta. Sem nova referência, conserva a taxa da última avaliação conhecida. Atualizar o câmbio muda o equivalente em reais, sem criar aporte ou alterar quantidades, fluxos ou fechamentos passados. A variação contra o livro em reais inclui a variação cambial e os custos efetivamente pagos.
+
+**Comprar / aportar moeda** registra juntos a quantidade efetivamente recebida e os reais pagos, com tarifas e tributos, data real e competência. **Resgatar para reais** informa quantidade retirada e reais efetivamente recebidos. Transferências entre posições exigem a quantidade de cada ponta estrangeira e conservam os vínculos de uma única operação. O livro continua em reais e exibe também a quantidade e a moeda quando registradas. Desfazer um movimento reverte suas quantidades e seus reais juntos, recusando saldo insuficiente. Movimentos anteriores ao cadastro da moeda mantêm os valores originais em reais e não recebem quantidades presumidas.
+
+**Conferir saldo em moeda** atualiza a quantidade atual por extrato, sem lançar aporte. Inclui todos os movimentos já registrados. Posições de previdência vinculadas à folha não aceitam esse cadastro, pois exigem divisão pessoal/empresarial em reais.
+
+Uma meta ligada a 100% de uma posição na mesma moeda usa diretamente o saldo nativo: € 400 contam como € 400 mesmo que o câmbio e os custos configurados mudem. Sua falta em euros considera alvo e margem; somente a parte ainda não comprada usa o custo estimado de compra. Outras fontes continuam sendo avaliadas em reais e convertidas como estimativa. Destinações fixas de posições permanecem em reais e correspondem à parcela proporcional do saldo nativo, enquanto o vínculo de 100% acompanha toda a quantidade. A posição participa uma única vez do patrimônio.
+
+A projeção mantém a cotação de referência constante e aplica as premissas de rentabilidade, contribuições e saídas às fontes; quantidades futuras são hipóteses, com conversão de aportes futuros pela referência simples, sem antecipar tarifas efetivas de operações ainda não registradas. A fotografia para análise informa a quantidade efetivamente disponível na posição, separada do equivalente patrimonial em reais.
 
 ## Plano, referência e simulação
 

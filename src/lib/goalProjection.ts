@@ -24,6 +24,7 @@ export function projectGoalSources(input: {
       free *= 1 + rate
       for (const holding of holdings) {
         holding.marketValue *= 1 + rate
+        if (holding.fx) holding.fx.balance *= 1 + rate
         if (holding.pension?.employerBalance !== undefined) holding.pension.employerBalance *= 1 + rate
         if (holding.pension?.employerRestrictedBalance !== undefined) holding.pension.employerRestrictedBalance *= 1 + rate
       }
@@ -36,6 +37,7 @@ export function projectGoalSources(input: {
       const holding = holdings.find((row) => source.type === 'holding' && row.id === source.id)
       if (holding) {
         holding.marketValue += source.amount
+        if (holding.fx) holding.fx.balance += source.amount / holding.fx.rate
         if (holding.pension && source.protectedAmount) {
           if (holding.pension.employerBalance !== undefined) holding.pension.employerBalance += source.protectedAmount
           if (holding.pension.employerRestrictedBalance !== undefined) holding.pension.employerRestrictedBalance += source.protectedAmount
@@ -68,6 +70,7 @@ export function projectGoalSources(input: {
         holding.pension.employerBalance -= Math.max(0, used - personal)
       }
       holding.marketValue -= used
+      if (holding.fx) holding.fx.balance *= 1 - fraction
     }
     for (const id of Object.keys(balances)) balances[id] *= 1 - fraction
     const portfolio = holdings.filter((holding) => holdingPurpose(holding) === 'portfolio')

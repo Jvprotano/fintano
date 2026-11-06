@@ -7,6 +7,7 @@ import type {
   InvestmentsSummary,
   LedgerEntry,
 } from '../types'
+import type { ExchangeSettings } from '../types'
 import { DEFAULT_INVESTMENT_CLASSES } from '../types/constants'
 import { finiteNumber, ledgerBalance, normalizeLedger, nowIso, uid } from './shared'
 
@@ -51,6 +52,13 @@ export type ExtendedInvestmentsSummary = InvestmentsSummary & {
   reserveGain: number
   /** Valor de mercado apenas da carteira de médio/longo prazo. */
   portfolioMarketValue: number
+}
+
+/** Avaliação patrimonial usa referência simples, sem custos de comprar moeda. */
+export function valueForeignHolding(holding: FinancialHolding, settings?: ExchangeSettings): FinancialHolding {
+  if (!holding.fx) return holding
+  const rate = settings?.currencies[holding.fx.currency].reference?.rate ?? holding.fx.rate
+  return { ...holding, fx: { ...holding.fx, rate }, marketValue: Math.round(holding.fx.balance * rate * 100) / 100 }
 }
 
 export function holdingPurpose(holding: FinancialHolding): InvestmentPurpose {
@@ -158,6 +166,7 @@ export function normalizeEmergencyFund(
 
 export function normalizeHolding(raw: Partial<FinancialHolding> | undefined): FinancialHolding {
   return {
+    fx: raw?.fx ? { ...raw.fx } : undefined,
     id: raw?.id || uid(),
     name: raw?.name?.trim() || 'Posição',
     valuationDate: raw?.valuationDate,

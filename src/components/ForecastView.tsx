@@ -603,7 +603,7 @@ export function ForecastView() {
                   const sourcePoints = conditional ? projectionData.conditionalGoals : projectionData.baseGoals
                   const sourceGoal = sourcePoints.find((point) => point.month === goal.targetMonth)?.goals.find((item) => item.id === goal.id)
                   const sourceUnavailable = projectionData.invalidPlanMonths.some((month) => month <= goal.targetMonth!) || projection.some((point) => point.month <= goal.targetMonth! && point.unfunded > 0.005)
-                  const outlook = sourceGoal && !sourceUnavailable && goal.targetAmountBrl !== null ? { mode: 'projection', value: sourceGoal.current, gap: sourceGoal.current - goal.targetAmountBrl } : null
+                  const outlook = sourceGoal && !sourceUnavailable && goal.targetAmountBrl !== null ? { mode: 'projection', value: sourceGoal.current, gap: sourceGoal.isComplete ? Math.max(0, (sourceGoal.currentInTargetCurrency ?? 0) * (sourceGoal.exchangeRate ?? 1) - goal.targetAmountBrl) : -(sourceGoal.remaining ?? 0) } : null
                   const late = goal.monthsLeft !== null && goal.monthsLeft < 0
 
                   return (

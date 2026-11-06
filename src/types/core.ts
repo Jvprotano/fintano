@@ -13,6 +13,8 @@ export type LedgerKindSource = 'user' | 'legacy_inferred' | 'legacy_ambiguous'
 
 /** Positivo = entrada/aporte; negativo = saída/retirada. */
 export interface LedgerEntry {
+  foreignAmount?: number
+  foreignCurrency?: 'EUR' | 'USD'
   id: string
   amount: number
   /** Obrigatório para novos movimentos; ausente apenas em dados legados antes da migração. */

@@ -49,6 +49,7 @@ import {
   normalizeAssetClass,
   normalizeEmergencyFund,
   normalizeHolding,
+  valueForeignHolding,
   type FinancialHolding,
 } from '../lib/investments'
 import {
@@ -170,6 +171,8 @@ function ledgerToV7(
       linkedCostId: entry.linkedCostId,
       payrollMonth: entry.payrollMonth,
       contributor: entry.contributor,
+      foreignAmount: entry.foreignAmount,
+      foreignCurrency: entry.foreignCurrency,
       ...(entry.pensionEmployerAmount !== undefined ? { pensionEmployerAmountCents: toCents(entry.pensionEmployerAmount) } : {}),
       note: entry.note?.trim() || undefined,
     }
@@ -190,6 +193,8 @@ function ledgerFromV7(entries: DomainLedgerEntryV7[], ownerType: LedgerOwnerType
       linkedCostId: entry.linkedCostId,
       payrollMonth: entry.payrollMonth,
       contributor: entry.contributor,
+      foreignAmount: entry.foreignAmount,
+      foreignCurrency: entry.foreignCurrency,
       ...(entry.pensionEmployerAmountCents !== undefined ? { pensionEmployerAmount: fromCents(entry.pensionEmployerAmountCents) } : {}),
       kind: entry.kind,
       kindSource: entry.kindSource ?? (entry.kind === 'opening_balance' && entry.amountCents > 0
@@ -466,6 +471,7 @@ export function repositoryToBackupV7(
   )
   const storedHoldings = collection<FinancialHolding[]>(document, 'investmentHoldings', []).map(
     normalizeHolding,
+  valueForeignHolding,
   )
   let legacyReserveId = 'legacy-reserve'
   while (storedHoldings.some((holding) => holding.id === legacyReserveId)) legacyReserveId += '-copy'
@@ -936,6 +942,7 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     name: holding.name,
     assetClassId: holding.assetClassId,
     institution: holding.institution,
+    fx: holding.fx,
     marketValue: fromCents(latestValuationByHolding.get(holding.id)?.valueCents),
     valuationDate: holding.valuationDate,
     transactions: ledgerFromV7(backup.investments.ledgerEntries, 'holding', holding.id),
@@ -1705,6 +1712,17 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
 
+  for (const holding of backup.investments.holdings) {
+    const fx = holding.fx
+    if (fx !== undefined && (!fx || !['EUR', 'USD'].includes(fx.currency) || !Number.isFinite(fx.balance) || fx.balance < 0 ||
+      !Number.isSafeInteger(Math.round(fx.balance * 100)) || Math.abs(fx.balance * 100 - Math.round(fx.balance * 100)) > 0.00001 || !Number.isFinite(fx.rate) || fx.rate <= 0 || holding.pension)) add('error', 'holding_fx_invalid', 'Saldo em moeda estrangeira inválido.', holding.id)
+  }
+  for (const entry of backup.investments.ledgerEntries) {
+    if ((entry.foreignAmount !== undefined || entry.foreignCurrency !== undefined) &&
+      (!Number.isFinite(entry.foreignAmount) || !entry.foreignAmount || Math.abs(entry.foreignAmount * 100 - Math.round(entry.foreignAmount * 100)) > 0.00001 ||
+       !['EUR', 'USD'].includes(entry.foreignCurrency ?? '') || entry.ownerType !== 'holding' || !entry.operationId || Math.sign(entry.foreignAmount) !== Math.sign(entry.amountCents) ||
+       backup.investments.holdings.find((holding) => holding.id === entry.ownerId)?.fx?.currency !== entry.foreignCurrency)) add('error', 'ledger_fx_invalid', 'Quantidade estrangeira do movimento inválida.', entry.id)
+  }
   const scanMoney = (value: unknown, path: string) => {
     if (Array.isArray(value)) {
       value.forEach((item, index) => scanMoney(item, `${path}[${index}]`))
@@ -1858,7 +1876,7 @@ export function backupV8ToRepository(backup: FinTanoBackupV8): RepositoryDocumen
 
 export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = new Date().toISOString()): FinTanoBackupV9 {
   const base = repositoryToBackupV8(document, exportedAt)
-  const holdings = collection<FinancialHolding[]>(document, 'investmentHoldings', []).map(normalizeHolding)
+  const holdings = collection<FinancialHolding[]>(document, 'investmentHoldings', []).map((raw) => valueForeignHolding(normalizeHolding(raw), normalizeExchangeSettings(document.collections.exchangeSettings as ExchangeSettings | undefined)))
   const currentById = new Map(holdings.map((holding) => [holding.id, toCents(holding.marketValue)]))
   const monthlyPlans = Array.isArray(document.collections.monthlyPlans)
     ? (document.collections.monthlyPlans as MonthlyPlan[]).map((raw) => {
@@ -1883,6 +1901,7 @@ export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = 
     planning: { ...base.planning, monthlyPlans },
     investments: { ...base.investments, holdings: base.investments.holdings.map((holding) => ({
       ...holding,
+      fx: holdings.find((row) => row.id === holding.id)?.fx,
       currentValueCents: currentById.get(holding.id) ??
         base.investments.valuations.find((item) => item.holdingId === holding.id)?.valueCents ?? 0,
     })) },

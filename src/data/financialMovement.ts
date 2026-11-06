@@ -1,5 +1,5 @@
 import type { Debt, FinanceScenario, FinancialGoal, LedgerEntry, MonthlySnapshot } from '../types'
-import { normalizeHolding, usableHoldingValue, validPensionBalance, type FinancialHolding } from '../lib/investments'
+import { normalizeHolding, valueForeignHolding, usableHoldingValue, validPensionBalance, type FinancialHolding } from '../lib/investments'
 import { normalizeGoal } from '../lib/goals'
 import { goalTargetInBrl, normalizeExchangeSettings } from '../lib/exchange'
 import type { ExchangeSettings } from '../types/exchange'
@@ -18,6 +18,7 @@ export interface MovementInput {
   occurredOn: string
   note?: string
   linkedCostId?: string
+  foreignAmounts?: Record<string, number>
 }
 
 type LedgerOwner = { label: string; transactions: LedgerEntry[]; balance: number; set: (entries: LedgerEntry[], balance: number) => void }
@@ -62,7 +63,7 @@ function owner(document: RepositoryDocument, endpoint: MovementEndpoint, allowAr
   const rows = Array.isArray(collections[collection]) ? collections[collection] as (FinancialHolding | FinancialGoal | Debt)[] : []
   const index = rows.findIndex((row) => row.id === endpoint.id)
   if (index < 0 || rows[index].archivedAt && !allowArchived) throw new Error('Destino ou origem indisponível.')
-  const row = endpoint.type === 'holding' ? normalizeHolding(rows[index] as FinancialHolding)
+  const row = endpoint.type === 'holding' ? valueForeignHolding(normalizeHolding(rows[index] as FinancialHolding), normalizeExchangeSettings(collections.exchangeSettings as ExchangeSettings | undefined))
     : endpoint.type === 'goal' ? normalizeGoal(rows[index] as FinancialGoal, index) : normalizeDebt(rows[index] as Debt)
   if (endpoint.type === 'goal' && (row as FinancialGoal).kind === 'tracking' && !allowArchived) throw new Error('Esta meta apenas acompanha patrimônio.')
   const balance = endpoint.type === 'holding' ? (row as FinancialHolding).marketValue
@@ -70,9 +71,18 @@ function owner(document: RepositoryDocument, endpoint: MovementEndpoint, allowAr
   return { label: row.name, transactions: row.transactions, balance, set: (transactions, nextBalance) => {
     const target = endpoint.type === 'goal' ? goalTargetInBrl(row as FinancialGoal, normalizeExchangeSettings(collections.exchangeSettings as ExchangeSettings | undefined)) : null
     const latest = document.collections[collection] as typeof rows
+    let fx = endpoint.type === 'holding' ? (row as FinancialHolding).fx : undefined
+    if (fx) {
+      const before = row.transactions.reduce((sum, tx) => sum + (tx.foreignAmount ?? 0), 0)
+      const after = transactions.reduce((sum, tx) => sum + (tx.foreignAmount ?? 0), 0)
+      const balance = Math.round((fx.balance + after - before) * 100) / 100
+      if (balance < 0) throw new Error('Saldo insuficiente na moeda da posição.')
+      fx = { ...fx, balance }
+      nextBalance = Math.round(balance * fx.rate * 100) / 100
+    }
     document.collections[collection] = latest.map((item, i) => i !== index ? item : {
       ...row, transactions,
-      ...(endpoint.type === 'holding' ? { marketValue: nextBalance }
+      ...(endpoint.type === 'holding' ? { marketValue: nextBalance, fx }
         : endpoint.type === 'debt' ? { balance: nextBalance, settledAt: nextBalance === 0 ? new Date().toISOString() : undefined }
         : { completedAt: target !== null && target > 0 && nextBalance >= target ? (row as FinancialGoal).completedAt ?? new Date().toISOString() : undefined }),
     })
@@ -85,6 +95,17 @@ export function moveInDocument(document: RepositoryDocument, input: MovementInpu
     !Number.isFinite(Date.parse(input.occurredOn)) || new Date(input.occurredOn).toISOString().slice(0, 10) !== input.occurredOn) throw new Error('Informe valor, data real e ciclo válidos.')
   if (JSON.stringify(input.source) === JSON.stringify(input.destination) || input.source.type === 'debt') throw new Error('Escolha origem e destino diferentes.')
   const next = structuredClone(document)
+  const currencies = normalizeExchangeSettings(next.collections.exchangeSettings as ExchangeSettings | undefined)
+  next.collections.investmentHoldings = (next.collections.investmentHoldings as FinancialHolding[] ?? []).map((holding) => valueForeignHolding(holding, currencies))
+  const foreignFor = (endpoint: MovementEndpoint, sign: number) => {
+    if (endpoint.type !== 'holding') return {}
+    const holding = (next.collections.investmentHoldings as FinancialHolding[]).find((row) => row.id === endpoint.id)
+    if (!holding?.fx) return {}
+    const quantity = input.foreignAmounts?.[holding.id]
+    if (!quantity || !Number.isFinite(quantity) || quantity <= 0 || Math.abs(quantity * 100 - Math.round(quantity * 100)) > 0.00001) throw new Error('Informe a quantidade exata de moeda movimentada na posição.')
+    return { foreignAmount: sign * quantity, foreignCurrency: holding.fx.currency }
+  }
+  const sourceForeign = foreignFor(input.source, -1), destinationForeign = foreignFor(input.destination, 1)
   const source = owner(next, input.source)
   const destination = owner(next, input.destination)
   const sourceHoldingId = input.source.type === 'holding' ? input.source.id : undefined
@@ -94,12 +115,12 @@ export function moveInDocument(document: RepositoryDocument, input: MovementInpu
     const linked = [...(next.collections.scenarios as FinanceScenario[] ?? []), ...(next.collections.monthlyPlans as FinanceScenario[] ?? [])]
       .some((plan) => plan.deductions.some((row) => row.type === 'previdencia_privada' && row.linkedHoldingId === holding.id))
     if (linked && !holding.pension) throw new Error('Informe a divisão atual da previdência por extrato em Patrimônio antes de retirar recursos.')
-    if (input.amount > usableHoldingValue(holding) + 0.005) throw new Error('A parcela em carência não pode sair da previdência. Confira a divisão do extrato.')
+    if (!holding.fx && input.amount > usableHoldingValue(holding) + 0.005) throw new Error('A parcela em carência não pode sair da previdência. Confira a divisão do extrato.')
     if (holding.pension?.employerBalance !== undefined) {
       pensionEmployerAmount = -Math.max(0, input.amount - (holding.marketValue - holding.pension.employerBalance))
     }
   }
-  if (source && source.balance + 0.005 < input.amount) throw new Error('Saldo insuficiente na origem.')
+  if (source && !sourceForeign.foreignAmount && source.balance + 0.005 < input.amount) throw new Error('Saldo insuficiente na origem.')
   if (input.destination.type === 'debt' && destination!.balance + 0.005 < input.amount) throw new Error('O valor excede o saldo devedor.')
   if (input.linkedCostId) {
     const debt = (next.collections.debts as Debt[]).find((debt) => input.destination.type === 'debt' && debt.id === input.destination.id)
@@ -111,10 +132,10 @@ export function moveInDocument(document: RepositoryDocument, input: MovementInpu
     if (input.source.type !== 'account' || input.destination.type !== 'debt' || paid < input.amount + allocated - 0.005) throw new Error('Confirme a parcela no Ciclo antes de registrar sua amortização.')
   }
   const metadata = { operationId, cycleMonth: input.month, ...ledgerOperationDates(input.occurredOn), kindSource: 'user' as const, note: input.note?.trim() || `${source?.label ?? 'Conta'} → ${destination?.label ?? 'Conta'}` }
-  if (source) source.set([...source.transactions, { ...metadata, id: uid(), amount: -input.amount, pensionEmployerAmount,
+  if (source) source.set([...source.transactions, { ...metadata, id: uid(), amount: -input.amount, pensionEmployerAmount, ...sourceForeign,
     kind: input.destination.type === 'account' || input.destination.type === 'debt' ? 'withdrawal' : 'transfer_out' }], source.balance - input.amount)
   if (destination) destination.set([...destination.transactions, { ...metadata, id: uid(),
-    amount: input.destination.type === 'debt' ? -input.amount : input.amount,
+    amount: input.destination.type === 'debt' ? -input.amount : input.amount, ...destinationForeign,
     kind: input.destination.type === 'debt' ? 'amortization' : input.source.type === 'account' ? 'contribution' : 'transfer_in',
     ...(input.destination.type === 'debt' ? { cashTreatment: input.linkedCostId ? 'planned_cost' as const : 'extra' as const, linkedCostId: input.linkedCostId } : {}),
   }], destination.balance + (input.destination.type === 'debt' ? -input.amount : input.amount))
@@ -143,7 +164,7 @@ export function undoMovement(document: RepositoryDocument, operationId: string):
     const target = owner(next, endpoint, true)!
     const delta = target.transactions.filter((tx) => tx.operationId === operationId).reduce((sum, tx) => sum + tx.amount, 0)
     const companyDelta = target.transactions.filter((tx) => tx.operationId === operationId).reduce((sum, tx) => sum + (tx.pensionEmployerAmount ?? 0), 0)
-    if (target.balance - delta < -0.005) throw new Error('O destino já utilizou esse saldo. Reponha-o antes de desfazer.')
+    if (!target.transactions.some((tx) => tx.operationId === operationId && tx.foreignAmount !== undefined) && target.balance - delta < -0.005) throw new Error('O destino já utilizou esse saldo. Reponha-o antes de desfazer.')
     target.set(target.transactions.filter((tx) => tx.operationId !== operationId), target.balance - delta)
     if (endpoint.type === 'holding' && companyDelta) {
       const holding = (next.collections.investmentHoldings as FinancialHolding[]).find((row) => row.id === endpoint.id)!

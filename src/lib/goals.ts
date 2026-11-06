@@ -53,6 +53,7 @@ export interface GoalContext {
     id: string
     name: string
     institution?: string
+    fx?: { currency: 'EUR' | 'USD'; balance: number; rate: number }
     marketValue: number
   }[]
   /** Saldo do livro-razão de cada meta, indexado por id. */
@@ -234,7 +235,19 @@ export function summarizeGoals(
     const current = ownBalance + includedBalance
     const exchangeRate = effectiveExchangeRate(goal.currency, exchangeSettings)
     const targetAmountBrl = goalTargetInBrl(goal, exchangeSettings)
-    const remaining = targetAmountBrl === null ? null : Math.max(0, Math.round((targetAmountBrl - current) * 100) / 100)
+    const ownedInCurrency = holdingAllocations.reduce((sum, allocation) => {
+      const holding = context.holdings.find((row) => row.id === allocation.holdingId)
+      return sum + (holding?.fx && holding.fx.currency === goal.currency && holding.marketValue > 0 ? (allocation.allocated === holding.marketValue ? holding.fx.balance : holding.fx.balance * allocation.allocated / holding.marketValue) : 0)
+    }, 0)
+    const ownedValue = holdingAllocations.reduce((sum, allocation) => {
+      const holding = context.holdings.find((row) => row.id === allocation.holdingId)
+      return sum + (holding?.fx && holding.fx.currency === goal.currency ? allocation.allocated : 0)
+    }, 0)
+    const currentInTargetCurrency = exchangeRate === null ? (current === ownedValue ? ownedInCurrency : null) : ownedInCurrency + (current - ownedValue) / exchangeRate
+    const targetInCurrency = goal.targetAmount * (1 + (goal.marginPct ?? 0) / 100)
+    const nativeRemaining = currentInTargetCurrency === null ? null : Math.max(0, targetInCurrency - currentInTargetCurrency)
+    const coveredBrl = exchangeRate === null ? current : (currentInTargetCurrency ?? 0) * exchangeRate
+    const remaining = targetAmountBrl === null ? null : Math.max(0, Math.round((targetAmountBrl - coveredBrl) * 100) / 100)
     const monthsLeft = goal.targetMonth ? monthsBetween(currentMonth, goal.targetMonth) : null
     // O mês corrente ainda conta como uma chance de aportar.
     const monthsAvailable = monthsLeft === null ? 0 : Math.max(1, monthsLeft + 1)
@@ -250,16 +263,17 @@ export function summarizeGoals(
       current,
       targetAmountBrl,
       exchangeRate,
-      currentInTargetCurrency: exchangeRate === null ? null : current / exchangeRate,
-      remainingInTargetCurrency: exchangeRate === null || remaining === null ? null : remaining / exchangeRate,
+      currentInTargetCurrency,
+      ownedInTargetCurrency: ownedInCurrency,
+      remainingInTargetCurrency: nativeRemaining,
       remaining,
       progress:
-        targetAmountBrl === null ? null : targetAmountBrl > 0
-          ? Math.max(0, Math.min(100, (current / targetAmountBrl) * 100))
+        currentInTargetCurrency === null ? null : targetInCurrency > 0
+          ? Math.max(0, Math.min(100, (currentInTargetCurrency / targetInCurrency) * 100))
           : 0,
       monthsLeft,
       suggestedMonthly: remaining === null ? null : monthsLeft !== null && monthsLeft >= 0 ? remaining / monthsAvailable : 0,
-      isComplete: targetAmountBrl !== null && targetAmountBrl > 0 && current >= targetAmountBrl,
+      isComplete: currentInTargetCurrency !== null && targetInCurrency > 0 && currentInTargetCurrency >= targetInCurrency,
     }
   })
 }
