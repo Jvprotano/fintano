@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Archive, CheckCircle2, ChevronDown, Flag, Landmark, Layers, Link2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { CurrencyInput } from './CurrencyInput'
+import { GoalTargetEditor, GoalTargetFields, type GoalTargetDraft } from './GoalTargetFields'
 import { LedgerList, LedgerMoveForm } from './Ledger'
 import { EmptyState, Meter, Panel, PanelHeader, PrimaryButton, SecondaryButton, SegmentedControl, Tag } from './ui'
 import { formatCurrency, formatMonthKey, formatMonths, inputClass } from '../lib/format'
 import { INCLUSION_LABELS } from '../lib/goals'
-import { monthKey } from '../lib/shared'
 import { usableHoldingValue } from '../lib/investments'
 import { useFinancasStore, useInvestmentsStore } from '../context/financasStore'
 import type { GoalInclusion, GoalKind, GoalSummary } from '../types'
@@ -112,6 +112,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
   const [expanded, setExpanded] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const kind = goal.kind ?? 'funding'
+  const foreign = !!goal.currency && goal.currency !== 'BRL'
   const lateBy = goal.monthsLeft !== null && goal.monthsLeft < 0 ? -goal.monthsLeft : 0
   const unavailable = goal.holdingAllocations.reduce((sum, item) => sum + item.unavailable, 0)
 
@@ -121,7 +122,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-dark-text">
           {goal.name}
-          {goal.isComplete && <CheckCircle2 size={13} className="shrink-0 text-primary-400" aria-label="Concluída" />}
+          {goal.isComplete && <CheckCircle2 size={13} className="shrink-0 text-primary-400" aria-label={foreign ? 'Coberta pelo câmbio utilizado' : 'Concluída'} />}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-dark-text-muted">
           <Tag>{kind === 'funding' ? <><Link2 size={10} /> Dinheiro destinado</> : <><Layers size={10} /> Indicador</>}</Tag>
@@ -134,25 +135,24 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(goal.current)}</p>
+        <p className="text-sm font-semibold tabular-nums text-dark-text">{foreign ? formatCurrency(goal.targetAmount, goal.currency) : formatCurrency(goal.current)}</p>
+        {foreign && <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">{formatCurrency(goal.current)} destinados{goal.currentInTargetCurrency !== null ? ` ≈ ${formatCurrency(goal.currentInTargetCurrency, goal.currency)}` : ''}</p>}
         <p className="text-xs tabular-nums text-dark-text-muted">
-          {goal.targetAmount > 0 ? `${goal.progress.toFixed(0)}% de ${formatCurrency(goal.targetAmount)}` : 'sem valor-alvo'}
+          {goal.targetAmount > 0 ? goal.progress === null ? 'Aguardando cotação em Configurações' : foreign ? `${goal.progress.toFixed(0)}% cobertos pelo câmbio utilizado${goal.marginPct ? ` · margem ${goal.marginPct}%` : ''}` : `${goal.progress.toFixed(0)}% de ${formatCurrency(goal.targetAmount)}` : 'sem valor-alvo'}
         </p>
-        {goal.targetAmount > 0 && <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">
-          Falta {formatCurrency(goal.remaining)}
+        {goal.targetAmount > 0 && goal.remaining !== null && <p className="mt-1 text-xs tabular-nums text-dark-text-secondary">
+          Falta {foreign ? `${formatCurrency(goal.remainingInTargetCurrency, goal.currency)} ≈ ` : ''}{formatCurrency(goal.remaining)}
         </p>}
       </div>
       <ChevronDown size={15} className={`shrink-0 text-dark-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} />
     </button>
 
-    {goal.targetAmount > 0 && <div className="px-4 pb-3"><Meter value={goal.current} max={goal.targetAmount} color={goal.color} overIsBad={false} /></div>}
+    {goal.targetAmountBrl !== null && goal.targetAmountBrl > 0 && <div className="px-4 pb-3"><Meter value={goal.current} max={goal.targetAmountBrl} color={goal.color} overIsBad={false} /></div>}
 
     {expanded && <div className="space-y-4 border-t border-dark-border/60 px-4 py-4">
-      <div className="grid gap-2 sm:grid-cols-3">
-        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Nome</span><input value={goal.name} onChange={(event) => updateGoal(goal.id, { name: event.target.value })} className={`${inputClass} !py-1.5`} /></label>
-        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Valor-alvo</span><CurrencyInput value={goal.targetAmount} onChange={(value) => updateGoal(goal.id, { targetAmount: value })} className="!py-1.5" /></label>
-        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Mês-alvo</span><input type="month" value={goal.targetMonth ?? ''} onChange={(event) => updateGoal(goal.id, { targetMonth: event.target.value || undefined })} className={`${inputClass} !py-1.5`} /></label>
-      </div>
+      <label className="block max-w-md"><span className="mb-1 block text-xs text-dark-text-muted">Nome</span><input value={goal.name} onChange={(event) => updateGoal(goal.id, { name: event.target.value })} className={`${inputClass} !py-1.5`} /></label>
+      <GoalTargetEditor goal={goal} />
+      {foreign && <p className="text-xs text-dark-text-muted">O equivalente indica quanto os reais destinados comprariam pelo câmbio utilizado; não representa moeda já comprada. Atualize ou ajuste a cotação em Configurações.</p>}
 
       {kind === 'funding' ? <div>
         <div className="mb-2">
@@ -170,7 +170,7 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
         <div className="rounded-md bg-dark-input/60 px-2.5 py-2"><span className="block text-dark-text-muted">{kind === 'funding' ? 'Em posições' : 'Valor medido'}</span><strong className="tabular-nums text-dark-text">{formatCurrency(kind === 'funding' ? goal.allocatedBalance : goal.trackingBalance)}</strong></div>
         <div className="rounded-md bg-dark-input/60 px-2.5 py-2"><span className="block text-dark-text-muted">Sem posição</span><strong className="tabular-nums text-dark-text">{formatCurrency(goal.ownBalance)}</strong></div>
-        {!goal.isComplete && goal.suggestedMonthly > 0 && <div className="col-span-2 rounded-md bg-dark-input/60 px-2.5 py-2 sm:col-span-1"><span className="block text-dark-text-muted">Ritmo sugerido</span><strong className="tabular-nums text-dark-text">{formatCurrency(goal.suggestedMonthly)}/mês</strong></div>}
+        {!goal.isComplete && goal.suggestedMonthly !== null && goal.suggestedMonthly > 0 && <div className="col-span-2 rounded-md bg-dark-input/60 px-2.5 py-2 sm:col-span-1"><span className="block text-dark-text-muted">Ritmo sugerido{foreign ? ' · câmbio atual' : ''}</span><strong className="tabular-nums text-dark-text">{formatCurrency(goal.suggestedMonthly)}/mês</strong></div>}
       </div>
 
       {kind === 'funding' && <details className="rounded-lg border border-dark-border/60 bg-dark-input/25 p-3">
@@ -213,8 +213,8 @@ export function GoalsSection() {
   const [open, setOpen] = useState(false)
   const [kind, setKind] = useState<GoalKind>('funding')
   const [name, setName] = useState('')
-  const [targetAmount, setTargetAmount] = useState(0)
-  const [targetMonth, setTargetMonth] = useState('')
+  const [target, setTarget] = useState<GoalTargetDraft>({ targetAmount: 0, currency: 'BRL', marginPct: 0 })
+  const [createError, setCreateError] = useState('')
   const [includes, setIncludes] = useState<GoalInclusion[]>([])
 
   const toggleInclusion = (inclusion: GoalInclusion) => setIncludes((prev) => {
@@ -227,8 +227,10 @@ export function GoalsSection() {
   }
   const handleAdd = () => {
     if (!name.trim()) return
-    if (!addGoal({ name, targetAmount, targetMonth: targetMonth || undefined, kind, includes })) return
-    setName(''); setTargetAmount(0); setTargetMonth(''); setIncludes([]); setKind('funding'); setOpen(false)
+    if (target.currency !== 'BRL' && target.targetAmount <= 0) { setCreateError('Informe o valor do objetivo na moeda escolhida.'); return }
+    if (!addGoal({ name, ...target, kind, includes })) { setCreateError('Não foi possível salvar a meta. Seu cadastro foi mantido para tentar novamente.'); return }
+    setCreateError('')
+    setName(''); setTarget({ targetAmount: 0, currency: 'BRL', marginPct: 0 }); setIncludes([]); setKind('funding'); setOpen(false)
   }
   const activeGoals = goals.filter((goal) => !goal.archivedAt)
   const archivedGoals = goals.filter((goal) => goal.archivedAt)
@@ -245,11 +247,9 @@ export function GoalsSection() {
     {open && <div className="mt-4 space-y-3 rounded-xl border border-dark-border bg-dark-surface/60 p-4">
       <SegmentedControl options={[{ value: 'funding' as const, label: 'Objetivo com dinheiro' }, { value: 'tracking' as const, label: 'Indicador patrimonial' }]} value={kind} onChange={selectKind} />
       <p className="text-xs leading-relaxed text-dark-text-muted">{kind === 'funding' ? 'Para viagem, entrada, carro ou outro objetivo: depois de criar, escolha quanto de cada posição pertence a ele.' : 'Para acompanhar um marco amplo, como patrimônio líquido ou total investido, sem reservar dinheiro específico.'}</p>
-      <div className="grid gap-2 sm:grid-cols-3">
-        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Nome</span><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === 'funding' ? 'ex.: Gastar Europa' : 'ex.: Patrimônio 2027'} className={inputClass} /></label>
-        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Valor-alvo</span><CurrencyInput value={targetAmount} onChange={setTargetAmount} /></label>
-        <label className="block"><span className="mb-1 block text-xs text-dark-text-muted">Mês-alvo (opcional)</span><input type="month" min={monthKey()} value={targetMonth} onChange={(event) => setTargetMonth(event.target.value)} className={inputClass} /></label>
-      </div>
+      <label className="block max-w-md"><span className="mb-1 block text-xs text-dark-text-muted">Nome</span><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === 'funding' ? 'ex.: Gastar Europa' : 'ex.: Patrimônio 2027'} className={inputClass} /></label>
+      <GoalTargetFields value={target} onChange={setTarget} />
+      {createError && <p role="alert" className="text-xs text-rose-200">{createError}</p>}
       {kind === 'tracking' && <div><span className="mb-1.5 block text-xs text-dark-text-muted">Saldos que entram no indicador</span><TrackingSourcePicker selected={includes} onToggle={toggleInclusion} classes={summary.classes} hasAssets={summary.physicalAssets > 0} hasDebts={summary.liabilities > 0} /></div>}
       <div className="flex gap-2"><PrimaryButton onClick={handleAdd} disabled={!name.trim()}><Plus size={15} /> Criar meta</PrimaryButton><SecondaryButton onClick={() => setOpen(false)}>Cancelar</SecondaryButton></div>
     </div>}

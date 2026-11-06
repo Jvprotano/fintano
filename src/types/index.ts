@@ -1,6 +1,7 @@
 export * from './core'
 export * from './budget'
 export * from './investments'
+export * from './exchange'
 export * from './assets'
 export * from './debts'
 export * from './forecast'

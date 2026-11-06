@@ -11,6 +11,7 @@ import {
 } from '../lib/backup'
 import { Card } from './Card'
 import { CardAccountsPanel } from './cards/CardAccountsPanel'
+import { ExchangeSettingsPanel } from './ExchangeSettingsPanel'
 import { CurrencyInput } from './CurrencyInput'
 import { ConfirmationDialog, FormField, PrimaryButton, SecondaryButton } from './ui'
 
@@ -104,6 +105,7 @@ export function SettingsView(props: SettingsViewProps) {
       </Card>
     </div>
     {migrationError ? <p role="alert" className="text-sm text-rose-300">{migrationError}</p> : <CardAccountsPanel />}
+    <ExchangeSettingsPanel />
     <DataSettings {...props} />
   </div>
 }

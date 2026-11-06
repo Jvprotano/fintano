@@ -7,6 +7,8 @@ import type {
 } from '../types'
 import { GOAL_PRESET_COLORS } from '../types/constants'
 import { finiteNumber, ledgerBalance, monthKey, monthsBetween, normalizeLedger, nowIso, uid } from './shared'
+import { effectiveExchangeRate, goalTargetInBrl } from './exchange'
+import type { ExchangeSettings } from '../types/exchange'
 
 // ---------------------------------------------------------------------------
 // Metas.
@@ -118,6 +120,8 @@ export function normalizeGoal(raw: Partial<FinancialGoal> | undefined, index = 0
     name: raw?.name?.trim() || 'Meta',
     groupName: kind === 'funding' ? raw?.groupName?.trim() || undefined : undefined,
     targetAmount: Math.max(0, finiteNumber(raw?.targetAmount)),
+    currency: raw?.currency === 'EUR' || raw?.currency === 'USD' ? raw.currency : 'BRL',
+    marginPct: raw?.currency === 'EUR' || raw?.currency === 'USD' ? Math.min(100, Math.max(0, finiteNumber(raw?.marginPct))) : 0,
     targetMonth: /^\d{4}-\d{2}$/.test(raw?.targetMonth ?? '') ? raw?.targetMonth : undefined,
     color: raw?.color || GOAL_PRESET_COLORS[index % GOAL_PRESET_COLORS.length],
     transactions: normalizeLedger(raw?.transactions, nowIso(), 'goal'),
@@ -201,6 +205,7 @@ export function summarizeGoals(
   goals: FinancialGoal[],
   context: GoalContext = EMPTY_GOAL_CONTEXT,
   currentMonth = monthKey(),
+  exchangeSettings?: ExchangeSettings,
 ): GoalSummary[] {
   const remainingByHolding = new Map(
     context.holdings.map((holding) => [holding.id, Math.max(0, holding.marketValue)]),
@@ -227,7 +232,9 @@ export function summarizeGoals(
     ]
     // Pode ficar negativo: uma meta de patrimônio líquido com mais dívida que ativo.
     const current = ownBalance + includedBalance
-    const remaining = Math.max(0, goal.targetAmount - current)
+    const exchangeRate = effectiveExchangeRate(goal.currency, exchangeSettings)
+    const targetAmountBrl = goalTargetInBrl(goal, exchangeSettings)
+    const remaining = targetAmountBrl === null ? null : Math.max(0, Math.round((targetAmountBrl - current) * 100) / 100)
     const monthsLeft = goal.targetMonth ? monthsBetween(currentMonth, goal.targetMonth) : null
     // O mês corrente ainda conta como uma chance de aportar.
     const monthsAvailable = monthsLeft === null ? 0 : Math.max(1, monthsLeft + 1)
@@ -241,14 +248,18 @@ export function summarizeGoals(
       allocatedBalance,
       trackingBalance: tracked.balance,
       current,
+      targetAmountBrl,
+      exchangeRate,
+      currentInTargetCurrency: exchangeRate === null ? null : current / exchangeRate,
+      remainingInTargetCurrency: exchangeRate === null || remaining === null ? null : remaining / exchangeRate,
       remaining,
       progress:
-        goal.targetAmount > 0
-          ? Math.max(0, Math.min(100, (current / goal.targetAmount) * 100))
+        targetAmountBrl === null ? null : targetAmountBrl > 0
+          ? Math.max(0, Math.min(100, (current / targetAmountBrl) * 100))
           : 0,
       monthsLeft,
-      suggestedMonthly: monthsAvailable > 0 ? remaining / monthsAvailable : 0,
-      isComplete: goal.targetAmount > 0 && current >= goal.targetAmount,
+      suggestedMonthly: remaining === null ? null : monthsLeft !== null && monthsLeft >= 0 ? remaining / monthsAvailable : 0,
+      isComplete: targetAmountBrl !== null && targetAmountBrl > 0 && current >= targetAmountBrl,
     }
   })
 }

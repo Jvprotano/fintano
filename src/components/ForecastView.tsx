@@ -584,7 +584,7 @@ export function ForecastView() {
               Metas pelas fontes destinadas
             </h3>
             <p className="mt-0.5 text-xs text-dark-text-muted">
-              Valores nominais em reais, como os alvos cadastrados. Indicadores acompanham apenas as fontes escolhidas; objetivos usam seus saldos e destinos mensais. Reduzir uma dívida não financia uma meta de carteira.
+              Valores nominais em reais. Metas em euro e dólar mantêm a cotação utilizada hoje, custos e margem por todo o horizonte: é uma premissa, sem previsão do câmbio futuro. Indicadores acompanham apenas as fontes escolhidas; objetivos usam seus saldos e destinos mensais.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -603,7 +603,7 @@ export function ForecastView() {
                   const sourcePoints = conditional ? projectionData.conditionalGoals : projectionData.baseGoals
                   const sourceGoal = sourcePoints.find((point) => point.month === goal.targetMonth)?.goals.find((item) => item.id === goal.id)
                   const sourceUnavailable = projectionData.invalidPlanMonths.some((month) => month <= goal.targetMonth!) || projection.some((point) => point.month <= goal.targetMonth! && point.unfunded > 0.005)
-                  const outlook = sourceGoal && !sourceUnavailable ? { mode: 'projection', value: sourceGoal.current, gap: sourceGoal.current - goal.targetAmount } : null
+                  const outlook = sourceGoal && !sourceUnavailable && goal.targetAmountBrl !== null ? { mode: 'projection', value: sourceGoal.current, gap: sourceGoal.current - goal.targetAmountBrl } : null
                   const late = goal.monthsLeft !== null && goal.monthsLeft < 0
 
                   return (
@@ -626,7 +626,8 @@ export function ForecastView() {
                         {formatCurrency(goal.current)}
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-dark-text-secondary">
-                        {formatCurrency(goal.targetAmount)}
+                        {formatCurrency(goal.targetAmountBrl)}
+                        {goal.currency && goal.currency !== 'BRL' && <p className="mt-1 text-xs text-dark-text-muted">{formatCurrency(goal.targetAmount, goal.currency)}{goal.marginPct ? ` + ${goal.marginPct}%` : ''}</p>}
                       </td>
                       <td className="px-4 py-2.5 text-right text-dark-text-secondary">
                         {formatMonthKey(goal.targetMonth!)}
@@ -649,7 +650,7 @@ export function ForecastView() {
                           </span>
                         ) : (
                           <span className="tabular-nums text-dark-text-secondary">
-                            {sourceUnavailable ? 'Revise capacidade ou insuficiência' : 'Prazo fora do horizonte'}
+                            {goal.targetAmountBrl === null ? 'Configure a cotação da moeda' : sourceUnavailable ? 'Revise capacidade ou insuficiência' : 'Prazo fora do horizonte'}
                           </span>
                         )}
                       </td>

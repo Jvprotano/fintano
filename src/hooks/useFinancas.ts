@@ -501,12 +501,12 @@ export function useFinancas() {
     }
     const base = projectNetWorth({ ...input, includeExpectedIncome: false })
     const conditional = projectNetWorth({ ...input, includeExpectedIncome: true })
-    const goalInput = { holdings: investments.holdings, goals: investments.goals, contributions: sources, items: [...initialItems, ...items.filter((item) => item.month > activeCycle.month)], annualReturnPct: input.annualReturnPct, startAssets: input.startAssets, protectedContributions: { ...monthlyProtectedContributions, [activeCycle.month]: initialProtectedContribution } }
+    const goalInput = { exchangeSettings: investments.exchange.settings, holdings: investments.holdings, goals: investments.goals, contributions: sources, items: [...initialItems, ...items.filter((item) => item.month > activeCycle.month)], annualReturnPct: input.annualReturnPct, startAssets: input.startAssets, protectedContributions: { ...monthlyProtectedContributions, [activeCycle.month]: initialProtectedContribution } }
     return { base, conditional, baseGoals: projectGoalSources({ ...goalInput, points: base, conditional: false }),
       conditionalGoals: projectGoalSources({ ...goalInput, points: conditional, conditional: true }), invalidPlanMonths, invoiceEstimated,
       initialContribution, initialExpense }
   }, [activeScenario, activeCycle.month, scenarios.scenarios, scenarios.recurringTemplateId, scenarios.monthlyPlans,
-    investments.holdings, investments.goals, investments.summary.financialAssets, emergencyFund, forecast.events, forecast.assumptions,
+    investments.holdings, investments.goals, investments.exchange.settings, investments.summary.financialAssets, emergencyFund, forecast.events, forecast.assumptions,
     debts.debts, cards.accounts, cards.settings.currentDueMonth, cards.summary,
     forecastAgenda, actuals.months, actuals.summary, cards.entries, cards.paidInvoices, movementSources,
     cashFlow, investmentActuals, monthlyContribution, projectedDebts, projectedProperties])

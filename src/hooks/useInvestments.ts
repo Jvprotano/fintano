@@ -9,6 +9,7 @@ import type {
   FinancialGoal,
   GoalInclusion,
   GoalKind,
+  GoalCurrency,
   InvestmentAssetClass,
   LedgerEntry,
   LedgerEntryKind,
@@ -26,6 +27,7 @@ import {
 } from '../lib/investments'
 import { normalizeGoal, summarizeGoals, type GoalContext } from '../lib/goals'
 import { finiteNumber, ledgerBalance, ledgerOperationDates, monthKey, nowIso, uid } from '../lib/shared'
+import { useExchangeRates } from './useExchangeRates'
 const DEFAULT_EMERGENCY_FUND: EmergencyFundState = {
   current: 0,
   targetMonths: 6,
@@ -76,6 +78,7 @@ export function useInvestments(
   activeCycleMonth = monthKey(),
   pensionHoldingIds: string[] = [],
 ) {
+  const exchange = useExchangeRates()
   const [storedFund, setStoredFund] = useRepositoryState<EmergencyFundState>(
     'emergencyFund',
     DEFAULT_EMERGENCY_FUND,
@@ -477,6 +480,8 @@ export function useInvestments(
     (input: {
       name: string
       targetAmount: number
+      currency?: GoalCurrency
+      marginPct?: number
       targetMonth?: string
       initialAmount?: number
       kind?: GoalKind
@@ -492,6 +497,8 @@ export function useInvestments(
             id: uid(),
             name: trimmed,
             targetAmount: Math.max(0, input.targetAmount),
+            currency: input.currency,
+            marginPct: input.marginPct,
             targetMonth: input.targetMonth,
             color: GOAL_PRESET_COLORS[prev.length % GOAL_PRESET_COLORS.length],
             createdAt: nowIso(),
@@ -532,10 +539,17 @@ export function useInvestments(
     (
       id: string,
       patch: Partial<
-        Pick<FinancialGoal, 'name' | 'targetAmount' | 'targetMonth' | 'kind' | 'includes'>
+        Pick<FinancialGoal, 'name' | 'targetAmount' | 'targetMonth' | 'kind' | 'includes' | 'currency' | 'marginPct'>
       >,
+      expectedRevision?: string | null,
     ) => {
-      setGoals((prev) =>
+      if (expectedRevision !== undefined) return runRepositoryCommand({
+        id: uid(), expectedRevision,
+        apply: (document) => ({ ...document, collections: { ...document.collections,
+          goals: (document.collections.goals as FinancialGoal[] ?? []).map((goal, index) => goal.id === id ? normalizeGoal({ ...goal, ...patch }, index) : goal),
+        } }),
+      }).ok
+      return setGoals((prev) =>
         prev.map((goal, index) =>
           goal.id === id ? normalizeGoal({ ...goal, ...patch }, index) : goal,
         ),
@@ -701,9 +715,10 @@ export function useInvestments(
       liabilities,
     ],
   )
-  const goalSummaries = useMemo(() => summarizeGoals(goals, goalContext, activeCycleMonth), [goals, goalContext, activeCycleMonth])
+  const goalSummaries = useMemo(() => summarizeGoals(goals, goalContext, activeCycleMonth, exchange.settings), [goals, goalContext, activeCycleMonth, exchange.settings])
 
   return {
+    exchange,
     emergencyFund,
     reserveHoldings,
     portfolioHoldings,

@@ -11,6 +11,7 @@ interface CurrencyInputProps {
   onBlur?: () => void
   autoFocus?: boolean
   ariaLabel?: string
+  currency?: 'BRL' | 'EUR' | 'USD'
 }
 
 export function CurrencyInput({
@@ -24,6 +25,7 @@ export function CurrencyInput({
   onBlur,
   autoFocus = false,
   ariaLabel,
+  currency = 'BRL',
 }: CurrencyInputProps) {
   const formatDisplay = (val: number): string => {
     if (val === 0 && !showZero) return ''
@@ -43,7 +45,7 @@ export function CurrencyInput({
   return (
     <div className="relative">
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-dark-text-muted">
-        R$
+        {currency === 'EUR' ? '€' : currency === 'USD' ? 'US$' : 'R$'}
       </span>
       <input
         id={id}

@@ -1,6 +1,8 @@
 import type { Debt, FinanceScenario, FinancialGoal, LedgerEntry, MonthlySnapshot } from '../types'
 import { normalizeHolding, usableHoldingValue, validPensionBalance, type FinancialHolding } from '../lib/investments'
 import { normalizeGoal } from '../lib/goals'
+import { goalTargetInBrl, normalizeExchangeSettings } from '../lib/exchange'
+import type { ExchangeSettings } from '../types/exchange'
 import { normalizeDebt } from '../lib/debts'
 import { ledgerBalance, ledgerEntryCycleMonth, ledgerOperationDates, normalizeLedger, uid } from '../lib/shared'
 import type { RepositoryDocument } from './repository'
@@ -66,12 +68,13 @@ function owner(document: RepositoryDocument, endpoint: MovementEndpoint, allowAr
   const balance = endpoint.type === 'holding' ? (row as FinancialHolding).marketValue
     : endpoint.type === 'debt' ? (row as Debt).balance : ledgerBalance(row.transactions)
   return { label: row.name, transactions: row.transactions, balance, set: (transactions, nextBalance) => {
+    const target = endpoint.type === 'goal' ? goalTargetInBrl(row as FinancialGoal, normalizeExchangeSettings(collections.exchangeSettings as ExchangeSettings | undefined)) : null
     const latest = document.collections[collection] as typeof rows
     document.collections[collection] = latest.map((item, i) => i !== index ? item : {
       ...row, transactions,
       ...(endpoint.type === 'holding' ? { marketValue: nextBalance }
         : endpoint.type === 'debt' ? { balance: nextBalance, settledAt: nextBalance === 0 ? new Date().toISOString() : undefined }
-        : { completedAt: (row as FinancialGoal).targetAmount > 0 && nextBalance >= (row as FinancialGoal).targetAmount ? (row as FinancialGoal).completedAt ?? new Date().toISOString() : undefined }),
+        : { completedAt: target !== null && target > 0 && nextBalance >= target ? (row as FinancialGoal).completedAt ?? new Date().toISOString() : undefined }),
     })
   } }
 }

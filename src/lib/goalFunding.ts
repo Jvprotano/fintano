@@ -6,8 +6,8 @@ export type GoalIncomeAllocation = NonNullable<ExpectedOccurrenceOverride['goalA
 const cents = (value: number) => Math.round(value * 100)
 
 /** Distribui em centavos pelo que falta, sem ultrapassar a verba ou cada necessidade. */
-export function distributeGoalIncome(budget: number, needs: { goalId: string; amount: number }[]): GoalIncomeAllocation[] {
-  const weights = needs.map((row) => Math.max(0, cents(row.amount)))
+export function distributeGoalIncome(budget: number, needs: { goalId: string; amount: number | null }[]): GoalIncomeAllocation[] {
+  const weights = needs.map((row) => Math.max(0, cents(row.amount ?? 0)))
   const total = weights.reduce((sum, amount) => sum + amount, 0)
   const available = Math.min(Math.max(0, cents(budget)), total)
   if (!total || !available) return []
@@ -58,12 +58,12 @@ export function summarizeGoalFunding(goals: GoalSummary[], items: ReconciledOccu
       return allocation ? [{ item, ...allocation, inTime: !goal.targetMonth || item.month <= goal.targetMonth }] : []
     })
     const expected = sources.filter((source) => source.inTime).reduce((sum, source) => sum + cents(source.expected), 0) / 100
-    const covered = Math.min(goal.remaining, expected)
-    const conditionalRemaining = cents(Math.max(0, goal.remaining - covered)) / 100
+    const covered = goal.remaining === null ? null : Math.min(goal.remaining, expected)
+    const conditionalRemaining = goal.remaining === null || covered === null ? null : cents(Math.max(0, goal.remaining - covered)) / 100
     const months = goal.targetMonth && goal.targetMonth >= currentMonth ? monthsBetween(currentMonth, goal.targetMonth) + 1 : null
     return { goal, sources, expected, covered, conditionalRemaining,
-      monthlyWithoutIncome: months ? goal.remaining / months : null,
-      monthlyWithIncome: months ? conditionalRemaining / months : null,
+      monthlyWithoutIncome: months && goal.remaining !== null ? goal.remaining / months : null,
+      monthlyWithIncome: months && conditionalRemaining !== null ? conditionalRemaining / months : null,
       received: sources.reduce((sum, source) => sum + cents(source.received), 0) / 100,
       lateIncome: sources.filter((source) => !source.inTime).reduce((sum, source) => sum + cents(source.expected), 0) / 100,
     }
@@ -71,8 +71,9 @@ export function summarizeGoalFunding(goals: GoalSummary[], items: ReconciledOccu
   const names = [...new Set(rows.map((row) => row.goal.groupName ?? ''))]
   return names.map((name) => {
     const members = rows.filter((row) => (row.goal.groupName ?? '') === name)
-    const sum = (read: (row: typeof members[number]) => number) => members.reduce((total, row) => total + cents(read(row)), 0) / 100
-    return { name, rows: members, target: sum((row) => row.goal.targetAmount), current: sum((row) => row.goal.current),
+    const sum = (read: (row: typeof members[number]) => number | null) => members.reduce((total, row) => total + cents(read(row) ?? 0), 0) / 100
+    return { name, rows: members, unpriced: members.filter((row) => row.goal.targetAmountBrl === null).length,
+      target: sum((row) => row.goal.targetAmountBrl), current: sum((row) => row.goal.current),
       remaining: sum((row) => row.goal.remaining), expected: sum((row) => row.covered),
       conditionalRemaining: sum((row) => row.conditionalRemaining),
       monthlyWithoutIncome: sum((row) => row.monthlyWithoutIncome ?? 0),

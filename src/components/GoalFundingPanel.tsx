@@ -54,7 +54,7 @@ function AllocationDraft({ group, item, allItems, currentMonth, save, onClose }:
   const tooLate = group.rows.filter((row) => row.goal.targetMonth && item.month > row.goal.targetMonth)
   const suggest = () => {
     const allocations = distributeGoalIncome(Math.max(0, budget - outside), before.map((row) => ({ goalId: row.goal.id,
-      amount: row.goal.targetMonth && item.month > row.goal.targetMonth ? 0 : row.conditionalRemaining })))
+      amount: row.goal.targetMonth && item.month > row.goal.targetMonth ? 0 : row.conditionalRemaining ?? 0 })))
     setDraft((rows) => rows.map((row) => ({ ...row, amount: allocations.find((part) => part.goalId === row.goalId)?.amount ?? 0 })))
   }
   return <form className="space-y-3" onSubmit={(event) => {
@@ -67,7 +67,7 @@ function AllocationDraft({ group, item, allItems, currentMonth, save, onClose }:
       <p className="text-xs text-dark-text-secondary">Parte planejada para guardar: <strong>{formatCurrency(budget)}</strong> ({item.event.savedPct ?? 100}%). {outside > 0 && <span>{formatCurrency(outside)} já destinados a outras metas.</span>}</p>
       <SecondaryButton onClick={suggest}>Dividir pelo que falta</SecondaryButton>
     </div>
-    <p className="text-xs text-dark-text-muted">Valores para esta ocorrência. A sugestão divide proporcionalmente ao que falta após as outras entradas destinadas, até o limite de cada meta.</p>
+    <p className="text-xs text-dark-text-muted">Valores em reais para esta ocorrência. A sugestão divide pelo que falta após as outras entradas destinadas, até o limite de cada meta. Metas sem cotação ficam fora da sugestão.</p>
     <div className="grid grid-cols-2 gap-3">{group.rows.map(({ goal }) => <label className="block" key={goal.id}>
       <span className="app-form-label mb-1 block">Destinar a {goal.name}</span>
       <CurrencyInput showZero value={draft.find((row) => row.goalId === goal.id)?.amount ?? 0} onChange={(amount) => setDraft((rows) => rows.map((row) => row.goalId === goal.id ? { ...row, amount } : row))} />
@@ -108,18 +108,20 @@ function FundingGroup({ group, items, currentMonth, save }: { group: Group; item
   return <section className="rounded-xl border border-dark-border-subtle bg-dark-surface/30 p-4">
     <div className="flex items-start justify-between gap-4"><div><h4 className="text-sm font-semibold text-dark-text">{group.name || 'Metas avulsas'}</h4><p className="mt-1 text-xs text-dark-text-muted">Alvo {formatCurrency(group.target)} · {formatCurrency(group.current)} já guardados · {group.rows.length} metas</p></div><SecondaryButton onClick={() => setEditing(!editing)}><Pencil size={13} /> Destinar entradas</SecondaryButton></div>
     <div className="mt-3 grid grid-cols-3 gap-3">
-      <StatTile label="Falta guardar sem as entradas" value={formatCurrency(group.remaining)} />
-      <StatTile label="Entradas previstas destinadas" value={formatCurrency(group.expected)} />
-      <StatTile label="Falta se as entradas ocorrerem" value={formatCurrency(group.conditionalRemaining)} />
+      <StatTile label={`Falta guardar sem as entradas${group.unpriced ? ' · parcial' : ''}`} value={formatCurrency(group.remaining)} />
+      <StatTile label={`Entradas que cobrem as metas${group.unpriced ? ' · parcial' : ''}`} value={formatCurrency(group.expected)} />
+      <StatTile label={`Falta se as entradas ocorrerem${group.unpriced ? ' · parcial' : ''}`} value={formatCurrency(group.conditionalRemaining)} />
     </div>
     <p className="mt-2 text-xs text-dark-text-secondary">Até os prazos: {formatCurrency(group.monthlyWithoutIncome)}/mês sem as entradas; {formatCurrency(group.monthlyWithIncome)}/mês se elas ocorrerem. {missingDeadline && 'Metas sem prazo ficam fora do ritmo mensal.'}</p>
+    {group.unpriced > 0 && <p className="mt-2 text-xs text-amber-200">Totais e ritmo parciais: {group.unpriced} meta(s) sem cotação. Configure a moeda em Configurações para calcular a necessidade completa.</p>}
     {expiredDeadline && <p className="mt-2 text-xs text-amber-200">Há metas com prazo vencido. Revise seus prazos em Patrimônio; elas ficam fora do ritmo mensal.</p>}
     {editing && <IncomeEditor group={group} items={items} currentMonth={currentMonth} save={save} onClose={() => setEditing(false)} />}
     <details className="mt-4"><summary className="cursor-pointer text-xs font-medium text-dark-text-secondary">Ver divisão por meta e origem das entradas</summary>
       <div className="mt-3 overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-dark-text-muted"><th className="py-2 text-left font-medium">Meta / prazo</th><th className="p-2 text-right font-medium">Guardado</th><th className="p-2 text-right font-medium">Falta sem entradas</th><th className="p-2 text-right font-medium">Entradas destinadas</th><th className="p-2 text-right font-medium">Falta com entradas</th></tr></thead>
         <tbody>{group.rows.map((row) => <tr key={row.goal.id} className="border-t border-dark-border-subtle"><td className="py-3 pr-3"><p className="font-medium text-dark-text">{row.goal.name}</p><p className="mt-1 text-dark-text-muted">{row.goal.targetMonth ? formatMonthKey(row.goal.targetMonth) : 'Sem prazo'}</p>
           {row.sources.map((source) => <p key={source.item.id} className="mt-1 text-dark-text-muted">{source.item.event.name} · {formatMonthKey(source.item.month)}: {formatCurrency(source.expected)} previstos{source.received > 0 ? ' · ' + formatCurrency(source.received) + ' recebidos associados' : ''}{!source.inTime ? ' · após o prazo' : ''}{source.item.cancelled ? ' · cancelada' : ''}{source.item.overdue && source.expected > 0 ? ' · atrasada' : ''}</p>)}
-          {row.expected > row.covered + 0.005 && <p className="mt-1 text-dark-text-muted">{formatCurrency(row.expected - row.covered)} acima do que falta; essa sobra não é redistribuída automaticamente.</p>}
+          {row.covered !== null && row.expected > row.covered + 0.005 && <p className="mt-1 text-dark-text-muted">{formatCurrency(row.expected - row.covered)} acima do que falta; essa sobra não é redistribuída automaticamente.</p>}
+          {row.goal.currency && row.goal.currency !== 'BRL' && <p className="mt-1 text-dark-text-muted">Objetivo {formatCurrency(row.goal.targetAmount, row.goal.currency)}{row.goal.marginPct ? ` + ${row.goal.marginPct}% de margem` : ''}{row.goal.targetAmountBrl === null ? ' · cotação pendente' : ' · equivalente pelo câmbio utilizado'}</p>}
           {row.received > 0 && <p className="mt-1 text-dark-text-secondary">Recebido só conta como guardado quando destinado à meta em Patrimônio.</p>}
         </td><td className="p-2 text-right align-top tabular-nums">{formatCurrency(row.goal.current)}</td><td className="p-2 text-right align-top tabular-nums">{formatCurrency(row.goal.remaining)}</td><td className="p-2 text-right align-top tabular-nums">{formatCurrency(row.covered)}</td><td className="p-2 text-right align-top tabular-nums">{formatCurrency(row.conditionalRemaining)}{row.monthlyWithIncome !== null && <p className="mt-1 text-dark-text-muted">{formatCurrency(row.monthlyWithIncome)}/mês</p>}</td></tr>)}</tbody>
       </table></div>
@@ -135,9 +137,9 @@ export function GoalFundingPanel() {
   const capacity = contributionPlan(scenarios.activeScenario, investments.holdings, investments.goals, debts.debts).capacity
   const needed = funding.groups.reduce((sum, group) => sum + group.monthlyWithoutIncome, 0)
   if (!funding.groups.length) return null
-  return <Panel><PanelHeader title="Metas e entradas previstas" icon={<Flag size={16} />} description="Agrupe objetivos da viagem e divida cada entrada entre eles. Previsão reduz apenas a necessidade condicional; não aumenta o dinheiro guardado. Valores em reais, sem estimar câmbio ou conversão." actions={<SecondaryButton onClick={() => setGrouping(!grouping)}>Organizar grupos</SecondaryButton>} />
+  return <Panel><PanelHeader title="Metas e entradas previstas" icon={<Flag size={16} />} description="Agrupe objetivos e divida cada entrada entre eles. Valores em reais; metas em euro e dólar usam a cotação de Configurações, custos e margem. Entradas previstas não aumentam o dinheiro guardado." actions={<SecondaryButton onClick={() => setGrouping(!grouping)}>Organizar grupos</SecondaryButton>} />
     {grouping && <GroupEditor goals={investments.goals.filter((goal) => !goal.archivedAt && goal.kind === 'funding')} save={funding.saveGroups} onClose={() => setGrouping(false)} />}
-    <p className={`mt-3 text-xs ${needed > capacity ? 'text-amber-200' : 'text-dark-text-secondary'}`}>As metas com prazo exigem juntas {formatCurrency(needed)}/mês sem entradas; capacidade do plano: {formatCurrency(capacity)}. {needed > capacity ? `Faltam ${formatCurrency(needed - capacity)}/mês. Revise prazos, alvos ou o aporte.` : 'Este ritmo é necessidade, não aporte reservado. Defina os destinos em Planejar.'}</p>
+    <p className={`mt-3 text-xs ${needed > capacity ? 'text-amber-200' : 'text-dark-text-secondary'}`}>As metas com prazo e cotação exigem juntas {formatCurrency(needed)}/mês sem entradas{funding.groups.some((group) => group.unpriced) ? ' (parcial: há metas sem cotação)' : ''}; capacidade do plano: {formatCurrency(capacity)}. {needed > capacity ? `Faltam ${formatCurrency(needed - capacity)}/mês. Revise prazos, alvos ou o aporte.` : 'Este ritmo é necessidade, não aporte reservado. Defina os destinos em Planejar.'}</p>
     <div className="mt-4 space-y-3">{funding.groups.map((group) => <FundingGroup key={group.name} group={group} items={items} currentMonth={activeCycle.month} save={funding.saveAllocation} />)}</div>
   </Panel>
 }

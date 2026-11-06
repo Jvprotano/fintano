@@ -300,6 +300,9 @@ export interface GoalV7 {
   name: string
   groupName?: string
   targetAmountCents: MoneyCents
+  /** Centésimos da moeda do objetivo; ausência de moeda significa BRL. */
+  currency?: import('../types').GoalCurrency
+  marginPct?: number
   targetMonth?: MonthKey
   color: string
   createdAt: string
@@ -437,6 +440,7 @@ export interface FinTanoBackupV8 extends Omit<FinTanoBackupV7, 'schemaVersion' |
 /** v9 explicita o valor atual sem reduzir o histórico de avaliações aceito no arquivo. */
 export interface FinTanoBackupV9 extends Omit<FinTanoBackupV8, 'schemaVersion' | 'investments' | 'cards'> {
   schemaVersion: 9
+  exchangeSettings?: import('../types').ExchangeSettings
   cards: FinTanoBackupV8['cards'] & { thirdParties?: CardThirdPartyV9[] }
   profile: FinTanoBackupV8['profile'] & { recurringTemplateId?: string }
   planning: FinTanoBackupV8['planning'] & { monthlyPlans?: MonthlyPlanV9[] }

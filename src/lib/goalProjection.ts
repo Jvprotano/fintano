@@ -1,4 +1,4 @@
-import type { ForecastPoint, GoalSummary } from '../types'
+import type { ExchangeSettings, ForecastPoint, GoalSummary } from '../types'
 import { summarizeGoals, type GoalContext } from './goals'
 import { holdingPurpose, usableHoldingValue, type FinancialHolding } from './investments'
 import { incomeAllocationParts } from './goalFunding'
@@ -12,6 +12,7 @@ export function projectGoalSources(input: {
   contributions: Record<string, SourceContribution[]>; items: ReconciledOccurrence[]
   annualReturnPct: number; conditional: boolean; startAssets: number
   protectedContributions?: Record<string, number>
+  exchangeSettings?: ExchangeSettings
 }) {
   const holdings = input.holdings.map((holding) => structuredClone(holding))
   const balances = Object.fromEntries(input.goals.map((goal) => [goal.id, goal.ownBalance]))
@@ -78,6 +79,6 @@ export function projectGoalSources(input: {
       goalOwnBalances: balances, assetsBalance: point.properties, debtBalance: point.debt,
     }
     previousAssets = point.assets
-    return { month: point.month, goals: summarizeGoals(input.goals.map((goal) => ({ ...goal, transactions: [{ id: 'projection', amount: balances[goal.id], date: `${point.month}-01`, kind: 'opening_balance' }] })), context) }
+    return { month: point.month, goals: summarizeGoals(input.goals.map((goal) => ({ ...goal, transactions: [{ id: 'projection', amount: balances[goal.id], date: `${point.month}-01`, kind: 'opening_balance' }] })), context, point.month, input.exchangeSettings) }
   })
 }

@@ -1,5 +1,7 @@
 # Pendências do FinTano
 
+Metas permitem alvos em real, euro e dólar, com margem de segurança e necessidade em reais pelo custo de câmbio de Configurações. Cotações públicas do Banco Central podem ser atualizadas automaticamente ou substituídas por custo manual; Patrimônio, Futuro e backup preservam suas unidades. Sem pendências de implementação para esse fluxo; o controle de moeda estrangeira já comprada não está incluído e depende de uma necessidade específica. Uso e limites em [funcionamento](funcionamento.md), contrato em [dados e backup](dados-e-backup.md).
+
 Ciclo distingue o saldo após Desejos destinados do **Saldo projetado pelo plano**, que reserva o consumo restante por custo e Desejo em conta e preserva gastos acima do plano. Sem pendências de implementação para essa leitura; cálculo e limites em [funcionamento](funcionamento.md).
 
 Planejar permite alternar entre Atual (plano real do ciclo) e cenários independentes, como IDEAL, consultar e editar todos os valores e criar variações antes de simular. Rascunhos de cenários são salvos explicitamente, com revisão e opção de usá-los como modelo dos próximos ciclos; selecionar ou editar uma simulação preserva o plano real, os fatos e as projeções operacionais. Sem pendências de implementação para esse fluxo; alcance e preservação dos planos futuros em [funcionamento](funcionamento.md).

@@ -26,6 +26,20 @@ O teto pessoal é editado em Configurações; o uso e o valor disponível contin
 
 **Dados e backup** reúne exportação/importação. **Recuperação e limpeza**, recolhida inicialmente, dá acesso às cópias automáticas, ao original pré-migração quando disponível e à limpeza com confirmação. Importar/restaurar conserva a conferência antes da substituição. Exportar backup também continua como atalho no menu de três pontos, junto aos atalhos de teclado.
 
+## Cotações e metas em moeda estrangeira
+
+**Configurações → Cotações para metas** mostra Euro (EUR) e Dólar americano (USD), com a PTAX de venda do último fechamento publicado pelo Banco Central, a data de referência e o custo efetivo utilizado. A consulta pública não exige conta ou chave e não recebe dados financeiros. A busca automática vem ativa, consulta ao abrir quando a referência não foi buscada nas últimas seis horas e verifica novamente a cada seis horas ou ao voltar à janela. **Atualizar cotações** permite consultar a qualquer momento, mesmo com a busca automática desativada. Uma falha conserva a última cotação e permite ajuste manual; referências com mais de quatro dias são sinalizadas para conferência.
+
+Em **Ajustar**, informar custos percentuais estimados sobre a PTAX ou escolher **Usar meu custo efetivo** e informar quantos reais custam uma unidade da moeda, já incluindo tarifas e tributos. O custo manual prevalece, sem receber novamente o percentual estimado; consultas automáticas continuam mostrando a referência do Banco Central, sem sobrescrever o ajuste. Desmarcar o custo manual volta a usar a referência mais os custos configurados. Salvar/cancelar conserva o rascunho em falhas e recusa ajustes concorrentes da mesma moeda.
+
+No cadastro de uma meta, escolher BRL, EUR ou USD e informar o valor na unidade correspondente. O prazo opcional **Dinheiro pronto até** é o mês em que os recursos precisam estar preparados. Metas estrangeiras permitem uma **Margem de segurança (%)**, separada dos custos de câmbio. A necessidade em reais é alvo × custo efetivo × (1 + margem/100), arredondada em centavos. Aportes, resgates, posições, destinações e patrimônio permanecem em reais; mudar cotação não cria movimentos, rendimentos ou mudanças nos fechamentos passados.
+
+O objetivo em moeda estrangeira aparece em destaque; a meta mostra reais destinados, equivalente estimado, percentual coberto e falta nas duas moedas. O progresso e o ritmo mensal consideram a margem quando informada. O equivalente representa o que os reais comprariam pelo câmbio utilizado, sem afirmar que a moeda já foi comprada. O controle de quantidades efetivamente compradas de moeda estrangeira não faz parte deste fluxo.
+
+**Editar objetivo e prazo** abre uma edição com salvar/cancelar para moeda, alvo, prazo e margem. Trocar a moeda limpa o valor-alvo do rascunho e exige informar o novo objetivo; nenhum saldo guardado é convertido. Metas existentes permanecem em reais até alteração explícita. A moeda não é inferida pelo nome da viagem.
+
+Sem cotação, o saldo em reais continua conhecido, mas o progresso, a falta, o ritmo e a previsão de atendimento do objetivo ficam pendentes. Os grupos e o ritmo conjunto no Futuro são identificados como parciais; a divisão automática de entradas ignora necessidades sem cotação. Com cotação disponível, metas de diferentes moedas são somadas somente pelo equivalente em reais. Entradas previstas continuam separadas do dinheiro guardado e são destinadas em reais.
+
 ## Plano, referência e simulação
 
 Cada competência tem seu próprio plano, inicialmente derivado do modelo recorrente. O seletor **Planejar · Atual** abre **Atual · plano do ciclo**: editar essa consulta salva automaticamente o plano real da competência ativa, usado no Ciclo e nas projeções.
@@ -178,7 +192,7 @@ Uma saída ligada a custo ou cartão ocupa sua verba uma vez. Parcelas de dívid
 
 Metas projetam apenas as próprias fontes: saldo do livro, parcela destinada de posições, destinos mensais e, na hipótese, divisões explícitas de entradas por ocorrência. Indicadores acompanham as fontes escolhidas. Redução de dívida melhora apenas os indicadores que a incluem; não aumenta uma meta de carteira. Saídas além do caixa mensal usam primeiro a parcela sem finalidade e depois rateiam as fontes utilizáveis, podendo reduzir metas. Essa regra é uma hipótese de financiamento, sem escolher uma conta bancária ou prometer saldo diário.
 
-Alvos e previsões de metas permanecem nominais em reais. No gráfico, Nominal e Reais de hoje mudam todas as séries para a mesma unidade, inclusive dívidas. Taxas, valorização e inflação são premissas. Reinvestir parcelas liberadas não soma a mesma sobra novamente quando a opção de incluir sobras já está ativa ou quando foi fixado um aporte na simulação.
+Os saldos e as previsões de metas são nominais em reais. Alvos em EUR e USD são convertidos pela cotação efetiva de Configurações, acrescida da margem da meta; essa premissa fica constante ao longo do horizonte, sem prever o câmbio futuro. No gráfico, Nominal e Reais de hoje mudam todas as séries para a mesma unidade, inclusive dívidas. Taxas, valorização e inflação são premissas. Reinvestir parcelas liberadas não soma a mesma sobra novamente quando a opção de incluir sobras já está ativa ou quando foi fixado um aporte na simulação.
 
 ## Metas e entradas previstas
 
@@ -190,7 +204,7 @@ O resumo mostra dinheiro já guardado, falta sem as entradas, entradas que cobre
 
 Receber não é guardar. Em recebimentos parciais, a parcela ainda esperada de cada destinação cai proporcionalmente ao restante da entrada. A parcela recebida aparece como contexto e só conta no guardado quando destinada à posição/meta em Patrimônio. Cancelar ou adiar para depois do prazo retira a cobertura prevista, preservando os fatos e a divisão. Reduzir o valor ou o percentual guardado exige primeiro ajustar uma divisão que exceda a nova verba.
 
-Exemplo: metas de R$ 14.350, com R$ 1.000 já destinados, exigem R$ 13.350 sem depender de entradas. Destinar R$ 7.500 do décimo terceiro e R$ 1.200 do dissídio deixa R$ 4.650 a guardar se ambas ocorrerem, ou R$ 465/mês de outubro/2026 a julho/2027, incluindo esses meses. A base continua exigindo R$ 13.350. Todos os valores deste planejamento são nominais em reais; ele não estima câmbio, conversão ou taxas da viagem. Ajustar alvo e prazo da meta conforme o orçamento e a data em que os recursos precisam estar preparados.
+Exemplo: metas de R$ 14.350, com R$ 1.000 já destinados, exigem R$ 13.350 sem depender de entradas. Destinar R$ 7.500 do décimo terceiro e R$ 1.200 do dissídio deixa R$ 4.650 a guardar se ambas ocorrerem, ou R$ 465/mês de outubro/2026 a julho/2027, incluindo esses meses. A base continua exigindo R$ 13.350. Os totais deste planejamento são nominais em reais. Metas em euro e dólar usam o custo de câmbio configurado e sua margem de segurança; o valor resultante é uma estimativa revisável, sem prever a cotação na data da viagem. Ajustar alvo e prazo da meta conforme o orçamento e a data em que os recursos precisam estar preparados.
 ## Ocorrências e agenda
 
 A lista principal de Futuro ordena cada previsão pela próxima ocorrência pendente conciliada. O resumo mostra data e restante, incluindo vencidas e parciais; realizar uma ocorrência avança para a próxima. O detalhe permite consultar outras ocorrências e os registros realizados/cancelados.

@@ -41,6 +41,8 @@ import {
   normalizeExpectedEvent,
 } from '../lib/forecast'
 import { normalizeGoal } from '../lib/goals'
+import { FOREIGN_CURRENCIES, normalizeExchangeSettings, validExchangeDate } from '../lib/exchange'
+import type { ExchangeSettings } from '../types/exchange'
 import { normalizeSnapshot } from '../lib/history'
 import {
   holdingPurpose,
@@ -742,6 +744,8 @@ export function repositoryToBackupV7(
       name: goal.name,
       groupName: goal.groupName,
       targetAmountCents: toCents(goal.targetAmount),
+      currency: goal.currency,
+      marginPct: goal.marginPct,
       targetMonth: goal.targetMonth,
       color: goal.color,
       createdAt: normalizePersistedInstant(goal.createdAt),
@@ -949,6 +953,8 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
     name: goal.name,
     groupName: goal.groupName,
     targetAmount: fromCents(goal.targetAmountCents),
+    currency: goal.currency,
+    marginPct: goal.marginPct,
     targetMonth: goal.targetMonth,
     color: goal.color,
     transactions: ledgerFromV7(backup.investments.ledgerEntries, 'goal', goal.id),
@@ -1469,6 +1475,9 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   }
   for (const goal of backup.goals) {
     if (goal.groupName !== undefined && typeof goal.groupName !== 'string') add('error', 'goal_group_invalid', 'Nome do grupo de metas inválido.', goal.id)
+    if (goal.currency !== undefined && !['BRL', 'EUR', 'USD'].includes(goal.currency)) add('error', 'goal_currency_invalid', 'Moeda da meta inválida.', goal.id)
+    if (goal.marginPct !== undefined && (typeof goal.marginPct !== 'number' || !Number.isFinite(goal.marginPct) || goal.marginPct < 0 || goal.marginPct > 100 || (goal.currency ?? 'BRL') === 'BRL' && goal.marginPct !== 0)) add('error', 'goal_margin_invalid', 'Margem da meta inválida.', goal.id)
+    if (!Number.isSafeInteger(goal.targetAmountCents) || goal.targetAmountCents < 0) add('error', 'goal_target_invalid', 'Valor-alvo da meta inválido.', goal.id)
     if (goal.archivedAt && !Number.isFinite(Date.parse(goal.archivedAt))) {
       add('error', 'goal_archive_invalid', 'Meta tem data de arquivamento inválida.', goal.id)
     }
@@ -1680,6 +1689,22 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
     }
   }
 
+  if (backup.exchangeSettings !== undefined) {
+    const settings = backup.exchangeSettings
+    const positive = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0
+    const instant = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value))
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings) || typeof settings.autoUpdate !== 'boolean' || !settings.currencies || typeof settings.currencies !== 'object' || Array.isArray(settings.currencies) || Object.keys(settings.currencies).some((currency) => !FOREIGN_CURRENCIES.includes(currency as typeof FOREIGN_CURRENCIES[number]))) {
+      add('error', 'exchange_settings_invalid', 'Configuração de câmbio inválida.')
+    } else for (const currency of FOREIGN_CURRENCIES) {
+      const row = settings.currencies[currency]
+      if (!row || typeof row !== 'object' || Array.isArray(row) || typeof row.costsPct !== 'number' || !Number.isFinite(row.costsPct) || row.costsPct < 0 || row.costsPct > 100 ||
+        row.manualRate !== undefined && (!positive(row.manualRate) || !instant(row.manualUpdatedAt)) || row.manualUpdatedAt !== undefined && !instant(row.manualUpdatedAt) ||
+        row.reference !== undefined && (!row.reference || typeof row.reference !== 'object' || Array.isArray(row.reference) || !positive(row.reference.rate) || !validExchangeDate(row.reference.date) || !instant(row.reference.fetchedAt))) {
+        add('error', 'exchange_quote_invalid', `Cotação ou custos inválidos para ${currency}.`)
+      }
+    }
+  }
+
   const scanMoney = (value: unknown, path: string) => {
     if (Array.isArray(value)) {
       value.forEach((item, index) => scanMoney(item, `${path}[${index}]`))
@@ -1849,6 +1874,7 @@ export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = 
     }) : undefined
   return {
     ...base, schemaVersion: 9,
+    exchangeSettings: document.collections.exchangeSettings === undefined ? undefined : normalizeExchangeSettings(document.collections.exchangeSettings as ExchangeSettings),
     cards: { ...base.cards, thirdParties: collection<CardThirdParty[]>(document, 'cardThirdParties', []).map(({ amount, payments, ...row }) => ({
       ...row, amountCents: toCents(amount), payments: payments.map(({ amount, ...payment }) => ({ ...payment, amountCents: toCents(amount) })),
     })) },
@@ -1865,6 +1891,7 @@ export function repositoryToBackupV9(document: RepositoryDocument, exportedAt = 
 
 export function backupV9ToRepository(backup: FinTanoBackupV9): RepositoryDocument {
   const base = backupV8ToRepository({ ...backup, schemaVersion: 8 })
+  if (backup.exchangeSettings !== undefined) base.collections.exchangeSettings = normalizeExchangeSettings(backup.exchangeSettings)
   base.collections.cardThirdParties = (backup.cards.thirdParties ?? []).map(({ amountCents, payments, ...row }) => ({
     ...row, amount: fromCents(amountCents), payments: payments.map(({ amountCents, ...payment }) => ({ ...payment, amount: fromCents(amountCents) })),
   }))

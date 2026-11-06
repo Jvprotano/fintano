@@ -1,4 +1,5 @@
 import type { LedgerEntry } from './core'
+import type { GoalCurrency } from './exchange'
 
 export interface EmergencyFundState {
   current: number
@@ -30,6 +31,9 @@ export interface FinancialGoal {
   /** Agrupa objetivos relacionados, sem criar outro saldo. */
   groupName?: string
   targetAmount: number
+  /** Unidade do alvo. Livros, posições e destinações continuam em reais. */
+  currency?: GoalCurrency
+  marginPct?: number
   targetMonth?: string
   color: string
   transactions: LedgerEntry[]
@@ -57,10 +61,14 @@ export interface GoalSummary extends FinancialGoal {
   holdingAllocations: GoalHoldingAllocationSummary[]
   allocatedBalance: number
   trackingBalance: number
-  remaining: number
-  progress: number
+  targetAmountBrl: number | null
+  exchangeRate: number | null
+  currentInTargetCurrency: number | null
+  remainingInTargetCurrency: number | null
+  remaining: number | null
+  progress: number | null
   monthsLeft: number | null
-  suggestedMonthly: number
+  suggestedMonthly: number | null
   isComplete: boolean
 }
 

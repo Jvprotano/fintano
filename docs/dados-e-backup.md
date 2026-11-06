@@ -14,6 +14,7 @@ V17 identifica a base do produto. O backup atualmente exportado usa `schemaVersi
 | Registros antigos de adiantamentos e devoluções | `cardThirdParties`, preservado apenas para compatibilidade, sem efeito no ciclo ativo ou prévia |
 | Investimentos e movimentos | `investmentHoldings`, `emergencyFund` e livros de metas |
 | Bens, dívidas e metas | `assets`, `debts` e `goals` |
+| Referências e custos de câmbio das metas | `exchangeSettings` |
 | Eventos e premissas | `forecastEvents` e `forecastAssumptions` |
 | Fechamentos | `history` |
 | Dados preservados pelo conversor | `backupCarryover`; não criar uma segunda fonte operacional de totais |
@@ -24,10 +25,12 @@ Componentes consomem os hooks e cálculos compartilhados. `useFinancas` integra 
 
 O arquivo exportado tem nome `fintano-backup-v9-AAAA-MM-DD.json`. Seu esquema está em `src/data/backupSchemaV7.ts`; validação e conversão estão em `src/data/backupV7.ts`; operação de exportação/importação e cópias estão em `src/lib/backup.ts`.
 
-- Valores monetários `*Cents` são inteiros em centavos. O runtime converte para reais nos campos operacionais.
+- Valores monetários `*Cents` são inteiros em centavos. O runtime usa reais nos campos operacionais, exceto o alvo da meta, que usa a moeda escolhida conforme descrito abaixo.
 - `actuals.cycles[].costPayments[].adjustments` é opcional e conserva os ajustes feitos pelos botões de adicionar/diminuir, com `id`, `deltaCents` assinado e `recordedAt`. No runtime, `costAdjustments` guarda os mesmos registros por custo, com `delta` em reais. São contexto do total já registrado, sem nova saída de caixa ou soma aos cálculos. A interface mostra os três mais recentes, mas o backup conserva todos. Limpar um custo remove seus ajustes; arquivos antigos continuam aceitos no backup v9, sem inventar lançamentos. IDs duplicados, valores inválidos ou zero e instantes inválidos são recusados.
 - Competências usam `AAAA-MM`; datas e instantes têm seus campos próprios.
 - IDs e referências entre cartões, posições, metas, eventos e movimentos devem sobreviver à ida e volta.
+- Metas conservam `currency: BRL | EUR | USD` (ausência significa BRL) e `marginPct` opcional, entre 0 e 100, somente para moeda estrangeira. `targetAmountCents` representa centésimos da moeda do objetivo; livros, destinações, saldos e todos os demais valores financeiros continuam em centavos de real. O equivalente em reais é calculado, sem substituir o alvo original nem converter dados antigos por inferência.
+- `exchangeSettings` opcional no backup v9 e no documento local guarda `autoUpdate` e `currencies.EUR/USD`: `reference` com `rate`, `date` e `fetchedAt`, `costsPct`, e `manualRate`/`manualUpdatedAt` quando informados. As taxas são números positivos com precisão de câmbio, sem conversão para centavos; custos e margem são percentuais. Datas, taxas, moedas e limites são validados antes da importação. Ausência da configuração mantém as metas antigas em BRL e permite buscar novas referências, sem inventar cotação. Custo manual, referência, precisão, alvo e margem sobrevivem à exportação/importação. Os campos opcionais mantêm o contrato público v9.
 - `goals[].includes` de tipo `holding` conserva a associação por ID: `amountCents` presente destina um valor fixo; ausente acompanha 100% do saldo utilizável da posição, inclusive quando zerado. No runtime, o campo correspondente é `amount`. O contrato v9 já conserva essa ausência; não é necessário migrar valores fixos existentes. A associação não cria saldo próprio nem movimentos na meta e participa também da projeção de suas fontes. A edição impede compartilhar uma posição vinculada a 100%, inclusive com vínculos de metas arquivadas.
 - `kind`, origem, arquivamento, competência e datas de movimentos são conservados. `operationId` vincula as partes; `cashTreatment` distingue amortização extra de principal de parcela já paga, com `linkedCostId`. Texto da observação não determina o tipo.
 - `planning.monthlyPlans` guarda o plano completo por competência. `fixedReference` guarda data e cópia independente do plano; não deve ser removido por edição ou importação.
