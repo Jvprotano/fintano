@@ -1,5 +1,7 @@
 # Pendências do FinTano
 
+A fotografia para IA oferece diagnóstico geral e planejamento de compra ou meta com objetivo livre, histórico recente, margem mês a mês e compromissos com outras metas. Sem pendências de implementação para essa exportação; uso e limites em [funcionamento](funcionamento.md).
+
 Metas permitem alvos em real, euro e dólar, com margem de segurança e necessidade em reais pelo custo de câmbio de Configurações. Cotações públicas do Banco Central podem ser atualizadas automaticamente ou substituídas por custo manual; Patrimônio, Futuro e backup preservam suas unidades. Sem pendências de implementação para esse fluxo; posições em euro e dólar guardam a quantidade real, compras/resgates conservam os reais efetivos e a meta vinculada acompanha a moeda já disponível. Uso e limites em [funcionamento](funcionamento.md), contrato em [dados e backup](dados-e-backup.md).
 
 Ciclo distingue o saldo após Desejos destinados do **Saldo projetado pelo plano**, que reserva o consumo restante por custo e Desejo em conta e preserva gastos acima do plano. Sem pendências de implementação para essa leitura; cálculo e limites em [funcionamento](funcionamento.md).

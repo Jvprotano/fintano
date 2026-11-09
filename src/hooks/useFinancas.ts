@@ -397,6 +397,16 @@ export function useFinancas() {
     const monthlyExpenses: Record<string, number> = {}
     const monthlyProtectedContributions: Record<string, number> = {}
     const freedContributionByMonth: Record<string, number> = {}
+    const monthlyBudget: {
+      month: string
+      invoice: number
+      invoiceEstimated: boolean
+      beforeDirect: number
+      plannedDirect: number
+      direct: number
+      assignedDirect: number
+      afterDirect: number
+    }[] = []
     const sources: Record<string, SourceContribution[]> = {}
     const template = scenarios.scenarios.find((row) => row.id === scenarios.recurringTemplateId) ?? activeScenario
     let initialContribution = 0
@@ -442,15 +452,16 @@ export function useFinancas() {
       const extra = relevant.filter((item) => item.event.kind === 'expense' && requiresExtraCash(item)).reduce((sum, item) => sum + item.remainingAmount, 0)
       const costs = Math.max(calculation.costsOnAccount, forecastCostsCommitted(monthSummary.rows, relevant, month))
       const wants = Math.max(calculation.wantsOnAccount, forecastWantsCommitted(monthSummary.wantRows, relevant, month))
+      const invoiceUsed = index === 0 ? invoice : Math.max(calculation.plannedOnCard, expectedInvoice)
       let available: number
       if (index === 0) {
         const income = cashFlow.totalIn + (actuals.summary.paycheck ? 0 : calculation.paycheckInAccount)
-        available = income - invoice - costs - wants
+        available = income - invoiceUsed - costs - wants
           - cashFlow.extraExpense - cashFlow.cardAdvancePaid - cashFlow.debtExtraPayments - investmentActuals.cashContributions - extra - plan.uncoveredInstallments
       } else {
         const debtExtraPaid = debts.debts.flatMap((debt) => debt.transactions).filter((tx) => tx.kind === 'amortization' && tx.cashTreatment === 'extra' && ledgerEntryCycleMonth(tx) === month).reduce((sum, tx) => sum - tx.amount, 0)
         available = (cycleActual?.paycheck?.amount ?? calculation.paycheckInAccount) + monthSummary.extraIncomeTotal
-          - costs - wants - Math.max(calculation.plannedOnCard, expectedInvoice) - monthSummary.extraExpenseTotal - debtExtraPaid
+          - costs - wants - invoiceUsed - monthSummary.extraExpenseTotal - debtExtraPaid
           - extra - uncoveredLoanPayment + freedBudget - ledger.cashContributions + ledger.cashWithdrawals
       }
       const payroll = paycheckKnown ? 0 : calculation.investmentDeductions
@@ -488,6 +499,12 @@ export function useFinancas() {
         freedContributionByMonth[month] = forecast.assumptions.reinvestFreedInstallments && !forecast.assumptions.includeLeftover && forecast.assumptions.monthlyContribution === null
           ? Math.min(freedBudget, Math.max(0, available - direct)) : 0
       }
+      const simulatedDirect = direct + (freedContributionByMonth[month] ?? 0)
+      monthlyBudget.push({
+        month, invoice: invoiceUsed, invoiceEstimated: !invoiceFacts.amountKnown || invoiceUsed > invoiceFacts.personalTotal,
+        beforeDirect: available, plannedDirect: target, direct: simulatedDirect,
+        assignedDirect: Math.min(requested, direct), afterDirect: available - simulatedDirect,
+      })
     }
     const initialExpectedIncome = initialItems.filter((item) => item.event.kind === 'income' && requiresExtraCash(item)).reduce((sum, item) => sum + item.remainingAmount * (item.event.savedPct ?? 100) / 100, 0)
     const input = {
@@ -504,7 +521,7 @@ export function useFinancas() {
     const goalInput = { exchangeSettings: investments.exchange.settings, holdings: investments.holdings, goals: investments.goals, contributions: sources, items: [...initialItems, ...items.filter((item) => item.month > activeCycle.month)], annualReturnPct: input.annualReturnPct, startAssets: input.startAssets, protectedContributions: { ...monthlyProtectedContributions, [activeCycle.month]: initialProtectedContribution } }
     return { base, conditional, baseGoals: projectGoalSources({ ...goalInput, points: base, conditional: false }),
       conditionalGoals: projectGoalSources({ ...goalInput, points: conditional, conditional: true }), invalidPlanMonths, invoiceEstimated,
-      initialContribution, initialExpense }
+      initialContribution, initialExpense, monthlyBudget }
   }, [activeScenario, activeCycle.month, scenarios.scenarios, scenarios.recurringTemplateId, scenarios.monthlyPlans,
     investments.holdings, investments.goals, investments.exchange.settings, investments.summary.financialAssets, emergencyFund, forecast.events, forecast.assumptions,
     debts.debts, cards.accounts, cards.settings.currentDueMonth, cards.summary,

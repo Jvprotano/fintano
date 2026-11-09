@@ -5,6 +5,7 @@ import {
   buildFinancialAnalysisSnapshot,
   buildFinancialAnalysisPrompt,
 } from '../lib/aiAnalysis'
+import { inputClass, selectClass } from '../lib/format'
 import { PrimaryButton, SecondaryButton } from './ui'
 
 async function copyText(text: string) {
@@ -32,18 +33,26 @@ function AnalysisContent({ onClose }: { onClose: () => void }) {
   const store = useFinancasStore()
   const titleId = useId()
   const descriptionId = useId()
+  const objectiveHintId = useId()
   const closeRef = useRef<HTMLButtonElement>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
   const [feedback, setFeedback] = useState('')
+  const [mode, setMode] = useState('diagnosis')
+  const [objective, setObjective] = useState('')
+  const [draft, setDraft] = useState<{ text: string; source: string } | null>(null)
 
-  const generated = useMemo(() => buildFinancialAnalysisPrompt(buildFinancialAnalysisSnapshot(store)), [store])
-  const [source, setSource] = useState(generated)
-  const [prompt, setPrompt] = useState(generated)
-  const changed = source !== generated
+  const planning = mode === 'planning'
+  const requestedObjective = planning ? objective.trim() : undefined
+  const snapshot = useMemo(() => buildFinancialAnalysisSnapshot(store, planning), [store, planning])
+  const generated = useMemo(() => buildFinancialAnalysisPrompt(snapshot, requestedObjective), [snapshot, requestedObjective])
+  const prompt = draft?.text ?? generated
+  const changed = draft !== null && draft.source !== generated
+  const canShare = requestedObjective !== '' && !changed && Boolean(prompt.trim())
   const dialogRef = useRef<HTMLElement>(null)
   const refresh = () => {
-    setSource(generated)
-    setPrompt(generated)
+    setDraft(null)
     setFeedback('Fotografia atualizada. Revise o texto antes de copiar.')
+    promptRef.current?.focus()
   }
   const handleClose = useCallback(() => {
     setFeedback('')
@@ -56,7 +65,7 @@ function AnalysisContent({ onClose }: { onClose: () => void }) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') handleClose()
       if (event.key === 'Tab') {
-        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button, a[href], textarea')
+        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], select, textarea')
         if (!controls?.length) return
         const first = controls[0]
         const last = controls[controls.length - 1]
@@ -110,7 +119,7 @@ function AnalysisContent({ onClose }: { onClose: () => void }) {
           </span>
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="text-base font-semibold tracking-tight text-dark-text">
-              Pedir análise do cenário
+              Análise financeira com IA
             </h2>
             <p id={descriptionId} className="mt-1 text-xs leading-relaxed text-dark-text-muted">
               Revise a fotografia financeira antes de levá-la para uma conversa externa.
@@ -128,17 +137,40 @@ function AnalysisContent({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          <label className="mb-3 block max-w-xs">
+            <span className="mb-1.5 block text-xs font-medium text-dark-text-secondary">Tipo de análise</span>
+            <select className={selectClass} value={mode} onChange={(event) => { setMode(event.currentTarget.value); setFeedback('') }}>
+              <option value="diagnosis">Diagnóstico geral</option>
+              <option value="planning">Planejar compra ou meta</option>
+            </select>
+          </label>
+          {planning && (
+            <div className="mb-3">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-dark-text-secondary">O que você quer decidir?</span>
+                <textarea
+                  value={objective}
+                  onChange={(event) => { setObjective(event.currentTarget.value); setFeedback('') }}
+                  placeholder="Ex.: comprar um carro por até R$ 70 mil em 12 meses, preservando a reserva."
+                  rows={2}
+                  required
+                  aria-describedby={objectiveHintId}
+                  className={`${inputClass} block resize-y`}
+                />
+              </label>
+              <p id={objectiveHintId} className="mt-1 text-xs text-dark-text-muted">Inclua valor, prazo e condições se já souber.</p>
+            </div>
+          )}
           <div className="flex items-start gap-2 rounded-xl border border-dark-border-subtle bg-dark-surface/55 px-3 py-2.5 text-xs leading-relaxed text-dark-text-secondary">
             <ShieldCheck size={15} className="mt-0.5 shrink-0 text-primary-400" />
             <span>
-              O FinTano não chama uma API nem envia nada sozinho. O texto inclui nomes e valores do
-              cenário; abrir um serviço apenas copia o texto e abre uma conversa vazia. Você decide o que colar e enviar.
+              O texto inclui nomes e valores do seu plano. Abrir um serviço copia a mensagem e abre uma conversa vazia. Você decide o que colar e enviar.
             </span>
           </div>
 
           {changed && (
             <div className="mt-3 flex items-center justify-between gap-3 text-xs text-amber-200" role="status">
-              <span>As fontes mudaram. Este texto conserva a fotografia anterior e suas edições.</span>
+              <span>As fontes mudaram ou você alterou o objetivo. Atualizar a fotografia substitui suas edições na mensagem.</span>
               <SecondaryButton onClick={refresh}>Atualizar fotografia</SecondaryButton>
             </div>
           )}
@@ -147,9 +179,14 @@ function AnalysisContent({ onClose }: { onClose: () => void }) {
               Mensagem que será compartilhada
             </span>
             <textarea
+              ref={promptRef}
               value={prompt}
-              onChange={(event) => { setPrompt(event.currentTarget.value); setFeedback('') }}
-              className="app-field h-72 w-full resize-y px-3 py-3 font-mono text-xs leading-relaxed text-dark-text-secondary sm:h-80"
+              onChange={(event) => {
+                const text = event.currentTarget.value
+                setDraft(text === generated ? null : { text, source: draft?.source ?? generated })
+                setFeedback('')
+              }}
+              className="app-field h-[clamp(10rem,calc(100dvh-38rem),16rem)] w-full resize-y px-3 py-3 font-mono text-xs leading-relaxed text-dark-text-secondary"
               aria-label="Mensagem para análise financeira"
             />
           </label>
@@ -157,8 +194,9 @@ function AnalysisContent({ onClose }: { onClose: () => void }) {
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <button
               type="button"
+              disabled={!canShare}
               onClick={() => handleService('ChatGPT', 'https://chatgpt.com/')}
-              className="flex min-w-0 items-center gap-3 rounded-xl border border-dark-border bg-dark-surface/80 px-4 py-3 text-left transition-colors hover:border-dark-text-muted/50 hover:bg-dark-hover"
+              className="flex min-w-0 items-center gap-3 rounded-xl border border-dark-border bg-dark-surface/80 px-4 py-3 text-left transition-colors enabled:hover:border-dark-text-muted/50 enabled:hover:bg-dark-hover disabled:opacity-40"
             >
               <Bot size={18} className="shrink-0 text-dark-text-secondary" />
               <span className="min-w-0 flex-1">
@@ -172,8 +210,9 @@ function AnalysisContent({ onClose }: { onClose: () => void }) {
 
             <button
               type="button"
+              disabled={!canShare}
               onClick={() => handleService('Claude', 'https://claude.ai/')}
-              className="flex min-w-0 items-center gap-3 rounded-xl border border-dark-border bg-dark-surface/80 px-4 py-3 text-left transition-colors hover:border-dark-text-muted/50 hover:bg-dark-hover"
+              className="flex min-w-0 items-center gap-3 rounded-xl border border-dark-border bg-dark-surface/80 px-4 py-3 text-left transition-colors enabled:hover:border-dark-text-muted/50 enabled:hover:bg-dark-hover disabled:opacity-40"
             >
               <Sparkles size={18} className="shrink-0 text-dark-text-secondary" />
               <span className="min-w-0 flex-1">
@@ -194,7 +233,7 @@ function AnalysisContent({ onClose }: { onClose: () => void }) {
           </span>
           <div className="ml-auto flex flex-wrap justify-end gap-2">
             <SecondaryButton onClick={handleClose}>Fechar</SecondaryButton>
-            <PrimaryButton onClick={handleCopy} className="!py-2">
+            <PrimaryButton onClick={handleCopy} disabled={!canShare} className="!py-2">
               <Clipboard size={14} />
               Copiar texto
             </PrimaryButton>

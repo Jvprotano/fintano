@@ -4,6 +4,8 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-li
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useFinancas } from '../hooks/useFinancas'
 import { createDefaultScenario } from './scenario'
+import { planFromTemplate } from './monthlyPlans'
+import type { FinanceScenario } from '../types'
 import { readRepositoryDocument, writeRepositoryDocument } from '../data/repository'
 import { FinancasContext } from '../context/financasStore'
 import { AIAnalysisDialog } from '../components/AIAnalysisDialog'
@@ -40,8 +42,9 @@ it('exporta consultas reconciliadas, desconhecidos, zero explícito, terceiros e
   expect(prompt).toContain('realizado conciliado R$ 200,00; restante R$ 300,00')
   expect(prompt).toContain(`Sobra calculada pelo Ciclo: ${analysisMoney(app.result.current.currentCycleFacts.cash.leftover)} (parcial`)
   expect(prompt).toContain(`Disponível antes de alocar Desejos: ${analysisMoney(app.result.current.financialCycle.discretionaryAvailable)}`)
-  expect(prompt).toContain('Base sem entradas incertas')
+  expect(prompt).toContain('Base sem entradas previstas')
   expect(prompt).toContain('Hipótese com entradas esperadas')
+  expect(prompt).not.toContain('ORÇAMENTO MÊS A MÊS')
   expect(JSON.stringify(readRepositoryDocument())).toBe(before)
 })
 
@@ -53,6 +56,30 @@ it('não transforma salário confirmado em zero em ausência nem próxima fatura
   expect(prompt).toContain('Fatura formada pelo ciclo ativo (2026-11): banco desconhecido')
   expect(prompt).toContain('parcial: fatura desconhecida')
   expect(analysisMoney(Number.NaN)).toBe('desconhecido / não informado')
+})
+
+it('planeja a compra pela competência de interesse e mantém recebimentos previstos fora da margem base', () => {
+  seed()
+  const document = readRepositoryDocument()
+  const [scenario] = document.collections.scenarios as FinanceScenario[]
+  document.collections.goals = [{ id: 'viagem', name: 'Viagem', kind: 'funding', targetAmount: 1500, targetMonth: '2027-10', transactions: [] }]
+  document.collections.monthlyPlans = [{
+    ...planFromTemplate('2027-10', scenario), customized: true, salaryNet: 2200, plannedInvestmentAmount: 600,
+    contributionDestinations: [{ type: 'goal', id: 'viagem', amount: 200 }],
+  }]
+  document.collections.forecastEvents = [{ id: 'future', name: 'Bônus previsto', kind: 'income', month: '2027-10', amount: 9000, confirmed: true, recurrence: 'once' }]
+  writeRepositoryDocument(document)
+  const app = renderHook(() => useFinancas())
+  const before = JSON.stringify(readRepositoryDocument())
+  const objective = 'Comprar um carro em outubro de 2027 mantendo a meta Viagem.'
+  const prompt = buildFinancialAnalysisPrompt(buildFinancialAnalysisSnapshot(app.result.current, true), objective)
+  expect(prompt).toContain(objective)
+  expect(prompt).toContain('Nenhum fechamento neste intervalo')
+  expect(prompt).toContain(`2027-10: ${analysisMoney(0)} (estimativa) | ${[900, 600, 600, 200, 300].map(analysisMoney).join(' | ')}`)
+  expect(prompt).toContain(`Viagem [viagem] em 2027-10: falta na base ${analysisMoney(1300)}`)
+  expect(prompt).toContain('previsão confirmada, restante ainda não realizado')
+  expect(prompt).toContain('CET informado')
+  expect(JSON.stringify(readRepositoryDocument())).toBe(before)
 })
 
 it('copia o texto editado, conserva revisão quando fontes mudam e oferece atualização explícita', async () => {
@@ -80,6 +107,21 @@ it('copia o texto editado, conserva revisão quando fontes mudam e oferece atual
   await act(async () => {})
   expect(open).toHaveBeenCalledWith('https://claude.ai/', '_blank', 'noopener,noreferrer')
   expect(writeText).toHaveBeenLastCalledWith((text as HTMLTextAreaElement).value)
+
+  fireEvent.change(screen.getByRole('combobox', { name: 'Tipo de análise' }), { target: { value: 'planning' } })
+  const copy = screen.getByRole<HTMLButtonElement>('button', { name: 'Copiar texto' })
+  expect(copy.disabled).toBe(true)
+  const objective = screen.getByRole('textbox', { name: 'O que você quer decidir?' })
+  fireEvent.change(objective, { target: { value: 'Comprar um carro em 2027' } })
+  expect(copy.disabled).toBe(false)
+  expect((text as HTMLTextAreaElement).value).toContain('Comprar um carro em 2027')
+  fireEvent.change(text, { target: { value: 'Revisão para o carro' } })
+  fireEvent.change(objective, { target: { value: 'Planejar uma viagem em 2027' } })
+  expect((text as HTMLTextAreaElement).value).toBe('Revisão para o carro')
+  expect(copy.disabled).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Atualizar fotografia' }))
+  expect(copy.disabled).toBe(false)
+  expect((text as HTMLTextAreaElement).value).toContain('Planejar uma viagem em 2027')
   fireEvent.keyDown(document, { key: 'Escape' })
   expect(close).toHaveBeenCalledOnce()
 })

@@ -493,8 +493,8 @@ function AppShell() {
               type="button"
               onClick={() => setShowAIAnalysis(true)}
               className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary-400/15 bg-primary-500/[0.06] px-3 text-primary-200 shadow-sm shadow-black/15 transition-colors hover:border-primary-400/30 hover:bg-primary-500/[0.1] hover:text-primary-100"
-              aria-label="Pedir análise do plano Atual à IA"
-              title="Pedir análise do plano Atual à IA"
+              aria-label="Análise financeira com IA"
+              title="Análise financeira com IA"
             >
               <Sparkles size={15} />
               <span className="hidden xl:inline text-xs font-semibold">Analisar</span>
