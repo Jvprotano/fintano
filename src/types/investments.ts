@@ -19,8 +19,10 @@ export type GoalInclusionType =
 export interface GoalInclusion {
   type: GoalInclusionType
   id?: string
-  /** Valor fixo destinado; ausência em uma inclusão de posição acompanha 100% do saldo utilizável. */
+  /** Valor fixo em reais (legado). Sem valor em nenhuma moeda, acompanha 100%. */
   amount?: number
+  foreignAmount?: number
+  foreignCurrency?: 'EUR' | 'USD'
 }
 
 export type GoalKind = 'funding' | 'tracking'
@@ -31,7 +33,7 @@ export interface FinancialGoal {
   /** Agrupa objetivos relacionados, sem criar outro saldo. */
   groupName?: string
   targetAmount: number
-  /** Unidade do alvo. Livros, posições e destinações continuam em reais. */
+  /** Unidade do alvo. Livros continuam em reais; destinações podem guardar moeda nativa. */
   currency?: GoalCurrency
   marginPct?: number
   targetMonth?: string

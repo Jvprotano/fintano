@@ -92,7 +92,9 @@ function normalizeInclusions(raw: unknown): GoalInclusion[] {
         ? {
             type,
             id,
-            ...(type === 'holding' && finiteNumber(item.amount) > 0
+            ...(type === 'holding' && finiteNumber(item.foreignAmount) > 0 && (item.foreignCurrency === 'EUR' || item.foreignCurrency === 'USD')
+              ? { foreignAmount: item.foreignAmount, foreignCurrency: item.foreignCurrency }
+              : type === 'holding' && finiteNumber(item.amount) > 0
               ? { amount: finiteNumber(item.amount) }
               : {}),
           }
@@ -173,6 +175,20 @@ function resolveTrackingInclusions(goal: FinancialGoal, context: GoalContext) {
   return { balance, labels }
 }
 
+export function isFullHoldingAllocation(inclusion: GoalInclusion) {
+  return inclusion.amount === undefined && inclusion.foreignAmount === undefined
+}
+
+/** Equivalente da destinação na avaliação atual da posição, sem custo de compra. */
+export function holdingAllocationValue(inclusion: GoalInclusion, holding: GoalContext['holdings'][number]) {
+  if (inclusion.foreignAmount !== undefined) {
+    if (!holding.fx || inclusion.foreignCurrency !== holding.fx.currency) return 0
+    const rate = holding.fx.balance > 0 ? holding.marketValue / holding.fx.balance : holding.fx.rate
+    return Math.max(0, inclusion.foreignAmount * rate)
+  }
+  return Math.max(0, finiteNumber(inclusion.amount, holding.marketValue))
+}
+
 function resolveHoldingAllocations(
   goal: FinancialGoal,
   context: GoalContext,
@@ -185,7 +201,7 @@ function resolveHoldingAllocations(
     const holding = context.holdings.find((item) => item.id === inclusion.id)
     if (!holding) continue
 
-    const requested = Math.max(0, finiteNumber(inclusion.amount, holding.marketValue))
+    const requested = holdingAllocationValue(inclusion, holding)
     const available = Math.max(0, remainingByHolding.get(holding.id) ?? holding.marketValue)
     const allocated = Math.min(requested, available, holding.marketValue)
     remainingByHolding.set(holding.id, Math.max(0, available - allocated))
@@ -195,7 +211,7 @@ function resolveHoldingAllocations(
       institution: holding.institution,
       requested,
       allocated,
-      unavailable: Math.max(0, requested - allocated),
+      unavailable: Math.max(0, Math.round((requested - allocated) * 100) / 100),
     })
   }
 
@@ -237,6 +253,10 @@ export function summarizeGoals(
     const targetAmountBrl = goalTargetInBrl(goal, exchangeSettings)
     const ownedInCurrency = holdingAllocations.reduce((sum, allocation) => {
       const holding = context.holdings.find((row) => row.id === allocation.holdingId)
+      const inclusion = goal.includes?.find((row) => row.type === 'holding' && row.id === allocation.holdingId)
+      if (holding?.fx?.currency === goal.currency && inclusion?.foreignAmount !== undefined && allocation.requested > 0) {
+        return sum + inclusion.foreignAmount * Math.min(1, allocation.allocated / allocation.requested)
+      }
       return sum + (holding?.fx && holding.fx.currency === goal.currency && holding.marketValue > 0 ? (allocation.allocated === holding.marketValue ? holding.fx.balance : holding.fx.balance * allocation.allocated / holding.marketValue) : 0)
     }, 0)
     const ownedValue = holdingAllocations.reduce((sum, allocation) => {

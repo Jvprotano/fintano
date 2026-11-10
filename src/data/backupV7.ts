@@ -762,6 +762,8 @@ export function repositoryToBackupV7(
         type: item.type,
         id: item.id,
         amountCents: item.amount === undefined ? undefined : toCents(item.amount),
+        foreignAmount: item.foreignAmount,
+        foreignCurrency: item.foreignCurrency,
       })),
     })),
     forecast: {
@@ -973,6 +975,8 @@ export function backupV7ToRepository(backup: FinTanoBackupV7): RepositoryDocumen
       type: item.type,
       id: item.id,
       amount: item.amountCents === undefined ? undefined : fromCents(item.amountCents),
+      foreignAmount: item.foreignAmount,
+      foreignCurrency: item.foreignCurrency,
     })),
   }))
   const debts: Debt[] = backup.balanceSheet.debts.map((debt) => ({
@@ -1405,6 +1409,17 @@ function inspectV9(backup: FinTanoBackupV9, migratedFromVersion: number | null):
   }
   for (const goal of backup.goals) {
     for (const inclusion of goal.includes ?? []) {
+      if (inclusion.foreignAmount !== undefined || inclusion.foreignCurrency !== undefined) {
+        const holding = backup.investments.holdings.find((item) => item.id === inclusion.id)
+        if (inclusion.type !== 'holding' || inclusion.amountCents !== undefined ||
+          !Number.isFinite(inclusion.foreignAmount) || inclusion.foreignAmount! <= 0 ||
+          !Number.isSafeInteger(Math.round(inclusion.foreignAmount! * 100)) ||
+          Math.abs(inclusion.foreignAmount! * 100 - Math.round(inclusion.foreignAmount! * 100)) > 0.00001 ||
+          !['EUR', 'USD'].includes(inclusion.foreignCurrency ?? '') || !holding?.fx ||
+          holding.fx.currency !== inclusion.foreignCurrency) {
+          add('error', 'goal_allocation_currency_invalid', 'Destinação em moeda inválida ou incompatível com a posição.', goal.id)
+        }
+      }
       if (inclusion.type === 'holding' && inclusion.id && !holdingIds.has(inclusion.id)) {
         add('warning', 'goal_holding_missing', 'Meta aponta para posição inexistente.', goal.id)
       }

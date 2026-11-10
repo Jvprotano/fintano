@@ -5,7 +5,7 @@ import { GoalTargetEditor, GoalTargetFields, type GoalTargetDraft } from './Goal
 import { LedgerList, LedgerMoveForm } from './Ledger'
 import { EmptyState, Meter, Panel, PanelHeader, PrimaryButton, SecondaryButton, SegmentedControl, Tag } from './ui'
 import { formatCurrency, formatMonthKey, formatMonths, inputClass } from '../lib/format'
-import { INCLUSION_LABELS } from '../lib/goals'
+import { holdingAllocationValue, isFullHoldingAllocation, INCLUSION_LABELS } from '../lib/goals'
 import { usableHoldingValue } from '../lib/investments'
 import { useFinancasStore, useInvestmentsStore } from '../context/financasStore'
 import type { GoalInclusion, GoalKind, GoalSummary } from '../types'
@@ -70,36 +70,49 @@ function FundingSources({ goal }: { goal: GoalSummary }) {
       const inclusion = goal.includes?.find(
         (item) => item.type === 'holding' && item.id === holding.id,
       )
-      const full = !!inclusion && inclusion.amount === undefined
-      const current = inclusion?.amount ?? 0
+      const full = !!inclusion && isFullHoldingAllocation(inclusion)
+      const currency = holding.fx?.currency ?? 'BRL'
+      const rate = holding.fx && holding.fx.balance > 0 ? holding.marketValue / holding.fx.balance : holding.fx?.rate ?? 1
+      const current = inclusion?.foreignAmount ?? Math.round((inclusion?.amount ?? 0) / rate * 100) / 100
+      const legacy = !!holding.fx && inclusion?.amount !== undefined
+      const saveAmount = (value: number) => setGoalHoldingAllocation(goal.id, holding.id, holding.fx
+        ? { foreignAmount: value, foreignCurrency: holding.fx.currency } : value)
       const otherGoals = goals
         .filter((item) => item.id !== goal.id && item.kind === 'funding')
         .filter((item) => item.includes?.some((source) => source.type === 'holding' && source.id === holding.id))
       const otherAllocations = otherGoals.flatMap((item) => item.includes ?? [])
         .filter((item) => item.type === 'holding' && item.id === holding.id)
       const usable = usableHoldingValue(holding)
-      const claimedByOthers = otherAllocations.reduce((sum, item) => sum + Math.max(0, item.amount ?? usable), 0)
-      const exclusiveElsewhere = otherAllocations.some((item) => item.amount === undefined)
+      const claimedByOthers = otherAllocations.reduce((sum, item) => sum + holdingAllocationValue(item, { ...holding, marketValue: usable }), 0)
+      const exclusiveElsewhere = otherAllocations.some(isFullHoldingAllocation)
       const available = Math.max(0, usable - claimedByOthers)
+      const availableNative = holding.fx ? Math.round(available / rate * 100) / 100 : available
+      const convertible = Math.min(current, availableNative)
 
       return <div key={holding.id} className="grid gap-3 rounded-lg border border-dark-border/70 bg-dark-input/35 p-3 lg:grid-cols-[1fr_220px] lg:items-center">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-dark-text">{holding.name}</p>
           <p className="mt-0.5 text-xs text-dark-text-muted">
-            {holding.institution || 'Instituição não informada'} · {formatCurrency(holding.marketValue)} na posição
+            {holding.institution || 'Instituição não informada'} · {holding.fx ? `${formatCurrency(holding.fx.balance, currency)} na posição · ≈ ${formatCurrency(holding.marketValue)}` : `${formatCurrency(holding.marketValue)} na posição`}
           </p>
-          <p className="mt-1 text-xs text-dark-text-muted">{full ? 'Aportes, resgates e rendimentos atualizam esta meta automaticamente.' : `Disponível para esta meta: ${formatCurrency(available)}`}</p>
+          <p className="mt-1 text-xs text-dark-text-muted">{full ? 'Aportes, resgates e rendimentos atualizam esta meta automaticamente.' : `Disponível para esta meta: ${formatCurrency(availableNative, currency)}`}</p>
           {otherGoals.length > 0 && <p className="mt-1 text-xs text-dark-text-muted">Para usar 100%, remova antes o vínculo em: {otherGoals.map((item) => `${item.name}${item.archivedAt ? ' (arquivada)' : ''}`).join(', ')}.</p>}
         </div>
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs text-dark-text-secondary">
-            <input type="checkbox" className="accent-primary-500" checked={full} disabled={!full && otherGoals.length > 0} onChange={(event) => setGoalHoldingAllocation(goal.id, holding.id, event.target.checked ? 'full' : usable)} />
+            <input type="checkbox" className="accent-primary-500" checked={full} disabled={!full && otherGoals.length > 0} onChange={(event) => event.target.checked ? setGoalHoldingAllocation(goal.id, holding.id, 'full') : saveAmount(holding.fx?.balance ?? usable)} />
             100% da posição
           </label>
-          {full ? <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(goal.holdingAllocations.find((item) => item.holdingId === holding.id)?.allocated ?? 0)} <span className="text-xs font-normal text-dark-text-muted">automático</span></p> : <label className="block">
-            <span className="mb-1 block text-xs font-medium text-dark-text-muted">Valor fixo destinado</span>
-            {exclusiveElsewhere ? <span className="text-xs text-dark-text-muted">Posição exclusiva de outra meta</span> : <CurrencyInput value={current} onChange={(value) => setGoalHoldingAllocation(goal.id, holding.id, value)} className="!py-1.5" />}
-          </label>}
+          {full ? <p className="text-sm font-semibold tabular-nums text-dark-text">{formatCurrency(holding.fx?.balance ?? goal.holdingAllocations.find((item) => item.holdingId === holding.id)?.allocated ?? 0, currency)} <span className="text-xs font-normal text-dark-text-muted">automático</span></p> : <div>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-dark-text-muted">Valor fixo destinado ({currency})</span>
+              {exclusiveElsewhere ? <span className="text-xs text-dark-text-muted">Posição exclusiva de outra meta</span> : <CurrencyInput currency={currency} ariaLabel={`Valor destinado a ${goal.name} de ${holding.name} em ${currency}`} value={current} onChange={saveAmount} className="!py-1.5" />}
+            </label>
+            {legacy && <div className="mt-2 space-y-1 text-xs text-dark-text-muted">
+              <p>Salvo em reais: {formatCurrency(inclusion.amount!)}. O campo mostra o equivalente atual; editar fixa a quantidade em {currency}.</p>
+              {!exclusiveElsewhere && convertible > 0 && <SecondaryButton onClick={() => saveAmount(convertible)}>Fixar {formatCurrency(convertible, currency)}</SecondaryButton>}
+            </div>}
+          </div>}
         </div>
       </div>
     })}

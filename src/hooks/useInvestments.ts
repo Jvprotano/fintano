@@ -26,7 +26,7 @@ import {
   type FinancialHolding,
   type InvestmentPurpose,
 } from '../lib/investments'
-import { normalizeGoal, summarizeGoals, type GoalContext } from '../lib/goals'
+import { holdingAllocationValue, isFullHoldingAllocation, normalizeGoal, summarizeGoals, type GoalContext } from '../lib/goals'
 import { finiteNumber, ledgerBalance, ledgerOperationDates, monthKey, nowIso, uid } from '../lib/shared'
 import { useExchangeRates } from './useExchangeRates'
 const DEFAULT_EMERGENCY_FUND: EmergencyFundState = {
@@ -581,9 +581,15 @@ export function useInvestments(
   )
 
   const setGoalHoldingAllocation = useCallback(
-    (goalId: string, holdingId: string, amount: number | 'full') => {
+    (goalId: string, holdingId: string, amount: number | 'full' | { foreignAmount: number; foreignCurrency: 'EUR' | 'USD' }) => {
       const holding = portfolioHoldings.find((item) => item.id === holdingId)
       if (!holding) return
+      const native = typeof amount === 'object' ? amount : undefined
+      const requestedAmount = native?.foreignAmount ?? (typeof amount === 'number' ? amount : 0)
+      if (native && (!holding.fx || native.foreignCurrency !== holding.fx.currency ||
+        !Number.isFinite(native.foreignAmount) || native.foreignAmount < 0 ||
+        !Number.isSafeInteger(Math.round(native.foreignAmount * 100)) ||
+        Math.abs(native.foreignAmount * 100 - Math.round(native.foreignAmount * 100)) > 0.00001)) return
 
       return setGoals((prev) => {
         const normalized = prev.map((goal, index) => normalizeGoal(goal, index))
@@ -594,14 +600,19 @@ export function useInvestments(
         // Uma posição inteira tem uma única finalidade, mesmo enquanto estiver zerada.
         // Vínculos arquivados também são preservados para permitir sua restauração.
         if ((amount === 'full' && otherAllocations.length > 0) ||
-          (amount !== 'full' && amount > 0 && otherAllocations.some((item) => item.amount === undefined))) return prev
+          (requestedAmount > 0 && otherAllocations.some(isFullHoldingAllocation))) return prev
         const claimedByOthers = otherAllocations.reduce(
             (sum, inclusion) =>
-              sum + Math.max(0, finiteNumber(inclusion.amount, usableHoldingValue(holding))),
+              sum + holdingAllocationValue(inclusion, { ...holding, marketValue: usableHoldingValue(holding) }),
             0,
           )
         const maximum = Math.max(0, usableHoldingValue(holding) - claimedByOthers)
-        const nextAmount = amount === 'full' ? undefined : Math.min(Math.max(0, finiteNumber(amount)), maximum)
+        const rate = holding.fx && holding.fx.balance > 0 ? usableHoldingValue(holding) / holding.fx.balance : holding.fx?.rate ?? 1
+        // O equivalente legado em BRL já foi arredondado em centavos. Arredondar
+        // também na moeda nativa evita perder um centavo ao fixar a mesma parcela.
+        const nativeMaximum = Math.round(maximum / rate * 100) / 100
+        const nextNative = native ? Math.min(native.foreignAmount, nativeMaximum) : undefined
+        const nextAmount = amount === 'full' ? undefined : native ? nextNative! * rate : Math.min(Math.max(0, finiteNumber(amount)), maximum)
 
         return normalized.map((goal, index) => {
           if (goal.id !== goalId) return goal
@@ -614,7 +625,9 @@ export function useInvestments(
               kind: 'funding',
               includes:
                 nextAmount === undefined || nextAmount > 0
-                  ? [...withoutHolding, { type: 'holding', id: holdingId, amount: nextAmount }]
+                  ? [...withoutHolding, { type: 'holding', id: holdingId, ...(native
+                    ? { foreignAmount: nextNative, foreignCurrency: native.foreignCurrency }
+                    : { amount: nextAmount }) }]
                   : withoutHolding,
             },
             index,

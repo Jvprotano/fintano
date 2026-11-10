@@ -316,6 +316,8 @@ export interface GoalV7 {
     type: GoalInclusionType
     id?: string
     amountCents?: MoneyCents
+    foreignAmount?: number
+    foreignCurrency?: 'EUR' | 'USD'
   }[]
 }
 
